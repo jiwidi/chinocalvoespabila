@@ -119,8 +119,10 @@ button{cursor:pointer}
 .cell.hl{border-color:#fff}
 /* A player's specs in preference order (best on the left), the one they are playing lit up. */
 .prio{display:flex;flex:none;gap:3px}
-.prio .ic{width:16px;height:16px;border-radius:3px;opacity:.3;filter:grayscale(.6)}
-.prio .ic.cur{opacity:1;filter:none;box-shadow:0 0 0 1px #fff}
+.prio .pr{display:block;padding:0;border:0;border-radius:3px;background:none}
+.prio .ic{width:18px;height:18px;border-radius:3px;opacity:.3;filter:grayscale(.6);transition:opacity .12s,filter .12s}
+.prio .pr:hover .ic{opacity:.85;filter:none}
+.prio .pr.cur .ic{opacity:1;filter:none;box-shadow:0 0 0 1px #fff}
 .cell.filled:hover .prio,.cell.filled:focus-within .prio{margin-right:24px}
 .party{display:flex;flex-wrap:wrap;gap:4px;min-height:18px;margin:8px 2px 0}
 .party .ic{width:18px;height:18px}
@@ -144,6 +146,11 @@ button{cursor:pointer}
 .chip .x{position:absolute;top:-8px;right:-8px;width:15px;height:15px;border:0;border-radius:50%;background:var(--bad);color:#fff;font-size:10px;font-weight:700;line-height:15px;opacity:0}
 .chip:hover .x,.chip .x:focus-visible{opacity:1}
 .chip.on{box-shadow:0 0 0 2px var(--c),0 0 0 4px #fff}
+.chip.dragging{opacity:.35}
+/* Where a spec dragged along its own row will land */
+.chip.ins-l::before,.chip.ins-r::before{content:"";position:absolute;top:-4px;bottom:-4px;width:3px;border-radius:2px;background:var(--accent)}
+.chip.ins-l::before{left:-6px}
+.chip.ins-r::before{right:-6px}
 .signups.filtering .chip:not(.elig){opacity:.2}
 .signups.filtering .chip.elig{box-shadow:0 0 0 2px var(--c),0 0 0 4px #fff}
 .su-add{appearance:none;width:26px;height:26px;padding:0;border:1px dashed var(--line-2);border-radius:5px;background:none;color:var(--muted);font-weight:700;font-size:15px;text-align:center;text-align-last:center;cursor:pointer}
@@ -666,8 +673,12 @@ button{cursor:pointer}
       img(sp.icon) + label + (u && !isEdit ? prioHTML(u.c, m.s) : "") + '<button type="button" class="x" data-act="remove" aria-label="Remove ' + esc(m.n || full) + '">&times;</button></div>';
   }
   // The player's signup specs, best first, with the one they are playing lit up.
+  // Click one to make it the spec the player plays in this slot.
   function prioHTML(c, cur) {
-    return '<span class="prio" aria-hidden="true">' + c.slice(0, 5).map((k) => img(SPEC[k].icon, k === cur ? "cur" : "")).join("") + "</span>";
+    return '<span class="prio">' + c.slice(0, 5).map((k, r) => {
+      const label = ordinal(r + 1) + " choice: " + specName(SPEC[k]) + (k === cur ? " (playing)" : ". Click to play this.");
+      return '<button type="button" class="pr' + (k === cur ? " cur" : "") + '" data-act="main-spec" data-spec="' + k + '" title="' + esc(label) + '" aria-label="' + esc(label) + '" aria-pressed="' + (k === cur) + '">' + img(SPEC[k].icon) + "</button>";
+    }).join("") + "</span>";
   }
 
   function renderGrid(a) {
@@ -722,7 +733,7 @@ button{cursor:pointer}
     const placed = new Map();
     state.slots.forEach((m, i) => { if (m && m.n) placed.set(m.n.toLowerCase(), i); });
     signups.innerHTML = '<div class="phead"><h2 class="ttl">Signups <span class="count">' + state.signups.length + "</span></h2></div>" +
-      '<p class="hint">Add your name, then your specs with + (up to ' + MAX_CLASSES + " classes, best first). Click a spec to place that player, or drag it onto a slot.</p>" +
+      '<p class="hint">Add your name, then your specs with + (up to ' + MAX_CLASSES + " classes, best first). Drag a spec left or right to change its priority. Click a spec to place that player, or drag it onto a slot.</p>" +
       signupRow({ id: "", n: "", c: [] }, placed) + newestFirst().map((u) => signupRow(u, placed)).join("");
     applyFilter();
   }
@@ -1022,6 +1033,11 @@ button{cursor:pointer}
       const a = act.dataset.act;
       if (a.startsWith("su-")) { signupAction(a, act.closest(".su").dataset.id, act.dataset.spec); return; }
       if (a === "remove") { removeSlot(+act.closest(".cell").dataset.i); return; }
+      if (a === "main-spec") {
+        const i = +act.closest(".cell").dataset.i, m = state.slots[i], k = act.dataset.spec;
+        if (m && m.s !== k && SPEC[k]) change((s) => { s.slots[i] = { s: k, n: m.n }; });
+        return;
+      }
       if (a === "pets") {
         pets = !pets;
         try { localStorage.setItem(PETS_KEY, pets ? "on" : "off"); } catch (err) {}
@@ -1114,11 +1130,25 @@ button{cursor:pointer}
   buffs.addEventListener("mouseover", (e) => { const b = e.target.closest(".brow"); const tag = b ? b.dataset.buff : null; if (tag !== hovered) { hovered = tag; applyFilter(); } });
   buffs.addEventListener("mouseleave", () => { hovered = null; applyFilter(); });
 
-  // Drag and drop: signup specs onto slots, players between slots, players off the raid to remove them.
+  // Drag and drop: signup specs onto slots or along their own row to reorder them, players between slots,
+  // players off the raid to remove them.
+  // Where a dragged spec would land among its own row's specs: {chip, after} or null.
+  function reorderTarget(e) {
+    if (!drag || drag.type !== "spec") return null;
+    const chip = e.target.closest(".chip");
+    if (!chip || chip.closest(".su").dataset.id !== drag.id || chip.dataset.spec === drag.key) return null;
+    const r = chip.getBoundingClientRect();
+    return { chip, after: e.clientX > r.left + r.width / 2 };
+  }
+  function clearReorderMarks() { signups.querySelectorAll(".ins-l, .ins-r, .dragging").forEach((el) => el.classList.remove("ins-l", "ins-r", "dragging")); }
   document.addEventListener("dragstart", (e) => {
     const spec = e.target.closest && e.target.closest(".chip");
     const cell = e.target.closest && e.target.closest(".cell.filled");
-    if (spec) drag = { type: "spec", key: spec.dataset.spec, n: (state.signups.find((u) => u.id === spec.closest(".su").dataset.id) || { n: "" }).n };
+    if (spec) {
+      const id = spec.closest(".su").dataset.id;
+      drag = { type: "spec", key: spec.dataset.spec, id, n: (state.signups.find((u) => u.id === id) || { n: "" }).n };
+      spec.classList.add("dragging");
+    }
     else if (cell && editing === null) { drag = { type: "cell", i: +cell.dataset.i }; cell.classList.add("dragging"); }
     else return;
     e.dataTransfer.effectAllowed = "move";
@@ -1126,6 +1156,14 @@ button{cursor:pointer}
   });
   document.addEventListener("dragover", (e) => {
     if (!drag) return;
+    const ro = reorderTarget(e);
+    signups.querySelectorAll(".ins-l, .ins-r").forEach((el) => { if (!ro || el !== ro.chip) el.classList.remove("ins-l", "ins-r"); });
+    if (ro) {
+      e.preventDefault();
+      ro.chip.classList.toggle("ins-l", !ro.after);
+      ro.chip.classList.toggle("ins-r", ro.after);
+      return;
+    }
     const cell = e.target.closest(".cell");
     const offRaid = drag.type === "cell" && e.target.closest(".signups, .buffs");
     if (!cell && !offRaid) return;
@@ -1136,8 +1174,20 @@ button{cursor:pointer}
   document.addEventListener("drop", (e) => {
     if (!drag) return;
     e.preventDefault();
+    const ro = reorderTarget(e);
     const d = drag;
     drag = null;
+    clearReorderMarks();
+    if (ro) {
+      const u = state.signups.find((x) => x.id === d.id);
+      if (u) {
+        const c = u.c.filter((k) => k !== d.key);
+        c.splice(c.indexOf(ro.chip.dataset.spec) + (ro.after ? 1 : 0), 0, d.key);
+        updateSignup(u.id, { ...u, c });
+      }
+      applyDeferred();
+      return;
+    }
     const cell = e.target.closest(".cell");
     if (cell) {
       const to = +cell.dataset.i;
@@ -1149,6 +1199,7 @@ button{cursor:pointer}
   });
   document.addEventListener("dragend", () => {
     drag = null;
+    clearReorderMarks();
     grid.querySelectorAll(".drop, .dragging").forEach((el) => el.classList.remove("drop", "dragging"));
     applyDeferred();
   });
