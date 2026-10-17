@@ -610,12 +610,16 @@ button{cursor:pointer}
   // What a raid wants, as points. The solver trades these against how far down each player's list it has to go.
   // Templates the group plays: 10 = 2 tanks, 2 healers, 6 dps; 20 = 2 tanks, 3 or 4 healers, 14-15 dps with one or two
   // dps who can flex to healing. Ranged (healers count as ranged) should match or outnumber melee.
-  const PREF_COST = (r) => 13 * r - r * r; // 1st 0, 2nd 12, 3rd 22, 4th 30, 5th 36
+  // Kept modest so a player moves to a lower choice when the raid clearly gains (a missing healer, a useless duplicate).
+  const PREF_COST = (r) => 6.5 * r - 0.5 * r * r; // 1st 0, 2nd 6, 3rd 11, 4th 15, 5th 18
+  // Hybrid dps specs are brought for their one-of-a-kind buff; a second copy adds little over a pure dps class.
+  const HYBRID_DPS = new Set(["druid_balance", "druid_feral", "paladin_retribution", "priest_shadow", "shaman_elemental", "shaman_enhancement"]);
+  const HYBRID_DUP_COST = 10; // per extra copy of the same hybrid spec
   const BLESSINGS = [["kings", 25], ["wisdom", 15], ["might", 12], ["salv", 10], ["light", 5]]; // each paladin covers one blessing
   const NEEDS = [ // [tag, points] for buffs and debuffs one player is enough for
     ["stam", 25], ["motw", 25], ["int", 20], ["armor1", 15], ["ap", 12], ["coe", 12], ["wf", 10], ["brez", 10], ["dmagic", 10],
     ["dcurse", 8], ["armor2", 6], ["crit", 5], ["scrit", 4], ["demo", 4], ["purge", 4], ["ddisease", 4], ["dpoison", 4],
-    ["rap", 3], ["hit", 3], ["spirit", 3], ["shadowres", 3], ["tongues", 2], ["mortal", 2]
+    ["frenzy", 6], ["rap", 3], ["hit", 3], ["spirit", 3], ["shadowres", 3], ["natureres", 2], ["tongues", 2], ["mortal", 2]
   ];
   // heal: healers wanted, healMax: most healers before it hurts, flex: dps who could switch to healing.
   function targets(size) {
@@ -628,10 +632,12 @@ button{cursor:pointer}
   const isFlex = (k, c) => (SPEC[k].role === "melee" || SPEC[k].role === "range") && canHeal(c);
   // entries: [{ k: chosen spec, c: that player's signup specs }]
   function compScore(entries, t) {
-    const cls = {}, role = { tank: 0, heal: 0, melee: 0, range: 0 }, tags = new Set();
-    let flex = 0;
+    const cls = {}, role = { tank: 0, heal: 0, melee: 0, range: 0 }, tags = new Set(), seen = {};
+    let flex = 0, dup = 0;
     entries.forEach(({ k, c }) => {
       const sp = SPEC[k];
+      if (HYBRID_DPS.has(k) && seen[k]) dup++;
+      seen[k] = true;
       cls[sp.cls] = (cls[sp.cls] || 0) + 1;
       role[sp.role]++;
       if (isFlex(k, c)) flex++;
@@ -640,6 +646,7 @@ button{cursor:pointer}
     let s = 40 * Math.min(role.tank, t.tank) - 20 * Math.max(0, role.tank - t.tank);
     s += 30 * Math.min(role.heal, t.heal) + 4 * Math.max(0, Math.min(role.heal, t.healMax) - t.heal) - 15 * Math.max(0, role.heal - t.healMax);
     s += 8 * Math.min(flex, t.flex);
+    s -= HYBRID_DUP_COST * dup;
     // Melee against ranged, healers counted as ranged: lose points for every melee too many, gain a little for extra ranged.
     const ranged = role.range + role.heal;
     s -= 10 * Math.max(0, role.melee - ranged);
