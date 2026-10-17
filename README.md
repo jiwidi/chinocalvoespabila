@@ -2,10 +2,10 @@
 
 A shared, live raid composition planner for World of Warcraft: Forever. Everyone with the link edits the same raid, and changes show up for everyone else within a couple of seconds.
 
-- Spec palette (Tank / Heal / Caster-Range / Melee) with real spell icons.
-- Groups of five. Each slot shows the player's name; the icon and class color show the spec.
-- Raid size 10, 20 or 40.
-- Buff coverage panel: raid buffs, totems, party buffs (per group), debuffs, resistances, dispels. Hover or click a row to highlight who brings it and which specs could.
+- Signups (left): each player writes a name and the specs they can play, best first. Up to 3 classes per player, with any number of specs in those classes. Newest signups show first. The list is separate from the groups.
+- Groups of five (right), built from the signups: click an empty slot and pick from the signups not in the raid yet, click a spec in the signups to put that player in the next empty slot, or drag a spec onto a slot. A player is in the raid only once; clicking another of their specs switches it. Signups already in the raid show their group. Each slot shows the player's name; the icon and class color show the spec.
+- Raid size 10, 20 or 40. **Clear groups** empties the groups and keeps the signups.
+- Coverage panel (under the groups): composition, raid buffs, totems, party buffs (per group), debuffs, resistances, dispels. Hover or click a row to highlight who brings it and which signups could.
 - Heads-up notes for blessing, totem and curse limits.
 - Copy roster as text for Discord.
 
@@ -36,14 +36,21 @@ Without a database you can run `RAIDCOMP_MEMORY=1 vercel dev` to use a throwaway
 
 ## API
 
-`GET /api/comp` → `{ v, size, slots }`, where `slots` has 40 entries of `null` or `{ s: "<class>_<spec>", n: "<name>" }`.
+`GET /api/comp` → `{ v, size, slots, signups }`:
+
+- `slots` has 40 entries of `null` or `{ s: "<class>_<spec>", n: "<name>" }`.
+- `signups` is a list of `{ id, n: "<name>", c: ["<class>_<spec>", ...] }` in signup order. `c` is ordered best first and holds specs from at most 3 classes.
 
 `POST /api/comp` with any of:
 
 ```json
-{ "slots": { "3": { "s": "paladin_holy", "n": "Jaime" }, "7": null }, "size": 20 }
+{
+  "slots": { "3": { "s": "paladin_holy", "n": "Jaime" }, "7": null },
+  "size": 20,
+  "signups": { "mgx2k1a0abcd": { "n": "Jaime", "c": ["paladin_holy", "priest_discipline"] }, "mgx2k1a1efgh": null }
+}
 ```
 
-Returns the full updated comp. Names are trimmed to 20 characters.
+A signup id is 6–24 lowercase letters or digits. The page makes ids that start with a base-36 timestamp, so the list stays in signup order. `null` removes a slot or a signup. Returns the full updated comp. Names are trimmed to 20 characters.
 
 Set `RAIDCOMP_PREFIX` to keep several independent raids in one database.

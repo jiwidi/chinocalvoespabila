@@ -1,6 +1,6 @@
 // Shared raid comp API.
-// GET  /api/comp           -> current comp { v, size, slots[40] }
-// POST /api/comp {slots, size} -> applies changes, returns the new comp
+// GET  /api/comp           -> current comp { v, size, slots[40], signups[] }
+// POST /api/comp {slots, size, signups} -> applies changes, returns the new comp
 //
 // Storage: Upstash Redis (Vercel Marketplace). Each slot is its own hash field,
 // so two people editing different slots at the same time never overwrite each other.
@@ -20,13 +20,34 @@ const SPECS = new Set([
 const SIZES = new Set([10, 20, 40]);
 const MAX_SLOTS = 40;
 const NAME_MAX = 20;
+const MAX_SIGNUPS = 100; // per request
+const MAX_CLASSES = 3; // per signup; any number of specs within those classes
+const SIGNUP_ID = /^[a-z0-9]{6,24}$/;
 const PREFIX = process.env.RAIDCOMP_PREFIX || "raidcomp";
-const KEYS = { version: `${PREFIX}:v`, slots: `${PREFIX}:slots`, meta: `${PREFIX}:meta` };
+const KEYS = { version: `${PREFIX}:v`, slots: `${PREFIX}:slots`, meta: `${PREFIX}:meta`, signups: `${PREFIX}:signups` };
 
 class BadRequest extends Error {}
 
 function cleanName(value) {
   return String(value ?? "").replace(/[\u0000-\u001f\u007f<>]/g, "").trim().slice(0, NAME_MAX);
+}
+
+const classOf = (spec) => spec.split("_")[0];
+
+// A signup: a name and the specs that player can bring, best first. Not linked to the raid groups.
+// Keeps specs from the first MAX_CLASSES classes only.
+function cleanSignup(v) {
+  if (!v || typeof v !== "object") return null;
+  const n = cleanName(v.n);
+  const c = [];
+  const classes = new Set();
+  for (const k of Array.isArray(v.c) ? v.c : []) {
+    if (!SPECS.has(k) || c.includes(k)) continue;
+    if (!classes.has(classOf(k)) && classes.size >= MAX_CLASSES) continue;
+    classes.add(classOf(k));
+    c.push(k);
+  }
+  return n || c.length ? { n, c } : null;
 }
 
 // HGETALL comes back as a flat [field, value, ...] array when automatic deserialization is off.
@@ -37,7 +58,7 @@ function hashToObject(hash) {
   return out;
 }
 
-function toState(version, slotsHash, metaHash) {
+function toState(version, slotsHash, metaHash, signupsHash) {
   const slots = Array(MAX_SLOTS).fill(null);
   metaHash = hashToObject(metaHash);
   for (const [field, raw] of Object.entries(hashToObject(slotsHash))) {
@@ -50,8 +71,19 @@ function toState(version, slotsHash, metaHash) {
       /* ignore a corrupt field */
     }
   }
+  const signups = [];
+  for (const [id, raw] of Object.entries(hashToObject(signupsHash))) {
+    if (!SIGNUP_ID.test(id)) continue;
+    try {
+      const u = cleanSignup(typeof raw === "string" ? JSON.parse(raw) : raw);
+      if (u) signups.push({ id, ...u });
+    } catch {
+      /* ignore a corrupt field */
+    }
+  }
+  signups.sort((a, b) => (a.id < b.id ? -1 : 1)); // ids start with a timestamp, so this is signup order
   const size = Number(metaHash && metaHash.size);
-  return { v: Number(version) || 0, size: SIZES.has(size) ? size : 20, slots };
+  return { v: Number(version) || 0, size: SIZES.has(size) ? size : 20, slots, signups };
 }
 
 function parseChanges(body) {
@@ -59,7 +91,7 @@ function parseChanges(body) {
     try { body = JSON.parse(body); } catch { throw new BadRequest("Body must be JSON"); }
   }
   if (!body || typeof body !== "object") throw new BadRequest("Body must be an object");
-  const out = { slots: {} };
+  const out = { slots: {}, signups: {} };
   if (body.slots !== undefined) {
     if (!body.slots || typeof body.slots !== "object") throw new BadRequest("slots must be an object");
     const entries = Object.entries(body.slots);
@@ -72,12 +104,39 @@ function parseChanges(body) {
       else throw new BadRequest(`Bad value for slot ${key}`);
     }
   }
+  if (body.signups !== undefined) {
+    if (!body.signups || typeof body.signups !== "object") throw new BadRequest("signups must be an object");
+    const entries = Object.entries(body.signups);
+    if (entries.length > MAX_SIGNUPS) throw new BadRequest("Too many signups");
+    for (const [id, value] of entries) {
+      if (!SIGNUP_ID.test(id)) throw new BadRequest(`Bad signup id ${id}`);
+      if (value === null) { out.signups[id] = null; continue; }
+      const u = cleanSignup(value);
+      const c = value && value.c;
+      const badSpecs = c !== undefined && !(Array.isArray(c) && c.length <= SPECS.size && c.every((k) => SPECS.has(k)) &&
+        new Set(c.map(classOf)).size <= MAX_CLASSES);
+      if (!u || badSpecs) throw new BadRequest(`Bad value for signup ${id}`);
+      out.signups[id] = u;
+    }
+  }
   if (body.size !== undefined) {
     if (!SIZES.has(body.size)) throw new BadRequest("size must be 10, 20 or 40");
     out.size = body.size;
   }
-  if (!Object.keys(out.slots).length && out.size === undefined) throw new BadRequest("Nothing to change");
+  if (!Object.keys(out.slots).length && !Object.keys(out.signups).length && out.size === undefined) throw new BadRequest("Nothing to change");
   return out;
+}
+
+// Queue HSET for new values and HDEL for nulls on one hash.
+function stageHash(tx, key, changes) {
+  const set = {};
+  const del = [];
+  for (const [field, value] of Object.entries(changes)) {
+    if (value) set[field] = JSON.stringify(value);
+    else del.push(field);
+  }
+  if (Object.keys(set).length) tx.hset(key, set);
+  if (del.length) tx.hdel(key, ...del);
 }
 
 function redisStore() {
@@ -87,41 +146,38 @@ function redisStore() {
   const redis = new Redis({ url, token, automaticDeserialization: false });
   return {
     async read() {
-      const [v, slots, meta] = await redis.pipeline().get(KEYS.version).hgetall(KEYS.slots).hgetall(KEYS.meta).exec();
-      return toState(v, slots, meta);
+      const [v, slots, meta, signups] = await redis.pipeline().get(KEYS.version).hgetall(KEYS.slots).hgetall(KEYS.meta).hgetall(KEYS.signups).exec();
+      return toState(v, slots, meta, signups);
     },
     async write(changes) {
       const tx = redis.multi();
-      const set = {};
-      const del = [];
-      for (const [i, value] of Object.entries(changes.slots)) {
-        if (value) set[i] = JSON.stringify(value);
-        else del.push(i);
-      }
-      if (Object.keys(set).length) tx.hset(KEYS.slots, set);
-      if (del.length) tx.hdel(KEYS.slots, ...del);
+      stageHash(tx, KEYS.slots, changes.slots);
+      stageHash(tx, KEYS.signups, changes.signups);
       if (changes.size !== undefined) tx.hset(KEYS.meta, { size: String(changes.size) });
       tx.incr(KEYS.version);
       tx.hgetall(KEYS.slots);
       tx.hgetall(KEYS.meta);
+      tx.hgetall(KEYS.signups);
       const out = await tx.exec();
       const n = out.length;
-      return toState(out[n - 3], out[n - 2], out[n - 1]);
+      return toState(out[n - 4], out[n - 3], out[n - 2], out[n - 1]);
     },
   };
 }
 
 // In-memory store for local development only (RAIDCOMP_MEMORY=1). Not shared between instances.
 function memoryStore() {
-  const mem = (globalThis.__raidcompMemory ||= { v: 0, slots: {}, meta: {} });
+  const mem = (globalThis.__raidcompMemory ||= { v: 0, slots: {}, meta: {}, signups: {} });
   return {
     async read() {
-      return toState(mem.v, { ...mem.slots }, { ...mem.meta });
+      return toState(mem.v, { ...mem.slots }, { ...mem.meta }, { ...mem.signups });
     },
     async write(changes) {
-      for (const [i, value] of Object.entries(changes.slots)) {
-        if (value) mem.slots[i] = JSON.stringify(value);
-        else delete mem.slots[i];
+      for (const hash of ["slots", "signups"]) {
+        for (const [field, value] of Object.entries(changes[hash])) {
+          if (value) mem[hash][field] = JSON.stringify(value);
+          else delete mem[hash][field];
+        }
       }
       if (changes.size !== undefined) mem.meta.size = String(changes.size);
       mem.v += 1;

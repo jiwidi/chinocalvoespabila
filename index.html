@@ -10,7 +10,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@700&display=swap">
 <style>
 :root{
-  /* Three panels like a raid tool: spec palette | raid groups | buff coverage. Dark, steel-blue game UI. */
+  /* Signups | raid groups, with buff coverage across the bottom. Dark, steel-blue game UI. */
   --bg:#06080c;
   --panel:#0d1118;
   --panel-2:#151b26;
@@ -52,26 +52,15 @@ button{cursor:pointer}
 .live.busy i{background:var(--accent)}
 .live.bad i{background:var(--bad)}
 
-/* Layout */
-.layout{display:grid;grid-template-columns:360px minmax(0,1fr) 290px;gap:10px;align-items:start;max-width:1500px;margin:0 auto;padding:10px max(10px,env(safe-area-inset-right)) 24px max(10px,env(safe-area-inset-left))}
-@media (max-width:1180px){.layout{grid-template-columns:350px minmax(0,1fr)}.buffs{grid-column:1 / -1;columns:3 230px;column-gap:24px}}
-@media (max-width:760px){.layout{grid-template-columns:minmax(0,1fr)}.buffs{columns:2 220px}}
+/* Layout: signups take the whole left column; groups and coverage stack on the right, so a long signup list never pushes coverage down. */
+.layout{display:grid;grid-template-columns:440px minmax(0,1fr);gap:10px;align-items:start;max-width:1500px;margin:0 auto;padding:10px max(10px,env(safe-area-inset-right)) 24px max(10px,env(safe-area-inset-left))}
+.plan{display:grid;gap:10px;min-width:0}
+@media (max-width:900px){.layout{grid-template-columns:minmax(0,1fr)}}
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:3px;min-width:0}
 .banner{grid-column:1 / -1;padding:10px 12px;border:1px solid var(--warn);background:#1d1709;color:#f6dca4;border-radius:3px;font-size:12.5px}
 
-/* Spec palette */
-.palette{padding:6px 10px 12px}
-.palette h2{margin:10px 0 6px;text-align:center;font-size:13px;color:#fff}
-.palette h2:first-child{margin-top:4px}
-.specs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px 4px}
-.spec{display:flex;align-items:center;gap:3px;min-width:0;padding:0;border:0;background:none;text-align:left;transition:opacity .12s}
-.spec .ic{width:24px;height:24px}
-.spec .lbl{flex:1;min-width:0;display:flex;align-items:center;justify-content:center;height:22px;padding:0 3px;background:var(--c);color:var(--ci);border:1px solid #000;font-family:var(--narrow);font-weight:700;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.spec:hover .lbl{filter:brightness(1.15)}
-.palette.filtering .spec:not(.elig){opacity:.2}
-.palette.filtering .spec.elig .lbl{box-shadow:0 0 0 2px #fff}
-.hint{margin:12px 2px 0;font-size:11.5px;color:var(--muted)}
-.stats{display:grid;grid-template-columns:auto 1fr;gap:3px 10px;margin-top:12px;padding-top:10px;border-top:1px solid var(--line);font-size:12px;font-weight:700}
+.hint{margin:4px 2px 10px;font-size:11.5px;color:var(--muted)}
+.stats{display:grid;grid-template-columns:auto 1fr;gap:3px 10px;margin:0;font-size:12px;font-weight:700}
 .stats dt{color:var(--muted);text-align:right}
 .stats dd{margin:0}
 .stats b{color:var(--accent);font-variant-numeric:tabular-nums}
@@ -82,8 +71,7 @@ button{cursor:pointer}
 
 /* Groups */
 .groups{padding:8px 14px 14px}
-.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 18px}
-@media (max-width:460px){.grid{grid-template-columns:minmax(0,1fr)}}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px 18px}
 .group h3{margin:2px 0 6px;text-align:center;font-size:13px;color:#fff}
 .cells{display:flex;flex-direction:column;gap:4px}
 .cell{position:relative;display:flex;align-items:center;height:30px;border:2px solid var(--line-2);background:#000;cursor:pointer;transition:opacity .12s}
@@ -97,6 +85,9 @@ button{cursor:pointer}
 .cell .x{position:absolute;right:3px;top:50%;transform:translateY(-50%);width:20px;height:20px;padding:0;border:0;border-radius:2px;background:rgba(0,0,0,.45);color:#fff;font-weight:700;font-size:12px;line-height:20px;opacity:0}
 .cell:hover .x,.cell.editing .x,.cell:focus-within .x{opacity:1}
 @media (hover:none){.cell .x{opacity:.9}}
+.cell .pick{flex:1;min-width:0;height:24px;margin:0 3px;padding:0 4px;border:0;background:#000;color:var(--text);font-weight:700;font-size:12px;cursor:pointer}
+.cell .pick option,.cell .pick optgroup{background:var(--panel);color:var(--text)}
+.cell.empty .nm{padding:0 6px}
 .cell.drop{outline:2px dashed #fff;outline-offset:1px}
 .cell.dragging{opacity:.35}
 .grid.filtering .cell.filled:not(.hl){opacity:.3}
@@ -105,8 +96,37 @@ button{cursor:pointer}
 .party .ic{width:18px;height:18px}
 .foot{margin:14px 2px 0;font-size:11.5px;color:var(--muted)}
 
+/* Signups: who can come and what they can play. A separate list, not linked to the groups. */
+.signups{padding:8px 10px 12px;container-type:inline-size}
+.signups h2{margin:2px 0 0;font-size:14px;color:var(--accent)}
+.signups h2 small{font-size:11px;color:var(--muted)}
+.su.placed{opacity:.55}
+.su.placed:hover,.su.placed:focus-within{opacity:1}
+.su .where{font-size:11px;font-weight:700;color:var(--accent)}
+.chip{cursor:grab}
+.chip.on{box-shadow:0 0 0 2px #fff}
+.signups.filtering .chip:not(.elig){opacity:.2}
+.signups.filtering .chip.elig{opacity:1;box-shadow:0 0 0 2px #fff}
+.su{display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;margin-bottom:4px;padding:3px;border:1px solid var(--line);background:#000}
+.su-name{flex:0 1 150px;min-width:96px;height:26px;padding:0 6px;border:1px solid var(--line-2);border-radius:2px;background:var(--panel-2);font-weight:700;font-size:13px}
+.su.new .su-name{border-style:dashed;background:#000}
+.su-specs{flex:1;min-width:0;display:flex;flex-wrap:wrap;align-items:center;gap:4px}
+.chip{display:inline-flex;align-items:center;height:24px;border:1px solid #000;background:var(--c);color:var(--ci);font-family:var(--narrow);font-weight:700;font-size:12px;white-space:nowrap}
+.su-specs .chip:not(:first-child){opacity:.72}
+.su-specs .chip:hover{opacity:1}
+.chip .ic{width:22px;height:22px;border:0;border-right:1px solid #000}
+.chip button{height:22px;padding:0 3px 0 5px;border:0;background:none;color:inherit;font:inherit}
+.chip button + button{padding:0 6px 0 3px;opacity:.55}
+.chip button:hover{opacity:1;text-decoration:underline}
+.su-add{height:24px;max-width:110px;padding:0 4px;border:1px dashed var(--line-2);border-radius:2px;background:#000;color:var(--muted);font-weight:700;font-size:12px;cursor:pointer}
+.su-add:hover{border-color:var(--accent);color:var(--text)}
+.su-add option,.su-add optgroup{background:var(--panel);color:var(--text)}
+.su .mini{height:24px;padding:0 6px;border:0;border-radius:2px;background:none;color:var(--muted);font-weight:700;font-size:12px}
+.su .mini:hover{color:#fff}
+@container (max-width:520px){.su-name{flex:1}.su-specs{order:1;flex-basis:100%}}
+
 /* Buffs */
-.buffs{padding:4px 10px 12px}
+.buffs{padding:4px 14px 12px;columns:220px;column-gap:28px}
 .bsec{break-inside:avoid;padding-top:6px}
 .buffs h2{margin:4px 0 3px;font-size:14px;color:var(--accent)}
 .buffs h2 small{font-size:10.5px;color:var(--muted);font-weight:400;margin-left:4px}
@@ -137,12 +157,14 @@ button{cursor:pointer}
 </header>
 <main class="layout">
   <div class="banner" id="banner" hidden></div>
-  <section class="panel palette" id="palette" aria-label="Specs"></section>
-  <section class="panel groups" aria-label="Raid groups">
-    <div class="grid" id="grid"></div>
-    <p class="foot">Everyone with this link edits the same raid. Changes show up for the others within a couple of seconds.</p>
-  </section>
-  <aside class="panel buffs" id="buffs" aria-label="Buffs and debuffs"></aside>
+  <section class="panel signups" id="signups" aria-label="Signups"></section>
+  <div class="plan">
+    <section class="panel groups" aria-label="Raid groups">
+      <div class="grid" id="grid"></div>
+      <p class="foot">Everyone with this link edits the same raid. Changes show up for the others within a couple of seconds.</p>
+    </section>
+    <section class="panel buffs" id="buffs" aria-label="Raid coverage"></section>
+  </div>
 </main>
 <div id="dialog-root"></div>
 <div class="toast" id="toast" role="status" hidden></div>
@@ -154,6 +176,8 @@ button{cursor:pointer}
   const MAX = 40;
   const SIZES = [10, 20, 40];
   const NAME_MAX = 20;
+  const FULL = "The raid is full. Remove someone or switch to a bigger size.";
+  const MAX_CLASSES = 3; // per signup; any number of specs within those classes
   const POLL_MS = 1500;
   const PETS_KEY = "raidcomp-hunter-pets";
 
@@ -213,12 +237,6 @@ button{cursor:pointer}
   SPEC_ROWS.forEach((r) => {
     SPEC[r[0]] = { key: r[0], cls: r[1], label: r[2], role: r[3], armor: r[4], token: r[5], icon: r[6], tags: r[7], pet: r[8] || [] };
   });
-  const PALETTE = [
-    ["Tank", ["druid_guardian", "paladin_protection", "warrior_protection"]],
-    ["Heal", ["druid_restoration", "paladin_holy", "shaman_restoration", "priest_holy", "priest_discipline"]],
-    ["Caster / Range", ["mage_arcane", "mage_fire", "mage_frost", "warlock_affliction", "warlock_demonology", "warlock_destruction", "hunter_beast_mastery", "hunter_marksmanship", "shaman_elemental", "druid_balance", "priest_shadow"]],
-    ["Melee", ["rogue_assassination", "rogue_combat", "rogue_subtlety", "warrior_arms", "warrior_fury", "shaman_enhancement", "druid_feral", "hunter_survival", "paladin_retribution"]]
-  ];
   // [section, party-only?, [[tag, label, icon, sources]]]
   const BUFFS = [
     ["Raid buffs", false, [
@@ -306,9 +324,13 @@ button{cursor:pointer}
       const v = src[i];
       slots.push(v && SPEC[v.s] ? { s: v.s, n: cleanName(v.n) } : null);
     }
-    return { v: Number(d.v) || 0, size: SIZES.includes(d.size) ? d.size : 20, slots };
+    const signups = (Array.isArray(d.signups) ? d.signups : []).filter((u) => u && typeof u.id === "string")
+      .map((u) => ({ id: u.id, n: cleanName(u.n), c: (Array.isArray(u.c) ? u.c : []).filter((k) => SPEC[k]) }));
+    return { v: Number(d.v) || 0, size: SIZES.includes(d.size) ? d.size : 20, slots, signups };
   }
   const same = (a, b) => (a ? a.s + "|" + a.n : "") === (b ? b.s + "|" + b.n : "");
+  // Starts with a timestamp, so sorting by id keeps signup order. The random tail avoids clashes.
+  const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 
   /* ---------- State ---------- */
   let state = normalize({});
@@ -371,7 +393,7 @@ button{cursor:pointer}
   }
 
   /* ---------- Rendering ---------- */
-  const tools = $("#tools"), palette = $("#palette"), grid = $("#grid"), buffs = $("#buffs"), banner = $("#banner"), dialogRoot = $("#dialog-root");
+  const tools = $("#tools"), grid = $("#grid"), signups = $("#signups"), buffs = $("#buffs"), banner = $("#banner"), dialogRoot = $("#dialog-root");
 
   function renderTools() {
     const status = !loaded && net === "connecting" ? ["", "Connecting…"]
@@ -384,28 +406,14 @@ button{cursor:pointer}
       SIZES.map((s) => '<button type="button" data-size="' + s + '" aria-pressed="' + (state.size === s) + '">' + s + "</button>").join("") + "</div>" +
       '<button type="button" class="btn" data-act="pets" aria-pressed="' + pets + '">Hunter pets: ' + (pets ? "On" : "Off") + "</button>" +
       '<button type="button" class="btn" data-act="copy">Copy roster</button>' +
-      '<button type="button" class="btn' + (clearArmed ? " armed" : "") + '" data-act="clear">' + (clearArmed ? "Click again to clear" : "Clear all") + "</button>" +
+      '<button type="button" class="btn' + (clearArmed ? " armed" : "") + '" data-act="clear">' + (clearArmed ? "Click again to clear" : "Clear groups") + "</button>" +
       '<span class="live ' + status[0] + '" role="status"><i></i>' + status[1] + "</span>";
   }
 
-  function renderPalette(a) {
-    let h = "";
-    PALETTE.forEach(([title, keys]) => {
-      h += "<h2>" + title + '</h2><div class="specs">' + keys.map((k) => {
-        const sp = SPEC[k], c = CLASS[sp.cls];
-        return '<button type="button" class="spec" draggable="true" data-spec="' + k + '" style="--c:' + c.color + ";--ci:" + (c.ink || "#111") + '" title="' + esc(specName(sp)) + '">' + img(sp.icon) + '<span class="lbl">' + esc(sp.label) + "</span></button>";
-      }).join("") + "</div>";
-    });
-    h += '<p class="hint">Click a spec to add it to the selected slot, or the next empty one, then type the player\'s name. You can also drag specs and players around.</p>';
-    h += '<dl class="stats" id="stats"></dl>';
-    palette.innerHTML = h;
-  }
-
-  function renderStats(a) {
+  function statsHTML(a) {
     const n = (k) => "<b>" + (a.armor[k] || 0) + "</b>";
     const r = a.roles, t = a.tokens;
-    $("#stats").innerHTML =
-      "<dt>Players</dt><dd><b>" + a.players + "</b> / " + state.size + "</dd>" +
+    return "<dt>Players</dt><dd><b>" + a.players + "</b> / " + state.size + "</dd>" +
       "<dt>Roles</dt><dd><b>" + r.tank + "</b> Tank &nbsp;<b>" + r.heal + "</b> Heal &nbsp;<b>" + r.melee + "</b> Melee &nbsp;<b>" + r.range + "</b> Range</dd>" +
       "<dt>Cloth</dt><dd>" + n("cloth") + " Int</dd>" +
       "<dt>Leather</dt><dd>" + n("leather_int") + " Int &nbsp;" + n("leather_agi") + " Agi</dd>" +
@@ -414,10 +422,22 @@ button{cursor:pointer}
       "<dt>Tokens</dt><dd><b>" + (t.conqueror || 0) + "</b> Conq &nbsp;<b>" + (t.protector || 0) + "</b> Prot &nbsp;<b>" + (t.vanquisher || 0) + "</b> Vanq</dd>";
   }
 
+  // state.signups is in signup order; the page shows the newest first.
+  const newestFirst = () => state.signups.slice().reverse();
+
+  // For the selected empty slot: every spec of every signup that is not in the raid yet.
+  function pickHTML(i) {
+    const placed = new Set(state.slots.filter(Boolean).map((m) => m.n.toLowerCase()));
+    const opts = newestFirst().filter((u) => u.n && u.c.length && !placed.has(u.n.toLowerCase())).map((u) =>
+      '<optgroup label="' + esc(u.n) + '">' + u.c.map((k) => '<option value="' + esc(u.id) + "|" + k + '">' + esc(specName(SPEC[k])) + "</option>").join("") + "</optgroup>").join("");
+    return opts ? '<select class="pick" data-i="' + i + '" aria-label="Pick a signup for this slot"><option value="">Pick a signup…</option>' + opts + "</select>"
+      : '<span class="nm anon">Every signup is in the raid</span>';
+  }
+
   function cellHTML(i) {
     const m = state.slots[i], g = Math.floor(i / 5) + 1, k = (i % 5) + 1;
     const selCls = sel === i ? " sel" : "";
-    if (!m) return '<div class="cell empty' + selCls + '" data-i="' + i + '" role="button" tabindex="0" aria-label="Group ' + g + ", slot " + k + ': empty"></div>';
+    if (!m) return '<div class="cell empty' + selCls + '" data-i="' + i + '" role="button" tabindex="0" aria-label="Group ' + g + ", slot " + k + ': empty">' + (sel === i ? pickHTML(i) : "") + "</div>";
     const sp = SPEC[m.s], c = CLASS[sp.cls], full = specName(sp);
     const isEdit = editing === i;
     const label = isEdit
@@ -444,8 +464,48 @@ button{cursor:pointer}
     }
   }
 
+  // Specs a signup can still add: any class while they have fewer than MAX_CLASSES, then only their own classes.
+  function specOptions(c) {
+    const own = new Set(c.map((k) => SPEC[k].cls));
+    return Object.keys(CLASS).filter((cls) => own.has(cls) || own.size < MAX_CLASSES).map((cls) => {
+      const opts = SPEC_ROWS.filter((r) => r[1] === cls && !c.includes(r[0])).map((r) => '<option value="' + r[0] + '">' + esc(r[2] + " " + CLASS[cls].name) + "</option>").join("");
+      return opts && '<optgroup label="' + CLASS[cls].name + '">' + opts + "</optgroup>";
+    }).join("");
+  }
+  // placed: lower-case name -> raid slot, so a signup shows where that player already is.
+  function signupRow(u, placed) {
+    const who = u.n || "this player", i = u.n ? placed.get(u.n.toLowerCase()) : undefined;
+    const m = i != null ? state.slots[i] : null, g = Math.floor(i / 5) + 1;
+    const chips = u.c.map((k) => {
+      const sp = SPEC[k], c = CLASS[sp.cls], full = specName(sp);
+      const tip = m ? full + ". " + who + " is in group " + g + (m.s === k ? " as this spec." : ". Click to switch to this spec.") : full + ". Click to put " + who + " in the raid, or drag onto a slot.";
+      return '<span class="chip' + (m && m.s === k ? " on" : "") + '" draggable="true" data-spec="' + k + '" style="--c:' + c.color + ";--ci:" + (c.ink || "#111") + '">' + img(sp.icon) +
+        '<button type="button" data-act="su-place" data-spec="' + k + '" title="' + esc(tip) + '">' + esc(sp.label) + "</button>" +
+        '<button type="button" data-act="su-drop" data-spec="' + k + '" aria-label="Remove ' + esc(full) + " from " + esc(who) + '">&times;</button></span>';
+    }).join("");
+    const opts = specOptions(u.c);
+    return '<div class="su' + (u.id ? "" : " new") + (m ? " placed" : "") + '" data-id="' + esc(u.id) + '">' +
+      '<input class="su-name" maxlength="' + NAME_MAX + '" autocomplete="off" spellcheck="false" placeholder="' + (u.id ? "Name" : "Your name, to sign up") + '" aria-label="Name" value="' + esc(u.n) + '">' +
+      (m ? '<span class="where" title="In group ' + g + '">G' + g + "</span>" : "") +
+      (u.id ? '<button type="button" class="mini" data-act="su-del" aria-label="Remove ' + esc(who) + ' from signups">&times;</button>' : "") +
+      '<span class="su-specs">' + chips + (opts ? '<select class="su-add" aria-label="Add a spec for ' + esc(who) + '"><option value="">+ Spec</option>' + opts + "</select>" : "") + "</span></div>";
+  }
+  let signupsDirty = false, holdSignups = false;
+  function renderSignups() {
+    const a = document.activeElement;
+    // Never rebuild the list under someone who is typing a name or picking a spec in it. It redraws when they leave.
+    if (holdSignups || (a && signups.contains(a) && (a.tagName === "INPUT" || a.tagName === "SELECT"))) { signupsDirty = true; return; }
+    signupsDirty = false;
+    const placed = new Map();
+    state.slots.forEach((m, i) => { if (m && m.n) placed.set(m.n.toLowerCase(), i); });
+    signups.innerHTML = "<h2>Signups <small>" + state.signups.length + "</small></h2>" +
+      '<p class="hint">Sign up with your name and the specs you can play (up to ' + MAX_CLASSES + " classes), best first. To build the raid, click an empty slot and pick a signup, click a spec here to put that player in the next empty slot, or drag a spec onto a slot.</p>" +
+      signupRow({ id: "", n: "", c: [] }, placed) + newestFirst().map((u) => signupRow(u, placed)).join("");
+    applyFilter();
+  }
+
   function renderBuffs(a) {
-    let h = "";
+    let h = '<section class="bsec"><h2>Composition</h2><dl class="stats">' + statsHTML(a) + "</dl></section>";
     BUFFS.forEach(([sec, party, rows]) => {
       h += '<section class="bsec"><h2>' + sec + (party ? "<small>per group</small>" : "") + "</h2>" + rows.map(([tag, label, icon, src]) => {
         const n = a.tags[tag] || 0;
@@ -459,8 +519,8 @@ button{cursor:pointer}
 
   function applyFilter() {
     const tag = hovered || pinned;
-    palette.classList.toggle("filtering", !!tag);
-    palette.querySelectorAll(".spec").forEach((el) => {
+    signups.classList.toggle("filtering", !!tag);
+    signups.querySelectorAll(".chip").forEach((el) => {
       el.classList.toggle("elig", !!tag && specTags(SPEC[el.dataset.spec]).includes(tag));
     });
     let any = false;
@@ -482,7 +542,7 @@ button{cursor:pointer}
 
   function renderAll() {
     const a = analyze();
-    renderTools(); renderBanner(); renderStats(a); renderGrid(a); renderBuffs(a); applyFilter();
+    renderTools(); renderBanner(); renderGrid(a); renderSignups(); renderBuffs(a); applyFilter();
   }
 
   /* ---------- Sync ---------- */
@@ -493,16 +553,23 @@ button{cursor:pointer}
       if (!same(before.slots[i], after.slots[i])) { ch.slots[i] = after.slots[i] ? { s: after.slots[i].s, n: after.slots[i].n } : null; any = true; }
     }
     if (before.size !== after.size) { ch.size = after.size; any = true; }
+    const su = {};
+    new Set(before.signups.concat(after.signups).map((u) => u.id)).forEach((id) => {
+      const b = before.signups.find((u) => u.id === id), a = after.signups.find((u) => u.id === id);
+      if (JSON.stringify(b) !== JSON.stringify(a)) su[id] = a ? { n: a.n, c: a.c } : null;
+    });
+    if (Object.keys(su).length) { ch.signups = su; any = true; }
     return any ? ch : null;
   }
   function merge(into, ch) {
     Object.keys(ch.slots).forEach((k) => { into.slots[k] = ch.slots[k]; });
     if ("size" in ch) into.size = ch.size;
+    if (ch.signups) into.signups = Object.assign(into.signups || {}, ch.signups);
     return into;
   }
   function change(fn) {
     if (!loaded) { toast("Still connecting to the raid…"); return; }
-    const before = { size: state.size, slots: state.slots.slice() };
+    const before = { size: state.size, slots: state.slots.slice(), signups: state.signups };
     fn(state);
     const ch = diff(before, state);
     if (ch) { pending = merge(pending || { slots: {} }, ch); flush(); }
@@ -541,17 +608,17 @@ button{cursor:pointer}
     if (inFlight || pending) return;
     if (s.v < serverV) return;
     if (s.v === serverV && loaded && !fromWrite) return;
-    if (editing !== null || drag) { deferred = s; return; }
+    if (editing !== null || drag || picking()) { deferred = s; return; }
     deferred = null;
     serverV = s.v;
     const next = normalize(s);
-    const changed = !loaded || next.size !== state.size || next.slots.some((m, i) => !same(m, state.slots[i]));
+    const changed = !loaded || next.size !== state.size || next.slots.some((m, i) => !same(m, state.slots[i])) || JSON.stringify(next.signups) !== JSON.stringify(state.signups);
     state = next;
     loaded = true;
     if (changed) renderAll();
   }
   function applyDeferred() {
-    if (deferred && editing === null && !drag) { const d = deferred; deferred = null; accept(d, true); }
+    if (deferred && editing === null && !drag && !picking()) { const d = deferred; deferred = null; accept(d, true); }
   }
   function poll() {
     clearTimeout(pollTimer);
@@ -587,19 +654,43 @@ button{cursor:pointer}
     else renderAll();
     applyDeferred();
   }
-  function placeSpec(key, target) {
-    const i = target != null ? target : sel != null ? sel : firstEmpty();
-    if (i == null) { toast("The raid is full. Remove someone or switch to a bigger size."); return; }
+  // A named player is in the raid at most once: placing them again moves them, or switches their spec in place.
+  function placePlayer(key, n, target) {
+    const at = n ? state.slots.findIndex((m) => m && m.n.toLowerCase() === n.toLowerCase()) : -1;
+    const i = target != null ? target : sel != null ? sel : at >= 0 && at < state.size ? at : firstEmpty();
+    if (i == null) { toast(FULL); return; }
     if (i >= state.size) return;
-    const cur = state.slots[i];
     sel = null;
-    if (cur) change((s) => { s.slots[i] = { s: key, n: cur.n }; });
-    else { change((s) => { s.slots[i] = { s: key, n: "" }; }); if (loaded) startEdit(i); }
+    change((s) => { if (at >= 0 && at !== i) s.slots[at] = null; s.slots[i] = { s: key, n }; });
   }
   function removeSlot(i) {
     if (editing === i) editing = null;
     if (sel === i) sel = null;
     change((s) => { s.slots[i] = null; });
+  }
+  function saveSignup(row) {
+    const n = cleanName(row.querySelector(".su-name").value), add = row.querySelector(".su-add").value;
+    let id = row.dataset.id;
+    const cur = state.signups.find((u) => u.id === id);
+    const c = (cur ? cur.c : []).concat(add && !(cur && cur.c.includes(add)) ? [add] : []);
+    if (!id) {
+      if (!n && !c.length) return;
+      id = row.dataset.id = newId(); // later edits in this row, before it redraws, go to the same signup
+    }
+    updateSignup(id, n || c.length ? { id, n, c } : null);
+  }
+  function updateSignup(id, u) {
+    change((s) => {
+      const rest = s.signups.filter((x) => x.id !== id);
+      s.signups = u ? rest.concat(u).sort((a, b) => (a.id < b.id ? -1 : 1)) : rest;
+    });
+  }
+  function signupAction(act, id, key) {
+    const u = state.signups.find((x) => x.id === id);
+    if (!u) return;
+    if (act === "su-del") updateSignup(id, null);
+    else if (act === "su-drop") updateSignup(id, u.n || u.c.length > 1 ? { ...u, c: u.c.filter((k) => k !== key) } : null);
+    else if (act === "su-place") placePlayer(key, u.n);
   }
   function rosterText() {
     const a = analyze(), lines = ["Raid comp: " + a.players + "/" + state.size + " players (" + a.roles.tank + " tank, " + a.roles.heal + " heal, " + a.roles.melee + " melee, " + a.roles.range + " range)", ""];
@@ -630,6 +721,7 @@ button{cursor:pointer}
     const act = t.closest("[data-act]");
     if (act) {
       const a = act.dataset.act;
+      if (a.startsWith("su-")) { signupAction(a, act.closest(".su").dataset.id, act.dataset.spec); return; }
       if (a === "remove") { removeSlot(+act.closest(".cell").dataset.i); return; }
       if (a === "pets") {
         pets = !pets;
@@ -649,21 +741,26 @@ button{cursor:pointer}
         return;
       }
     }
-    const spec = t.closest(".spec");
-    if (spec) { placeSpec(spec.dataset.spec); return; }
     const brow = t.closest(".brow");
     if (brow) { pinned = pinned === brow.dataset.buff ? null : brow.dataset.buff; renderBuffs(analyze()); applyFilter(); return; }
     const cell = t.closest(".cell");
     if (cell) {
-      if (t.tagName === "INPUT") return;
+      if (t.tagName === "INPUT" || t.tagName === "SELECT" || t.tagName === "OPTION") return;
       const i = +cell.dataset.i;
-      if (cell.classList.contains("empty")) { sel = sel === i ? null : i; if (editing !== null) commitEdit(); renderGrid(analyze()); applyFilter(); return; }
+      if (cell.classList.contains("empty")) {
+        sel = sel === i ? null : i;
+        if (editing !== null) commitEdit();
+        renderGrid(analyze()); applyFilter();
+        const pick = grid.querySelector(".pick");
+        if (pick) { pick.focus(); try { pick.showPicker(); } catch (err) { /* older browsers: the menu opens on the next click */ } }
+        return;
+      }
       if (editing === i) return;
       if (editing !== null) commitEdit();
       sel = i; startEdit(i);
       return;
     }
-    if (sel !== null && !t.closest(".palette")) { sel = null; renderGrid(analyze()); applyFilter(); }
+    if (sel !== null && !t.closest(".signups")) { sel = null; renderGrid(analyze()); applyFilter(); }
   });
   document.addEventListener("keydown", (e) => {
     const t = e.target;
@@ -672,6 +769,7 @@ button{cursor:pointer}
       else if (e.key === "Escape") { e.preventDefault(); sel = null; commitEdit(false); }
       return;
     }
+    if (t.classList && t.classList.contains("su-name")) { if (e.key === "Enter") t.blur(); return; }
     if ((e.key === "Enter" || e.key === " ") && t.classList && t.classList.contains("cell")) { e.preventDefault(); t.click(); return; }
     if (e.key === "Escape") {
       if (dialogRoot.innerHTML) { dialogRoot.innerHTML = ""; return; }
@@ -681,18 +779,39 @@ button{cursor:pointer}
   document.addEventListener("input", (e) => { if (e.target.id === "name-input") draftName = e.target.value; });
   document.addEventListener("focusout", (e) => {
     if (e.target.id !== "name-input") return;
-    // Let a click on a palette spec land first so it can change this player's spec.
+    // Let a click on a signup spec land first so it can fill the selected slot.
     setTimeout(() => { if (editing !== null && document.activeElement && document.activeElement.id !== "name-input") commitEdit(); }, 0);
   });
+
+  // Picking a signup in an empty slot. While that menu is open, remote updates wait so it does not close under you.
+  function picking() { const a = document.activeElement; return !!(a && a.classList && a.classList.contains("pick")); }
+  grid.addEventListener("change", (e) => {
+    if (!e.target.classList.contains("pick") || !e.target.value) return;
+    const [id, key] = e.target.value.split("|");
+    const u = state.signups.find((x) => x.id === id);
+    if (u) placePlayer(key, u.n, +e.target.dataset.i);
+  });
+  grid.addEventListener("focusout", (e) => { if (e.target.classList.contains("pick")) setTimeout(applyDeferred, 0); });
+
+  // Signups save on change: a name when you leave the box or press Enter, a spec as soon as you pick it.
+  signups.addEventListener("change", (e) => {
+    const row = e.target.closest(".su");
+    if (!row) return;
+    holdSignups = true; // focus may be moving to another field in this list; redraw once it lands
+    saveSignup(row);
+    if (e.target.tagName === "SELECT") e.target.blur();
+    setTimeout(() => { holdSignups = false; if (signupsDirty) renderSignups(); }, 0);
+  });
+  signups.addEventListener("focusout", () => setTimeout(() => { if (signupsDirty) renderSignups(); }, 0));
 
   buffs.addEventListener("mouseover", (e) => { const b = e.target.closest(".brow"); const tag = b ? b.dataset.buff : null; if (tag !== hovered) { hovered = tag; applyFilter(); } });
   buffs.addEventListener("mouseleave", () => { hovered = null; applyFilter(); });
 
-  // Drag and drop: specs onto slots, players between slots, players off the raid to remove them.
+  // Drag and drop: signup specs onto slots, players between slots, players off the raid to remove them.
   document.addEventListener("dragstart", (e) => {
-    const spec = e.target.closest && e.target.closest(".spec");
+    const spec = e.target.closest && e.target.closest(".chip");
     const cell = e.target.closest && e.target.closest(".cell.filled");
-    if (spec) drag = { type: "spec", key: spec.dataset.spec };
+    if (spec) drag = { type: "spec", key: spec.dataset.spec, n: (state.signups.find((u) => u.id === spec.closest(".su").dataset.id) || { n: "" }).n };
     else if (cell && editing === null) { drag = { type: "cell", i: +cell.dataset.i }; cell.classList.add("dragging"); }
     else return;
     e.dataTransfer.effectAllowed = "move";
@@ -701,7 +820,7 @@ button{cursor:pointer}
   document.addEventListener("dragover", (e) => {
     if (!drag) return;
     const cell = e.target.closest(".cell");
-    const offRaid = drag.type === "cell" && e.target.closest(".palette, .buffs");
+    const offRaid = drag.type === "cell" && e.target.closest(".signups, .buffs");
     if (!cell && !offRaid) return;
     e.preventDefault();
     grid.querySelectorAll(".drop").forEach((el) => { if (el !== cell) el.classList.remove("drop"); });
@@ -715,10 +834,10 @@ button{cursor:pointer}
     const cell = e.target.closest(".cell");
     if (cell) {
       const to = +cell.dataset.i;
-      if (d.type === "spec") placeSpec(d.key, to);
+      if (d.type === "spec") placePlayer(d.key, d.n, to);
       else if (d.i !== to) change((s) => { const x = s.slots[d.i]; s.slots[d.i] = s.slots[to]; s.slots[to] = x; });
       else renderAll();
-    } else if (d.type === "cell" && e.target.closest(".palette, .buffs")) removeSlot(d.i);
+    } else if (d.type === "cell" && e.target.closest(".signups, .buffs")) removeSlot(d.i);
     applyDeferred();
   });
   document.addEventListener("dragend", () => {
@@ -727,7 +846,6 @@ button{cursor:pointer}
     applyDeferred();
   });
 
-  renderPalette();
   renderAll();
   poll();
 })();
