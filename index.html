@@ -290,6 +290,37 @@ button{cursor:pointer}
 .fx-bar.empty i{opacity:.25}
 .fx-none{margin:10px 0 0}
 
+/* Joining: name + button, then faction and spec dialogs */
+.su.new{gap:8px}
+.su.new .su-name{flex:1 1 auto;width:auto}
+.btn.join{flex:none;height:30px}
+.btn.pick-specs{height:26px;padding:0 10px;font-size:11.5px;border-style:dashed}
+.step{margin:0 0 2px;font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--accent)}
+.step:empty{display:none}
+.sp-dialog{width:min(820px,100%);text-align:left}
+.sp-dialog h3{margin:0 0 2px;font-family:var(--display);font-size:24px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#fff}
+.sp-dialog .fx-who{margin:0 0 10px}
+.sp-order{display:flex;flex-wrap:wrap;gap:6px;min-height:34px;margin:0 0 12px;padding:6px;border:1px dashed var(--line-2);border-radius:6px;background:var(--slot)}
+.sp-empty{align-self:center;padding:0 4px;font-size:12px;color:var(--faint)}
+.sp-pick{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 9px 0 3px;border-radius:5px;background:linear-gradient(90deg,color-mix(in srgb,var(--c) 26%,var(--panel-2)),var(--panel-2));box-shadow:inset 3px 0 0 var(--c);font-size:12px;font-weight:700;color:var(--cn)}
+.sp-pick b{display:grid;place-items:center;width:18px;height:18px;margin-left:3px;border-radius:50%;background:var(--accent);color:var(--accent-ink);font-size:10.5px}
+.sp-pick .ic{width:22px;height:22px}
+.sp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px;max-height:min(56vh,520px);overflow-y:auto;padding:2px}
+.sp-class{padding:8px;border:1px solid var(--line);border-radius:6px;background:var(--panel-2);box-shadow:inset 0 2px 0 var(--c)}
+.sp-class.has{border-color:color-mix(in srgb,var(--c) 55%,var(--line))}
+.sp-class.locked{opacity:.35}
+.sp-class h4{margin:2px 2px 6px;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--cn)}
+.sp-specs{display:grid;gap:4px}
+.sp-spec{position:relative;display:flex;align-items:center;gap:8px;height:34px;padding:0 8px 0 3px;border:1px solid transparent;border-radius:5px;background:var(--slot);text-align:left;transition:border-color .12s,background .12s}
+.sp-spec .ic{width:28px;height:28px}
+.sp-spec .sp-name{flex:1;min-width:0;font-size:12.5px;font-weight:600;color:var(--soft)}
+.sp-spec:hover:not(:disabled){border-color:var(--c)}
+.sp-spec.on{border-color:var(--c);background:linear-gradient(90deg,color-mix(in srgb,var(--c) 28%,var(--slot)),var(--slot))}
+.sp-spec.on .sp-name{color:#fff}
+.sp-spec em{position:absolute;top:-6px;left:-6px;display:grid;place-items:center;width:18px;height:18px;border-radius:50%;background:var(--accent);color:var(--accent-ink);font-style:normal;font-size:10.5px;font-weight:700}
+.sp-spec:disabled{cursor:not-allowed}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+
 /* Copy dialog and toast */
 .overlay{position:fixed;inset:0;z-index:30;display:flex;overflow-y:auto;padding:16px;background:rgba(0,0,0,.7)}
 .dialog{margin:auto;width:min(560px,100%);padding:16px;background:var(--panel);border:1px solid var(--line-2);border-radius:var(--radius)}
@@ -838,15 +869,19 @@ button{cursor:pointer}
         '<button type="button" data-act="su-place" data-spec="' + k + '" title="' + esc(tip) + '" aria-label="' + esc(full) + '">' + img(sp.icon) + "</button>" +
         '<button type="button" class="x" data-act="su-drop" data-spec="' + k + '" aria-label="Remove ' + esc(full) + " from " + esc(who) + '">&times;</button></span>';
     }).join("");
+    // A new player only types a name and joins: faction and specs follow in two dialogs.
+    if (!u.id) {
+      return '<div class="su new" data-id=""><input class="su-name" maxlength="' + NAME_MAX + '" autocomplete="off" spellcheck="false" placeholder="Your name" aria-label="Your name">' +
+        '<button type="button" class="btn primary join" data-act="join">Join the raid</button></div>';
+    }
     const opts = specOptions(u.c);
     const fx = FACTION[u.f];
-    const side = !u.id ? '<span class="fx-btn ghost" aria-hidden="true"></span>'
-      : '<button type="button" class="fx-btn' + (fx ? " f-" + u.f : "") + '" data-act="fx-open" title="' + esc(fx ? who + " fights for the " + fx.name + ". Click to change." : "¿Horda o Alianza? Pick a side for " + who) + '" aria-label="' + esc(fx ? "Faction: " + fx.name : "Pick Horde or Alliance") + '">' + (fx ? img(fx.icon) : "?") + "</button>";
-    return '<div class="su' + (u.id ? "" : " new") + (m ? " placed" : "") + '" data-id="' + esc(u.id) + '">' + side +
-      '<input class="su-name" maxlength="' + NAME_MAX + '" autocomplete="off" spellcheck="false" placeholder="' + (u.id ? "Name" : "Your name") + '" aria-label="Name" value="' + esc(u.n) + '">' +
-      '<span class="su-specs">' + chips + (opts ? '<select class="su-add" title="Add a spec" aria-label="Add a spec for ' + esc(who) + '"><option value="">+</option>' + opts + "</select>" : "") + "</span>" +
+    const side = '<button type="button" class="fx-btn' + (fx ? " f-" + u.f : "") + '" data-act="fx-open" title="' + esc(fx ? who + " fights for the " + fx.name + ". Click to change." : "¿Horda o Alianza? Pick a side for " + who) + '" aria-label="' + esc(fx ? "Faction: " + fx.name : "Pick Horde or Alliance") + '">' + (fx ? img(fx.icon) : "?") + "</button>";
+    return '<div class="su' + (m ? " placed" : "") + '" data-id="' + esc(u.id) + '">' + side +
+      '<input class="su-name" maxlength="' + NAME_MAX + '" autocomplete="off" spellcheck="false" placeholder="Name" aria-label="Name" value="' + esc(u.n) + '">' +
+      '<span class="su-specs">' + chips + (u.c.length ? "" : '<button type="button" class="btn pick-specs" data-act="sp-open">Pick specs</button>') + (opts && u.c.length ? '<select class="su-add" title="Add a spec" aria-label="Add a spec for ' + esc(who) + '"><option value="">+</option>' + opts + "</select>" : "") + "</span>" +
       (m ? '<span class="where" title="In group ' + g + '">G' + g + "</span>" : "") +
-      (u.id ? '<button type="button" class="mini" data-act="su-del" aria-label="Remove ' + esc(who) + ' from signups">&times;</button>' : "") + "</div>";
+      '<button type="button" class="mini" data-act="su-del" aria-label="Remove ' + esc(who) + ' from signups">&times;</button></div>';
   }
   let signupsDirty = false, holdSignups = false;
   function renderSignups() {
@@ -857,7 +892,7 @@ button{cursor:pointer}
     const placed = new Map();
     state.slots.forEach((m, i) => { if (m && m.n) placed.set(m.n.toLowerCase(), i); });
     signups.innerHTML = '<div class="phead"><h2 class="ttl">Signups <span class="count">' + state.signups.length + "</span></h2></div>" +
-      '<p class="hint">Add your name, then your specs with + (up to ' + MAX_CLASSES + " classes, best first). Drag a spec left or right to change its priority. Click a spec to place that player, or drag it onto a slot.</p>" +
+      '<p class="hint">Write your name and join: you pick Horde or Alliance, then your specs (up to ' + MAX_CLASSES + " classes, best first). Drag a spec left or right to change its priority, or add one with +. Click a spec to place that player, or drag it onto a slot.</p>" +
       signupRow({ id: "", n: "", c: [] }, placed) + newestFirst().map((u) => signupRow(u, placed)).join("");
     applyFilter();
   }
@@ -1111,14 +1146,11 @@ button{cursor:pointer}
     change((s) => { s.slots[i] = null; });
   }
   function saveSignup(row) {
-    const n = cleanName(row.querySelector(".su-name").value), add = row.querySelector(".su-add").value;
-    let id = row.dataset.id;
+    const n = cleanName(row.querySelector(".su-name").value), addEl = row.querySelector(".su-add"), add = addEl ? addEl.value : "";
+    const id = row.dataset.id;
+    if (!id) return; // the new-player row joins through the Join button (or Enter), not on change
     const cur = state.signups.find((u) => u.id === id);
     const c = (cur ? cur.c : []).concat(add && !(cur && cur.c.includes(add)) ? [add] : []);
-    if (!id) {
-      if (!n && !c.length) return;
-      id = row.dataset.id = newId(); // later edits in this row, before it redraws, go to the same signup
-    }
     updateSignup(id, n || c.length ? { ...cur, id, n, c } : null);
   }
   function updateSignup(id, u) {
@@ -1149,26 +1181,101 @@ button{cursor:pointer}
     const ta = $("#copy-text"); ta.focus(); ta.select();
   }
   /* ---------- Horde or Alliance (easter egg) ---------- */
+  // A new player joining: their name waits here until they pick a side, so every new signup has a faction.
+  let joining = null; // { n }
+  function startJoin() {
+    const input = signups.querySelector(".su.new .su-name");
+    const n = cleanName(input ? input.value : "");
+    if (!n) { toast("Write your name first"); if (input) input.focus(); return; }
+    const taken = state.signups.some((u) => u.n.toLowerCase() === n.toLowerCase());
+    if (taken) { toast(n + " is already signed up. Pick another name or edit that row."); return; }
+    joining = { n };
+    if (input) input.blur();
+    showFactionPicker(null);
+  }
+  // id: an existing signup changing sides, or null for the player in `joining` (then the dialog cannot be dismissed).
   function showFactionPicker(id) {
-    const u = state.signups.find((x) => x.id === id);
+    const u = id ? state.signups.find((x) => x.id === id) : joining;
     if (!u) return;
-    const choice = (f) => '<button type="button" class="fx-choice f-' + f + (u.f === f ? " on" : "") + '" data-act="fx-pick" data-f="' + f + '" data-id="' + esc(id) + '">' +
+    const locked = !id;
+    const choice = (f) => '<button type="button" class="fx-choice f-' + f + (u.f === f ? " on" : "") + '" data-act="fx-pick" data-f="' + f + '" data-id="' + esc(id || "") + '">' +
       '<img src="https://wow.zamimg.com/images/wow/icons/large/' + FACTION[f].icon + '.jpg" alt="" onerror="this.classList.add(\'broken\')"><span>' + FACTION[f].es + "</span></button>";
-    dialogRoot.innerHTML = '<div class="overlay" data-act="close-dialog"><div class="dialog fx-dialog" role="dialog" aria-modal="true" aria-labelledby="fx-title">' +
-      '<h3 id="fx-title">¿Horda o Alianza?</h3><p class="fx-who">' + esc(u.n || "This player") + ", pick your side.</p>" +
+    dialogRoot.innerHTML = '<div class="overlay' + (locked ? " locked" : "") + '"' + (locked ? "" : ' data-act="close-dialog"') + '><div class="dialog fx-dialog" role="dialog" aria-modal="true" aria-labelledby="fx-title">' +
+      (locked ? '<p class="step">Step 1 of 2</p>' : "") +
+      '<h3 id="fx-title">¿Horda o Alianza?</h3><p class="fx-who">' + esc(u.n || "This player") + (locked ? ", pick your side to join the raid." : ", pick your side.") + "</p>" +
       '<div class="fx-choices">' + choice("a") + '<span class="fx-vs">VS</span>' + choice("h") + "</div>" +
-      '<div class="row"><button type="button" class="btn" data-act="close-dialog">Close</button></div></div></div>';
+      '<div class="row">' + (locked ? '<button type="button" class="btn" data-act="join-cancel">Cancel, don\'t join</button>' : '<button type="button" class="btn" data-act="close-dialog">Close</button>') + "</div></div></div>";
     const first = dialogRoot.querySelector(".fx-choice");
     if (first) first.focus();
   }
-  function showFactionCheer(f, who) {
+  // next: a signup id to continue with the spec picker, for players who just joined.
+  function showFactionCheer(f, who, next) {
     const fx = FACTION[f];
-    dialogRoot.innerHTML = '<div class="overlay" data-act="close-dialog"><div class="dialog fx-dialog fx-cheer f-' + f + '" role="dialog" aria-modal="true" aria-labelledby="fx-title">' +
+    const go = next ? '<button type="button" class="btn primary" data-act="sp-open" data-id="' + esc(next) + '">Next: pick your specs</button>'
+      : '<button type="button" class="btn primary" data-act="close-dialog">' + esc(fx.cheer) + "</button>";
+    dialogRoot.innerHTML = '<div class="overlay' + (next ? " locked" : "") + '"' + (next ? "" : ' data-act="close-dialog"') + '><div class="dialog fx-dialog fx-cheer f-' + f + '" role="dialog" aria-modal="true" aria-labelledby="fx-title">' +
       '<h3 id="fx-title">' + img(fx.icon) + esc(fx.cheer) + "</h3>" +
       '<img class="fx-photo" src="' + fx.photo + '" alt="' + esc(fx.cheer) + '">' +
       '<p class="fx-who">' + esc(who || "Someone") + " joins the " + fx.name + ".</p>" +
-      '<div class="row"><button type="button" class="btn" data-act="fx-replay" data-f="' + f + '">Play again</button><button type="button" class="btn primary" data-act="close-dialog">' + esc(fx.cheer) + "</button></div></div></div>";
+      '<div class="row"><button type="button" class="btn" data-act="fx-replay" data-f="' + f + '">Play again</button>' + go + "</div></div></div>";
     cheer(f);
+  }
+
+  function closeDialog() {
+    joining = null; specDraft = null;
+    dialogRoot.innerHTML = "";
+  }
+
+  // Quick spec picker: click specs in order of preference; the order of clicks is the priority.
+  let specDraft = null; // { id, c }
+  function showSpecPicker(id) {
+    const u = state.signups.find((x) => x.id === id);
+    if (!u) { dialogRoot.innerHTML = ""; return; }
+    specDraft = { id, c: u.c.slice() };
+    renderSpecPicker();
+  }
+  function renderSpecPicker() {
+    const d = specDraft, u = state.signups.find((x) => x.id === d.id) || { n: "" };
+    const own = new Set(d.c.map((k) => SPEC[k].cls)), full = own.size >= MAX_CLASSES;
+    const classes = Object.keys(CLASS).map((cls) => {
+      const c = CLASS[cls], locked = full && !own.has(cls);
+      const specs = SPEC_ROWS.filter((r) => r[1] === cls).map((r) => {
+        const i = d.c.indexOf(r[0]), role = ROLE_UI.find((x) => x[0] === r[3])[1].replace(/s$/, "");
+        return '<button type="button" class="sp-spec' + (i >= 0 ? " on" : "") + '" data-act="sp-toggle" data-spec="' + r[0] + '" aria-pressed="' + (i >= 0) + '"' + (locked ? " disabled" : "") +
+          ' title="' + esc(r[2] + " " + c.name + " (" + role + ")" + (i >= 0 ? ": your " + ordinal(i + 1) + " choice. Click to remove." : locked ? ": you already have " + MAX_CLASSES + " classes." : "")) + '">' +
+          img(r[6]) + '<span class="sp-name">' + esc(r[2]) + '</span><span class="rtag r-' + r[3] + '">' + role + "</span>" + (i >= 0 ? '<em>' + (i + 1) + "</em>" : "") + "</button>";
+      }).join("");
+      return '<div class="sp-class' + (locked ? " locked" : "") + (own.has(cls) ? " has" : "") + '" style="--c:' + c.color + ";--cn:" + (c.text || c.color) + '"><h4>' + c.name + '</h4><div class="sp-specs">' + specs + "</div></div>";
+    }).join("");
+    const order = d.c.length ? d.c.map((k, i) => {
+      const sp = SPEC[k], c = CLASS[sp.cls];
+      return '<span class="sp-pick" style="--c:' + c.color + ";--cn:" + (c.text || c.color) + '"><b>' + (i + 1) + "</b>" + img(sp.icon) + esc(specName(sp)) + "</span>";
+    }).join("") : '<span class="sp-empty">Nothing yet. Click your best spec first, then the next ones.</span>';
+    dialogRoot.innerHTML = '<div class="overlay" data-act="close-dialog"><div class="dialog sp-dialog" role="dialog" aria-modal="true" aria-labelledby="sp-title">' +
+      '<p class="step">' + (joining === null ? "" : "Step 2 of 2") + '</p><h3 id="sp-title">Pick your specs</h3>' +
+      '<p class="fx-who">' + esc(u.n) + ", click what you can play, best first. Up to " + MAX_CLASSES + " classes (" + own.size + "/" + MAX_CLASSES + ").</p>" +
+      '<div class="sp-order">' + order + "</div>" +
+      '<div class="sp-grid">' + classes + "</div>" +
+      '<div class="row"><button type="button" class="btn" data-act="sp-later">Later</button><button type="button" class="btn primary" data-act="sp-save"' + (d.c.length ? "" : " disabled") + ">Save " + (d.c.length ? plural(d.c.length, "spec") : "") + "</button></div></div></div>";
+  }
+  function toggleSpec(k) {
+    const d = specDraft;
+    if (!d || !SPEC[k]) return;
+    const i = d.c.indexOf(k);
+    if (i >= 0) d.c.splice(i, 1);
+    else {
+      const own = new Set(d.c.map((x) => SPEC[x].cls));
+      if (!own.has(SPEC[k].cls) && own.size >= MAX_CLASSES) { toast("Up to " + MAX_CLASSES + " classes. Remove one first."); return; }
+      d.c.push(k);
+    }
+    renderSpecPicker();
+  }
+  function saveSpecs() {
+    const d = specDraft, u = d && state.signups.find((x) => x.id === d.id);
+    closeDialog();
+    if (!u || !d.c.length) return;
+    updateSignup(u.id, { ...u, c: d.c });
+    toast(u.n + " is signed up with " + plural(d.c.length, "spec"));
   }
   // Plays the faction's sound file, or has the browser shout it when there is no file.
   let cheerAudio = null;
@@ -1192,14 +1299,26 @@ button{cursor:pointer}
     } catch (err) { speak(); }
   }
   function pickFaction(id, f) {
+    if (!FACTION[f]) return;
+    if (!id) {
+      // A new player: create their signup now that they have a side, then go on to their specs.
+      if (!joining) return;
+      const nid = newId(), n = joining.n;
+      updateSignup(nid, { id: nid, n, c: [], f });
+      const input = signups.querySelector(".su.new .su-name");
+      if (input) input.value = "";
+      showFactionCheer(f, n, nid);
+      return;
+    }
     const u = state.signups.find((x) => x.id === id);
-    if (!u || !FACTION[f]) return;
+    if (!u) return;
     if (u.f !== f) updateSignup(id, { ...u, f });
     showFactionCheer(f, u.n);
   }
   // Horde vs Alliance share among signups that picked a side.
   function renderFactions() {
-    const players = [...signupsByName().values()];
+    // Everyone signed up counts, with or without specs; a later signup with the same name replaces an earlier one.
+    const players = [...new Map(state.signups.filter((u) => u.n).map((u) => [u.n.toLowerCase(), u])).values()];
     const a = players.filter((u) => u.f === "a").length, h = players.filter((u) => u.f === "h").length, total = a + h, none = players.length - total;
     const pa = total ? Math.round((100 * a) / total) : 50, ph = total ? 100 - pa : 50;
     const lead = !total ? "Nobody has picked a side yet." : a === h ? "It's a tie." : (a > h ? "The Alliance" : "The Horde") + " leads.";
@@ -1219,13 +1338,20 @@ button{cursor:pointer}
   /* ---------- Events ---------- */
   document.addEventListener("click", (e) => {
     const t = e.target;
-    if (t.closest && t.closest(".overlay") && (t.classList.contains("overlay") || t.dataset.act === "close-dialog")) { dialogRoot.innerHTML = ""; return; }
+    const ov = t.closest && t.closest(".overlay");
+    if (ov && (t.classList.contains("overlay") || t.dataset.act === "close-dialog")) { if (!ov.classList.contains("locked")) closeDialog(); return; }
     const sizeBtn = t.closest("[data-size]");
     if (sizeBtn) { const z = +sizeBtn.dataset.size; if (z !== state.size) { sel = null; change((s) => { s.size = z; }); } return; }
     const act = t.closest("[data-act]");
     if (act) {
       const a = act.dataset.act;
       if (a.startsWith("su-")) { signupAction(a, act.closest(".su").dataset.id, act.dataset.spec); return; }
+      if (a === "join") { startJoin(); return; }
+      if (a === "join-cancel") { closeDialog(); return; }
+      if (a === "sp-open") { showSpecPicker(act.dataset.id || act.closest(".su").dataset.id); return; }
+      if (a === "sp-toggle") { toggleSpec(act.dataset.spec); return; }
+      if (a === "sp-save") { saveSpecs(); return; }
+      if (a === "sp-later") { closeDialog(); return; }
       if (a === "fx-open") { showFactionPicker(act.closest(".su").dataset.id); return; }
       if (a === "fx-pick") { pickFaction(act.dataset.id, act.dataset.f); return; }
       if (a === "fx-replay") { cheer(act.dataset.f); return; }
@@ -1289,10 +1415,13 @@ button{cursor:pointer}
       else if (e.key === "Escape") { e.preventDefault(); sel = null; commitEdit(false); }
       return;
     }
-    if (t.classList && t.classList.contains("su-name")) { if (e.key === "Enter") t.blur(); return; }
+    if (t.classList && t.classList.contains("su-name")) {
+      if (e.key === "Enter") { e.preventDefault(); if (t.closest(".su.new")) startJoin(); else t.blur(); }
+      return;
+    }
     if ((e.key === "Enter" || e.key === " ") && t.classList && t.classList.contains("cell")) { e.preventDefault(); t.click(); return; }
     if (e.key === "Escape") {
-      if (dialogRoot.innerHTML) { dialogRoot.innerHTML = ""; return; }
+      if (dialogRoot.innerHTML) { if (!dialogRoot.querySelector(".overlay.locked")) closeDialog(); return; }
       sel = null; pinned = null; renderGrid(analyze()); renderBuffs(analyze()); applyFilter();
     }
   });
