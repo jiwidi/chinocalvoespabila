@@ -4,6 +4,10 @@
   "private": true,
   "description": "Live, shared raid composition planner for World of Warcraft: Forever",
   "type": "module",
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "dev:prod": "node scripts/dev.mjs --seed"
+  },
   "engines": {
     "node": ">=20"
   },
