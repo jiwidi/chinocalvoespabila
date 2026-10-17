@@ -7,155 +7,225 @@
 <meta name="description" content="Shared, live raid composition planner for World of Warcraft: Forever.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Open+Sans:wght@400;600;700&display=swap">
 <!-- Vercel Web Analytics (visitors and page views). Vercel serves this script when Analytics is enabled for the project. -->
 <script>window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };</script>
 <script defer src="/_vercel/insights/script.js"></script>
 <style>
 :root{
-  /* Signups | raid groups, with buff coverage across the bottom. Dark, steel-blue game UI. */
-  --bg:#06080c;
-  --panel:#0d1118;
-  --panel-2:#151b26;
-  --line:#2a3f52;
-  --line-2:#4d7697;
-  --accent:#78b2e0;
-  --text:#e9edf2;
-  --muted:#8a95a5;
-  --faint:#4b5666;
-  --warn:#e5b14f;
-  --bad:#e05a4e;
-  --ok:#4fc46f;
-  --font:Verdana,Geneva,Tahoma,"DejaVu Sans",sans-serif;
-  --narrow:"Roboto Condensed","Arial Narrow",Tahoma,sans-serif;
+  /* Dark, quiet UI in the spirit of Wowhead: near-black surfaces, thin borders, gold accent, class colors carry the meaning. */
+  --bg:#0e0e10;
+  --panel:#161618;
+  --panel-2:#1d1d20;
+  --slot:#121214;
+  --line:#2a2a2e;
+  --line-2:#3a3a40;
+  --accent:#f2b84b;
+  --accent-ink:#1a1206;
+  --text:#e8e8ea;
+  --soft:#c4c4c9;
+  --muted:#8d8d95;
+  --faint:#55555c;
+  --warn:#f2b84b;
+  --bad:#e5564b;
+  --ok:#4cc46b;
+  --radius:8px;
+  --font:"Open Sans",Arial,"Helvetica Neue",Helvetica,sans-serif;
+  --narrow:"Open Sans",Arial,sans-serif;
+  --display:"Barlow Condensed","Arial Narrow",Arial,sans-serif;
   color-scheme:dark;
 }
 *{box-sizing:border-box}
-html,body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font);font-size:13px;line-height:1.3}
-button,input{font:inherit;color:inherit}
+html,body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font);font-size:13px;line-height:1.4;-webkit-font-smoothing:antialiased}
+button,input,select{font:inherit;color:inherit}
 button{cursor:pointer}
 [hidden]{display:none!important}
-:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* Section titles: small uppercase labels, like Wowhead's navigation */
+.ttl{display:flex;align-items:baseline;gap:8px;margin:0;font-family:var(--display);font-size:16px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#fff}
+.ttl small{font-family:var(--font);font-size:11.5px;font-weight:400;letter-spacing:0;text-transform:none;color:var(--muted)}
+.ttl .count{font-family:var(--font);font-size:11px;font-weight:700;letter-spacing:0;padding:1px 7px;border-radius:10px;background:var(--panel-2);color:var(--soft)}
 
 /* Top bar */
-.top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 18px;padding:10px max(14px,env(safe-area-inset-right)) 10px max(14px,env(safe-area-inset-left));background:var(--panel);border-bottom:1px solid var(--line)}
-.brand h1{margin:0;font-size:24px;line-height:1;color:var(--accent);font-weight:700;letter-spacing:.2px}
-.brand p{margin:3px 0 0;font-size:12px;font-weight:700;color:var(--accent);opacity:.75}
+.top{position:sticky;top:0;z-index:20;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 18px;padding:10px max(16px,env(safe-area-inset-right)) 10px max(16px,env(safe-area-inset-left));background:rgba(14,14,16,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:10px}
+.brand .mark{width:30px;height:30px;border-radius:6px;background:linear-gradient(135deg,#f2b84b,#b8741f);display:grid;place-items:center;color:var(--accent-ink);font-family:var(--display);font-weight:700;font-size:17px}
+.brand h1{margin:0;font-family:var(--display);font-size:22px;line-height:1;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#fff}
+.brand p{margin:2px 0 0;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
 .tools{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
-.btn{height:30px;padding:0 12px;border:2px solid var(--line-2);border-radius:2px;background:#000;font-weight:700;font-size:12px;white-space:nowrap}
-.btn:hover{border-color:var(--accent)}
-.btn.armed{border-color:var(--bad);color:#ffb4ab}
-.seg{display:inline-flex;align-items:center;border:2px solid var(--line-2);border-radius:2px;background:#000;height:30px}
-.seg span{padding:0 8px;font-size:11px;font-weight:700;color:var(--muted)}
-.seg button{height:26px;padding:0 10px;border:0;border-left:1px solid var(--line);background:#000;font-weight:700;font-size:12px;color:var(--muted)}
+.btn{height:32px;padding:0 14px;border:1px solid var(--line-2);border-radius:6px;background:var(--panel-2);font-weight:600;font-size:12px;white-space:nowrap;color:var(--soft);transition:border-color .12s,color .12s,background .12s}
+.btn:hover{border-color:var(--muted);color:#fff}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.primary:hover{background:#ffc65e;color:var(--accent-ink)}
+.btn.armed{border-color:var(--bad);background:#2a1513;color:#ffb4ab}
+.seg{display:inline-flex;align-items:center;gap:2px;padding:2px;border:1px solid var(--line-2);border-radius:6px;background:var(--panel-2);height:32px}
+.seg span{padding:0 6px 0 8px;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.seg button{height:26px;padding:0 10px;border:0;border-radius:4px;background:none;font-weight:700;font-size:12px;color:var(--muted)}
+.seg button:hover{color:#fff}
 .seg button[aria-pressed="true"]{background:var(--line-2);color:#fff}
-.live{display:inline-flex;align-items:center;gap:6px;min-width:118px;padding:0 4px;font-size:12px;font-weight:700;color:var(--muted)}
+.live{display:inline-flex;align-items:center;gap:6px;min-width:110px;padding:0 6px;font-size:12px;font-weight:600;color:var(--muted)}
 .live i{width:8px;height:8px;border-radius:50%;background:var(--faint)}
-.live.ok i{background:var(--ok);box-shadow:0 0 6px var(--ok)}
+.live.ok i{background:var(--ok);box-shadow:0 0 0 3px rgba(76,196,107,.18)}
 .live.busy i{background:var(--accent)}
 .live.bad i{background:var(--bad)}
 
-/* Layout: signups take the whole left column; groups and coverage stack on the right, so a long signup list never pushes coverage down. */
-.layout{display:grid;grid-template-columns:440px minmax(0,1fr);gap:10px;align-items:start;max-width:1500px;margin:0 auto;padding:10px max(10px,env(safe-area-inset-right)) 24px max(10px,env(safe-area-inset-left))}
-.plan{display:grid;gap:10px;min-width:0}
-@media (max-width:900px){.layout{grid-template-columns:minmax(0,1fr)}}
-.panel{background:var(--panel);border:1px solid var(--line);border-radius:3px;min-width:0}
-.banner{grid-column:1 / -1;padding:10px 12px;border:1px solid var(--warn);background:#1d1709;color:#f6dca4;border-radius:3px;font-size:12.5px}
+/* Layout: signups take the left column; groups, suggestion, preferences and coverage stack on the right. */
+.layout{display:grid;grid-template-columns:430px minmax(0,1fr);gap:16px;align-items:start;max-width:1520px;margin:0 auto;padding:16px max(16px,env(safe-area-inset-right)) 32px max(16px,env(safe-area-inset-left))}
+.plan{display:grid;gap:16px;min-width:0}
+@media (max-width:960px){.layout{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);min-width:0;padding:14px 16px 16px}
+.phead{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 12px;margin:0 0 12px}
+.banner{grid-column:1 / -1;padding:10px 14px;border:1px solid rgba(242,184,75,.5);background:#211a0c;color:#f6dca4;border-radius:var(--radius);font-size:12.5px}
 
-.hint{margin:4px 2px 10px;font-size:11.5px;color:var(--muted)}
-.stats{display:grid;grid-template-columns:auto 1fr;gap:3px 10px;margin:0;font-size:12px;font-weight:700}
+.hint{margin:4px 0 12px;font-size:12px;color:var(--muted)}
+.stats{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin:0;font-size:12px}
 .stats dt{color:var(--muted);text-align:right}
-.stats dd{margin:0}
-.stats b{color:var(--accent);font-variant-numeric:tabular-nums}
+.stats dd{margin:0;color:var(--soft)}
+.stats b{color:#fff;font-variant-numeric:tabular-nums}
 
 /* Icons */
-.ic{display:block;flex:none;background:var(--panel-2);border:1px solid #000;object-fit:cover}
+.ic{display:block;flex:none;background:var(--panel-2);border-radius:4px;object-fit:cover}
 .ic.broken{opacity:0}
 
-/* Groups */
-.groups{padding:8px 14px 14px}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px 18px}
-.group h3{margin:2px 0 6px;text-align:center;font-size:13px;color:#fff}
+/* Groups: each group is a card, each slot a dark row tinted with the class color */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:12px}
+.group{padding:10px;border:1px solid var(--line);border-radius:6px;background:var(--panel-2)}
+.group h3{display:flex;justify-content:space-between;align-items:baseline;margin:0 2px 8px;font-family:var(--display);font-size:13.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--soft)}
+.group h3 span{font-family:var(--font);font-size:11px;font-weight:600;letter-spacing:0;color:var(--muted)}
 .cells{display:flex;flex-direction:column;gap:4px}
-.cell{position:relative;display:flex;align-items:center;height:30px;border:2px solid var(--line-2);background:#000;cursor:pointer;transition:opacity .12s}
-.cell.empty:hover{border-color:var(--accent)}
-.cell.sel{border-color:#fff;box-shadow:0 0 0 1px #fff}
-.cell.filled{border:1px solid #000;background:var(--c);color:var(--ci)}
-.cell.filled .ic{width:28px;height:28px;border:0;border-right:1px solid #000}
-.cell .nm{flex:1;min-width:0;padding:0 24px 0 6px;text-align:center;font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.cell .nm.anon{font-weight:400;font-style:italic;opacity:.65}
-.cell input{flex:1;min-width:0;height:22px;margin:0 26px 0 4px;padding:0 6px;border:1px solid #000;border-radius:2px;background:rgba(255,255,255,.92);color:#000;font-weight:700;font-size:13px;text-align:center}
-.cell .x{position:absolute;right:3px;top:50%;transform:translateY(-50%);width:20px;height:20px;padding:0;border:0;border-radius:2px;background:rgba(0,0,0,.45);color:#fff;font-weight:700;font-size:12px;line-height:20px;opacity:0}
+.cell{position:relative;display:flex;align-items:center;gap:8px;height:36px;padding:0 6px 0 4px;border:1px solid transparent;border-radius:5px;background:var(--slot);cursor:pointer;transition:border-color .12s,opacity .12s,background .12s}
+.cell.empty{border:1px dashed #45454c;background:rgba(255,255,255,.02)}
+.cell.empty::after{content:"+";margin:auto;font-size:15px;font-weight:600;color:var(--faint);transition:color .12s}
+.cell.empty:hover{border-color:var(--muted)}
+.cell.empty:hover::after{content:"+ Add player";font-size:11.5px;color:var(--soft)}
+.cell.empty.sel::after{content:none}
+.cell.sel{border-color:var(--accent)!important;box-shadow:0 0 0 1px var(--accent)}
+.cell.filled{background:linear-gradient(90deg,color-mix(in srgb,var(--c) 20%,var(--slot)) 0%,var(--slot) 75%);box-shadow:inset 3px 0 0 var(--c)}
+.cell.filled:hover{border-color:var(--line-2)}
+.cell.filled .ic{width:28px;height:28px;margin-left:3px}
+.cell .nm{flex:1;min-width:0;font-weight:700;font-size:13px;color:var(--cn,var(--c));white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cell .nm.anon{font-weight:400;font-style:italic;color:var(--muted)}
+.cell input{flex:1;min-width:0;height:26px;margin-right:22px;padding:0 8px;border:1px solid var(--line-2);border-radius:4px;background:#000;color:#fff;font-weight:700;font-size:13px}
+.cell .x{position:absolute;right:5px;top:50%;transform:translateY(-50%);width:22px;height:22px;padding:0;border:0;border-radius:4px;background:var(--panel-2);color:var(--soft);font-weight:700;font-size:13px;line-height:22px;opacity:0}
+.cell .x:hover{background:var(--bad);color:#fff}
 .cell:hover .x,.cell.editing .x,.cell:focus-within .x{opacity:1}
 @media (hover:none){.cell .x{opacity:.9}}
-.cell .pick{flex:1;min-width:0;height:24px;margin:0 3px;padding:0 4px;border:0;background:#000;color:var(--text);font-weight:700;font-size:12px;cursor:pointer}
+.cell .pick{flex:1;min-width:0;height:28px;padding:0 6px;border:0;border-radius:4px;background:var(--panel-2);color:var(--text);font-weight:600;font-size:12px;cursor:pointer}
 .cell .pick option,.cell .pick optgroup{background:var(--panel);color:var(--text)}
-.cell.empty .nm{padding:0 6px}
-.cell.drop{outline:2px dashed #fff;outline-offset:1px}
+.cell.drop{outline:2px dashed var(--accent);outline-offset:1px}
 .cell.dragging{opacity:.35}
 .grid.filtering .cell.filled:not(.hl){opacity:.3}
-.cell.hl{box-shadow:0 0 0 2px #fff,0 0 10px rgba(255,255,255,.6)}
-.party{display:flex;flex-wrap:wrap;gap:3px;min-height:20px;margin-top:5px}
+.cell.hl{border-color:#fff}
+/* A player's specs in preference order (best on the left), the one they are playing lit up. */
+.prio{display:flex;flex:none;gap:3px}
+.prio .ic{width:16px;height:16px;border-radius:3px;opacity:.3;filter:grayscale(.6)}
+.prio .ic.cur{opacity:1;filter:none;box-shadow:0 0 0 1px #fff}
+.cell.filled:hover .prio,.cell.filled:focus-within .prio{margin-right:24px}
+.party{display:flex;flex-wrap:wrap;gap:4px;min-height:18px;margin:8px 2px 0}
 .party .ic{width:18px;height:18px}
-.foot{margin:14px 2px 0;font-size:11.5px;color:var(--muted)}
+.foot{margin:12px 2px 0;font-size:11.5px;color:var(--faint)}
 
-/* Signups: who can come and what they can play. A separate list, not linked to the groups.
-   One compact row per player: name, spec icons framed in class color, group tag, delete. */
-.signups{padding:8px 10px 10px}
-.signups h2{margin:2px 0 0;font-size:14px;color:var(--accent)}
-.signups h2 small{font-size:11px;color:var(--muted)}
-.su{display:flex;flex-wrap:wrap;align-items:center;gap:3px 6px;min-height:30px;padding:2px 2px 2px 0;border-bottom:1px solid var(--line)}
+/* Signups */
+.su{display:flex;align-items:center;gap:8px;min-height:40px;padding:4px 6px;border-radius:6px}
+.su + .su{margin-top:2px}
 .su:hover{background:var(--panel-2)}
-.su.placed{opacity:.5}
-.su.placed:hover,.su.placed:focus-within{opacity:1}
-.su-name{flex:0 0 128px;width:128px;height:24px;padding:0 5px;border:1px solid transparent;border-radius:2px;background:none;font-family:var(--narrow);font-weight:700;font-size:13.5px}
+.su.placed .su-name,.su.placed .su-specs{opacity:.55}
+.su.placed:hover .su-name,.su.placed:hover .su-specs,.su.placed:focus-within .su-name,.su.placed:focus-within .su-specs{opacity:1}
+.su-name{flex:0 0 122px;width:122px;height:30px;padding:0 8px;border:1px solid transparent;border-radius:5px;background:none;font-weight:700;font-size:13px;color:#fff}
 .su-name:hover{border-color:var(--line-2)}
 .su-name:focus{border-color:var(--accent);background:#000}
-.su.new .su-name{border:1px dashed var(--line-2)}
-.su-specs{flex:1;min-width:0;display:flex;flex-wrap:wrap;align-items:center;gap:4px}
-.chip{position:relative;display:inline-flex;border:2px solid var(--c);cursor:grab}
-.chip button{display:block;padding:0;border:0;background:none}
-.chip .ic{width:20px;height:20px;border:0}
-.chip .x{position:absolute;top:-7px;right:-7px;width:13px;height:13px;border:1px solid var(--line-2);border-radius:50%;background:#000;color:#fff;font-size:10px;font-weight:700;line-height:11px;opacity:0}
+.su.new{margin-bottom:8px;padding:8px;border:1px dashed var(--line-2);background:var(--slot)}
+.su.new .su-name{background:#000;border-color:var(--line-2)}
+.su-specs{flex:1;min-width:0;display:flex;flex-wrap:wrap;align-items:center;gap:5px}
+.chip{position:relative;display:inline-flex;border-radius:5px;box-shadow:0 0 0 2px var(--c);cursor:grab}
+.chip button{display:block;padding:0;border:0;background:none;border-radius:5px}
+.chip .ic{width:22px;height:22px}
+.chip .x{position:absolute;top:-8px;right:-8px;width:15px;height:15px;border:0;border-radius:50%;background:var(--bad);color:#fff;font-size:10px;font-weight:700;line-height:15px;opacity:0}
 .chip:hover .x,.chip .x:focus-visible{opacity:1}
-.chip.on{outline:2px solid #fff;outline-offset:1px}
+.chip.on{box-shadow:0 0 0 2px var(--c),0 0 0 4px #fff}
 .signups.filtering .chip:not(.elig){opacity:.2}
-.signups.filtering .chip.elig{outline:2px solid #fff;outline-offset:1px}
-.su-add{appearance:none;width:24px;height:24px;padding:0;border:1px dashed var(--line-2);border-radius:2px;background:#000;color:var(--muted);font-weight:700;font-size:14px;text-align:center;text-align-last:center;cursor:pointer}
-.su-add:hover{border-color:var(--accent);color:#fff}
+.signups.filtering .chip.elig{box-shadow:0 0 0 2px var(--c),0 0 0 4px #fff}
+.su-add{appearance:none;width:26px;height:26px;padding:0;border:1px dashed var(--line-2);border-radius:5px;background:none;color:var(--muted);font-weight:700;font-size:15px;text-align:center;text-align-last:center;cursor:pointer}
+.su-add:hover{border-color:var(--accent);color:var(--accent)}
 .su-add option,.su-add optgroup{background:var(--panel);color:var(--text);font-size:12px;text-align:left}
-.su .where{font-size:11px;font-weight:700;color:var(--accent)}
-.su .mini{width:20px;height:24px;padding:0;border:0;border-radius:2px;background:none;color:var(--muted);font-weight:700;font-size:12px}
-.su .mini:hover{color:#fff}
+.su .where{flex:none;padding:1px 7px;border-radius:10px;background:var(--panel-2);font-size:11px;font-weight:700;color:var(--soft)}
+.su .mini{flex:none;width:24px;height:24px;padding:0;border:0;border-radius:4px;background:none;color:var(--faint);font-weight:700;font-size:14px;opacity:0}
+.su:hover .mini,.su .mini:focus-visible{opacity:1}
+.su .mini:hover{color:#fff;background:var(--bad)}
+@media (hover:none){.su .mini{opacity:1}}
 
-/* Buffs */
-.buffs{padding:4px 14px 12px;columns:220px;column-gap:28px}
-.bsec{break-inside:avoid;padding-top:6px}
-.buffs h2{margin:4px 0 3px;font-size:14px;color:var(--accent)}
-.buffs h2 small{font-size:10.5px;color:var(--muted);font-weight:400;margin-left:4px}
-.brow{display:flex;align-items:center;gap:6px;width:100%;padding:1px 4px;border:0;border-radius:2px;background:none;text-align:left;font-weight:700;font-size:12px;color:#fff}
-.brow .ic{width:16px;height:16px;opacity:.4}
+/* Coverage */
+.buffs-body{columns:220px;column-gap:28px}
+.bsec{break-inside:avoid;padding-bottom:12px}
+.bsec h4{margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.bsec h4 small{font-weight:400;letter-spacing:0;text-transform:none;margin-left:4px}
+.brow{display:flex;align-items:center;gap:8px;width:100%;padding:2px 6px;border:0;border-radius:4px;background:none;text-align:left;font-size:12px;color:var(--faint)}
+.brow .ic{width:18px;height:18px;opacity:.35;filter:grayscale(1)}
 .brow b{min-width:14px;text-align:right;font-variant-numeric:tabular-nums}
-.brow.on{color:var(--accent)}
-.brow.on .ic{opacity:1}
+.brow.on{color:var(--soft)}
+.brow.on b{color:var(--accent)}
+.brow.on .ic{opacity:1;filter:none}
 .brow:hover{background:var(--panel-2)}
 .brow.pin{background:var(--panel-2);box-shadow:inset 0 0 0 1px var(--accent)}
-.notes{margin:10px 0 0;padding:0;list-style:none;display:grid;gap:6px;break-inside:avoid}
-.notes li{padding:6px 8px;border-left:2px solid var(--warn);background:#18140b;font-size:11.5px;line-height:1.4;color:#f1dfb8}
+.notes{margin:4px 0 0;padding:0;list-style:none;display:grid;gap:6px;break-inside:avoid}
+.notes li{padding:8px 10px;border-radius:5px;border-left:3px solid var(--warn);background:#1f190d;font-size:12px;line-height:1.45;color:#f1dfb8}
+
+/* Suggested comp */
+.sg-sum{margin:0 0 10px;font-size:12px;color:var(--muted)}
+.sg-sum b{color:#fff}
+.needs{display:flex;flex-wrap:wrap;gap:5px;margin:0 0 14px;padding:0;list-style:none}
+.needs li{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 9px 0 3px;border-radius:13px;background:var(--panel-2);font-size:11.5px;font-weight:600;color:var(--soft)}
+.needs li .ic{width:20px;height:20px;border-radius:50%}
+.needs li.ok{box-shadow:inset 0 0 0 1px rgba(76,196,107,.45);color:#bfe8c9}
+.needs li.miss{box-shadow:inset 0 0 0 1px rgba(229,86,75,.6);color:#ffb4ab}
+.needs li.none{box-shadow:inset 0 0 0 1px var(--line-2);color:var(--muted)}
+.needs li.bare{padding:0 3px;box-shadow:none;background:none}
+.needs li.bare .ic{box-shadow:0 0 0 1px rgba(76,196,107,.5)}
+.needs .sep{width:1px;height:18px;margin:0 4px;padding:0;background:var(--line-2);border-radius:0}
+.sg-cell{display:flex;align-items:center;gap:8px;height:36px;padding:0 6px 0 4px;border-radius:5px;background:linear-gradient(90deg,color-mix(in srgb,var(--c) 20%,var(--slot)) 0%,var(--slot) 75%);box-shadow:inset 3px 0 0 var(--c)}
+.sg-cell .ic{width:28px;height:28px;margin-left:3px}
+.sg-cell .nm{flex:1;min-width:0;font-weight:700;font-size:13px;color:var(--cn,var(--c));white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sg-cell.empty{background:rgba(255,255,255,.02);box-shadow:none;border:1px dashed #3a3a40}
+.rk{flex:none;padding:1px 7px;border-radius:10px;background:var(--panel-2);font-size:10.5px;font-weight:700}
+.rk.r1{color:var(--ok);background:rgba(76,196,107,.12)}
+.rk.r2{color:var(--warn);background:rgba(242,184,75,.12)}
+.rk.r3{color:#f08a4b;background:rgba(240,138,75,.12)}
+.bench{margin:12px 2px 0;font-size:12px;color:var(--muted)}
+
+/* Preferences */
+.prefs-wrap{overflow-x:auto;margin:0 -4px}
+.prefs table{border-collapse:separate;border-spacing:4px 0;width:100%;font-size:12px}
+.prefs th{padding:0 4px 6px;text-align:left;font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);white-space:nowrap}
+.prefs td{padding:4px 0;border-top:1px solid var(--line);vertical-align:middle}
+.prefs td.who{padding-left:4px;padding-right:8px;font-weight:700;font-size:13px;white-space:nowrap;color:#fff}
+.pref{display:inline-flex;align-items:center;gap:7px;height:30px;padding:0 10px 0 3px;border-radius:5px;background:var(--slot);box-shadow:inset 3px 0 0 var(--c);white-space:nowrap;font-weight:600;font-size:12px;color:var(--soft)}
+.pref .ic{width:24px;height:24px;margin-left:3px}
+.pref.sug{background:rgba(76,196,107,.1);box-shadow:inset 3px 0 0 var(--c),inset 0 0 0 1px rgba(76,196,107,.6);color:#fff}
+.pref.cur{outline:2px solid #fff;outline-offset:1px}
+.legend{display:flex;flex-wrap:wrap;gap:4px 16px;margin:0 0 10px;font-size:11.5px;color:var(--muted)}
+.legend i{display:inline-block;width:12px;height:12px;margin-right:6px;vertical-align:-2px;border-radius:3px;background:var(--slot)}
+.legend .l-sug{box-shadow:inset 0 0 0 1px rgba(76,196,107,.8);background:rgba(76,196,107,.15)}
+.legend .l-cur{outline:2px solid #fff}
 
 /* Copy dialog and toast */
 .overlay{position:fixed;inset:0;z-index:30;display:grid;place-items:center;padding:16px;background:rgba(0,0,0,.7)}
-.dialog{width:min(560px,100%);padding:14px;background:var(--panel);border:2px solid var(--line-2);border-radius:3px}
-.dialog h3{margin:0 0 8px;font-size:14px;color:var(--accent)}
-.dialog textarea{width:100%;height:240px;padding:8px;background:#000;color:var(--text);border:1px solid var(--line-2);font:12px/1.4 ui-monospace,Menlo,Consolas,monospace}
-.dialog .row{display:flex;justify-content:flex-end;margin-top:8px}
-.toast{position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:40;max-width:calc(100% - 32px);padding:8px 14px;background:var(--text);color:#000;font-weight:700;font-size:12px;border-radius:3px;box-shadow:0 6px 20px rgba(0,0,0,.5)}
+.dialog{width:min(560px,100%);padding:16px;background:var(--panel);border:1px solid var(--line-2);border-radius:var(--radius)}
+.dialog h3{margin:0 0 10px;font-size:14px;color:#fff}
+.dialog textarea{width:100%;height:240px;padding:10px;background:#000;color:var(--text);border:1px solid var(--line-2);border-radius:5px;font:12px/1.45 ui-monospace,Menlo,Consolas,monospace}
+.dialog .row{display:flex;justify-content:flex-end;margin-top:10px}
+.toast{position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:40;max-width:calc(100% - 32px);padding:9px 16px;background:var(--text);color:#000;font-weight:600;font-size:12px;border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,.5)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+@media (max-width:520px){
+  .su{flex-wrap:wrap}
+  .su-name{flex:1 1 140px}
+  .grid{grid-template-columns:minmax(0,1fr)}
+}
 </style>
 </head>
 <body>
 <header class="top">
-  <div class="brand"><h1>Raid Comp</h1><p>World of Warcraft: Forever</p></div>
+  <div class="brand"><span class="mark" aria-hidden="true">R</span><div><h1>Raid Comp</h1><p>World of Warcraft: Forever</p></div></div>
   <div class="tools" id="tools"></div>
 </header>
 <main class="layout">
@@ -163,9 +233,12 @@ button{cursor:pointer}
   <section class="panel signups" id="signups" aria-label="Signups"></section>
   <div class="plan">
     <section class="panel groups" aria-label="Raid groups">
+      <div class="phead"><h2 class="ttl">Raid groups <small>click a slot to fill it, drag to move</small></h2></div>
       <div class="grid" id="grid"></div>
       <p class="foot">Everyone with this link edits the same raid. Changes show up for the others within a couple of seconds.</p>
     </section>
+    <section class="panel suggest" id="suggest" aria-label="Suggested comp"></section>
+    <section class="panel prefs" id="prefs" aria-label="Preferences"></section>
     <section class="panel buffs" id="buffs" aria-label="Raid coverage"></section>
   </div>
 </main>
@@ -192,7 +265,7 @@ button{cursor:pointer}
     paladin: { name: "Paladin", color: "#F48CBA" },
     priest: { name: "Priest", color: "#FFFFFF" },
     rogue: { name: "Rogue", color: "#FFF468" },
-    shaman: { name: "Shaman", color: "#0070DD", ink: "#ffffff" },
+    shaman: { name: "Shaman", color: "#0070DD", text: "#3d9bff" }, // text: lighter for names on the dark slots
     warlock: { name: "Warlock", color: "#8788EE" },
     warrior: { name: "Warrior", color: "#C69B6D" }
   };
@@ -319,6 +392,7 @@ button{cursor:pointer}
   const img = (name, cls, title) => '<img class="ic ' + (cls || "") + '" src="' + ICON(name) + '" alt=""' + (title ? ' title="' + esc(title) + '"' : "") + ' loading="lazy" onerror="this.classList.add(\'broken\')">';
   const specName = (sp) => sp.label + " " + CLASS[sp.cls].name;
   const plural = (n, one, many) => n + " " + (n === 1 ? one : many || one + "s");
+  const ordinal = (n) => n + (n % 10 === 1 && n % 100 !== 11 ? "st" : n % 10 === 2 && n % 100 !== 12 ? "nd" : n % 10 === 3 && n % 100 !== 13 ? "rd" : "th");
   function normalize(d) {
     d = d && typeof d === "object" ? d : {};
     const src = Array.isArray(d.slots) ? d.slots : [];
@@ -352,6 +426,7 @@ button{cursor:pointer}
   let pinned = null; // pinned buff tag
   let hovered = null;
   let clearArmed = 0;
+  let useArmed = 0;
   let pets = true;
   try { pets = localStorage.getItem(PETS_KEY) !== "off"; } catch (e) {}
 
@@ -395,8 +470,146 @@ button{cursor:pointer}
     return out;
   }
 
+  /* ---------- Suggested comp ---------- */
+  // One signup per player: a later signup with the same name (any case) replaces an earlier one, as in the groups.
+  let byNameMemo = { list: null, map: null };
+  function signupsByName() {
+    if (byNameMemo.list !== state.signups) {
+      const map = new Map();
+      state.signups.forEach((u) => { if (u.n && u.c.length) map.set(u.n.toLowerCase(), u); });
+      byNameMemo = { list: state.signups, map };
+    }
+    return byNameMemo.map;
+  }
+
+  // What a raid wants, as points. The solver trades these against how far down each player's list it has to go.
+  // Sources: Classic raid templates (e.g. AQ20: 2 paladins or shamans, 3 priests, 1 druid healing; 40-man: 4 paladins, one per blessing).
+  const PREF_COST = (r) => 13 * r - r * r; // 1st 0, 2nd 12, 3rd 22, 4th 30, 5th 36
+  const BLESSINGS = [["kings", 25], ["wisdom", 15], ["might", 12], ["salv", 10], ["light", 5]]; // each paladin covers one blessing
+  const NEEDS = [ // [tag, points] for buffs and debuffs one player is enough for
+    ["stam", 25], ["motw", 25], ["int", 20], ["armor1", 15], ["ap", 12], ["coe", 12], ["wf", 10], ["brez", 10], ["dmagic", 10],
+    ["dcurse", 8], ["armor2", 6], ["crit", 5], ["scrit", 4], ["demo", 4], ["purge", 4], ["ddisease", 4], ["dpoison", 4],
+    ["rap", 3], ["hit", 3], ["spirit", 3], ["shadowres", 3], ["tongues", 2], ["mortal", 2]
+  ];
+  function targets(size, n) {
+    return {
+      tank: size >= 40 ? 3 : size >= 20 ? 2 : 1,
+      heal: Math.max(1, Math.round(n * 0.28)), // about 1 healer per 3.5 players
+      paladin: size >= 40 ? 4 : size >= 20 ? 2 : 1
+    };
+  }
+  function compScore(specs, t) {
+    const cls = {}, role = { tank: 0, heal: 0, melee: 0, range: 0 }, tags = new Set();
+    specs.forEach((k) => {
+      const sp = SPEC[k];
+      cls[sp.cls] = (cls[sp.cls] || 0) + 1;
+      role[sp.role]++;
+      specTags(sp).forEach((x) => tags.add(x));
+    });
+    let s = 40 * Math.min(role.tank, t.tank) - 10 * Math.max(0, role.tank - t.tank);
+    s += 30 * Math.min(role.heal, t.heal) - 12 * Math.max(0, role.heal - t.heal - 1);
+    const pal = cls.paladin || 0;
+    BLESSINGS.slice(0, pal).forEach(([, w]) => { s += w; });
+    s += 10 * Math.min(pal, t.paladin);
+    if ((cls.shaman || 0) >= 2) s += 5; // totems for a second group
+    if ((cls.warlock || 0) >= 2) s += 5; // a second curse
+    NEEDS.forEach(([tag, w]) => { if (tags.has(tag)) s += w; });
+    return s;
+  }
+
+  let suggestMemo = { key: "", out: null };
+  function suggest() {
+    const key = state.size + "|" + pets + "|" + JSON.stringify(state.signups);
+    if (suggestMemo.key === key) return suggestMemo.out;
+    const players = [...signupsByName().values()];
+    const n = players.length, cap = Math.min(n, state.size), t = targets(state.size, cap);
+    // pick[i] is an index into players[i].c, or -1 when benched. Earlier signups are kept over later ones on ties.
+    const pick = players.map((u, i) => (i < cap ? 0 : -1));
+    const value = (p) => {
+      let s = 0;
+      const specs = [];
+      p.forEach((r, i) => {
+        if (r < 0) { s -= 0.1 * (n - i); return; }
+        specs.push(players[i].c[r]);
+        s -= PREF_COST(r);
+      });
+      return s + compScore(specs, t);
+    };
+    // Hill climbing: take the best single change (or swap with the bench) until nothing improves,
+    // then try changing two players at once to get past spots where one change alone does not pay off.
+    let best = value(pick);
+    const tryMove = (p) => { const v = value(p); if (v > best + 1e-9) { best = v; return true; } return false; };
+    const options = players.reduce((s, u) => s + u.c.length, 0);
+    for (let guard = 0; guard < 200; guard++) {
+      let improved = null;
+      for (let i = 0; i < n; i++) {
+        for (let r = 0; r < players[i].c.length; r++) {
+          if (r === pick[i]) continue;
+          if (pick[i] >= 0) {
+            const p = pick.slice(); p[i] = r;
+            if (tryMove(p)) improved = p;
+          } else {
+            for (let j = 0; j < n; j++) {
+              if (pick[j] < 0) continue;
+              const p = pick.slice(); p[i] = r; p[j] = -1;
+              if (tryMove(p)) improved = p;
+            }
+          }
+        }
+      }
+      if (!improved && options <= 80) {
+        for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+          if (pick[i] < 0 || pick[j] < 0) continue;
+          for (let a = 0; a < players[i].c.length; a++) for (let b = 0; b < players[j].c.length; b++) {
+            if (a === pick[i] && b === pick[j]) continue;
+            const p = pick.slice(); p[i] = a; p[j] = b;
+            if (tryMove(p)) improved = p;
+          }
+        }
+      }
+      if (!improved) break;
+      improved.forEach((r, i) => { pick[i] = r; });
+    }
+    const raid = [], bench = [];
+    players.forEach((u, i) => { if (pick[i] < 0) bench.push(u); else raid.push({ u, n: u.n, s: u.c[pick[i]], rank: pick[i] }); });
+    const out = { raid, bench, t, slots: arrange(raid, state.size) };
+    suggestMemo = { key, out };
+    return out;
+  }
+
+  // Spread players over groups of five: tanks and melee with shamans and paladins, casters together,
+  // one healer, shaman, paladin and warlock per group where possible.
+  function arrange(raid, size) {
+    const G = Math.min(size / 5, Math.max(1, Math.ceil(raid.length / 5)));
+    const groups = Array.from({ length: G }, () => []);
+    const phys = (sp) => sp.role === "tank" || sp.role === "melee" || sp.cls === "hunter";
+    const caster = (sp) => sp.role === "range" && sp.cls !== "hunter";
+    const order = (m) => { const sp = SPEC[m.s]; return sp.role === "tank" ? 0 : sp.cls === "shaman" || sp.cls === "paladin" ? 1 : sp.role === "heal" ? 4 : phys(sp) ? 2 : 3; };
+    raid.slice().sort((a, b) => order(a) - order(b)).forEach((m) => {
+      const sp = SPEC[m.s];
+      let bestG = 0, bestV = -Infinity;
+      groups.forEach((g, gi) => {
+        if (g.length >= 5) return;
+        const ms = g.map((x) => SPEC[x.s]), count = (f) => ms.filter(f).length;
+        let v = -0.5 * g.length;
+        if (phys(sp)) v += 4 * count(phys) - 3 * count(caster);
+        if (caster(sp)) v += 4 * count(caster) - 3 * count(phys);
+        if (sp.role === "heal") v -= 10 * count((x) => x.role === "heal");
+        if (sp.cls === "shaman") v += 3 * count(phys) - 15 * count((x) => x.cls === "shaman");
+        if (sp.cls === "paladin") v -= 12 * count((x) => x.cls === "paladin");
+        if (sp.cls === "warlock") v -= 4 * count((x) => x.cls === "warlock");
+        if (v > bestV) { bestV = v; bestG = gi; }
+      });
+      groups[bestG].push(m);
+    });
+    const slots = Array(MAX).fill(null);
+    groups.forEach((g, gi) => g.forEach((m, k) => { slots[gi * 5 + k] = m; }));
+    return slots;
+  }
+
   /* ---------- Rendering ---------- */
   const tools = $("#tools"), grid = $("#grid"), signups = $("#signups"), buffs = $("#buffs"), banner = $("#banner"), dialogRoot = $("#dialog-root");
+  const suggestEl = $("#suggest"), prefsEl = $("#prefs");
 
   function renderTools() {
     const status = !loaded && net === "connecting" ? ["", "Connecting…"]
@@ -446,8 +659,15 @@ button{cursor:pointer}
     const label = isEdit
       ? '<input id="name-input" maxlength="' + NAME_MAX + '" autocomplete="off" spellcheck="false" placeholder="Name" aria-label="Player name" value="' + esc(draftName) + '">'
       : '<span class="nm' + (m.n ? "" : " anon") + '">' + esc(m.n || full) + "</span>";
-    return '<div class="cell filled' + selCls + (isEdit ? " editing" : "") + '" data-i="' + i + '" draggable="' + !isEdit + '" role="button" tabindex="0" style="--c:' + c.color + ";--ci:" + (c.ink || "#111") + '" title="' + esc((m.n ? m.n + ": " : "") + full) + '" aria-label="Group ' + g + ", slot " + k + ": " + esc((m.n ? m.n + ", " : "") + full) + '">' +
-      img(sp.icon) + label + '<button type="button" class="x" data-act="remove" aria-label="Remove ' + esc(m.n || full) + '">&times;</button></div>';
+    const u = m.n ? signupsByName().get(m.n.toLowerCase()) : null;
+    const rank = u ? u.c.indexOf(m.s) : -1;
+    const tip = (m.n ? m.n + ": " : "") + full + (u ? (rank >= 0 ? " (" + ordinal(rank + 1) + " choice)" : " (not on their list)") + ". Wants: " + u.c.map((x) => specName(SPEC[x])).join(" > ") : "");
+    return '<div class="cell filled' + selCls + (isEdit ? " editing" : "") + '" data-i="' + i + '" draggable="' + !isEdit + '" role="button" tabindex="0" style="--c:' + c.color + ";--cn:" + (c.text || c.color) + '" title="' + esc(tip) + '" aria-label="Group ' + g + ", slot " + k + ": " + esc((m.n ? m.n + ", " : "") + full) + '">' +
+      img(sp.icon) + label + (u && !isEdit ? prioHTML(u.c, m.s) : "") + '<button type="button" class="x" data-act="remove" aria-label="Remove ' + esc(m.n || full) + '">&times;</button></div>';
+  }
+  // The player's signup specs, best first, with the one they are playing lit up.
+  function prioHTML(c, cur) {
+    return '<span class="prio" aria-hidden="true">' + c.slice(0, 5).map((k) => img(SPEC[k].icon, k === cur ? "cur" : "")).join("") + "</span>";
   }
 
   function renderGrid(a) {
@@ -456,7 +676,7 @@ button{cursor:pointer}
       let cells = "";
       for (let i = g * 5; i < g * 5 + 5; i++) cells += cellHTML(i);
       const party = a.party[g].map((t) => img(BUFF[t].icon, "", BUFF[t].sec.replace(/s$/, "") + ": " + BUFF[t].label + " · " + BUFF[t].src)).join("");
-      h += '<section class="group" aria-label="Group ' + (g + 1) + '"><h3>Group ' + (g + 1) + '</h3><div class="cells">' + cells + '</div><div class="party">' + party + "</div></section>";
+      h += '<section class="group" aria-label="Group ' + (g + 1) + '"><h3>Group ' + (g + 1) + "<span>" + state.slots.slice(g * 5, g * 5 + 5).filter(Boolean).length + "/5</span>" + '</h3><div class="cells">' + cells + '</div><div class="party">' + party + "</div></section>";
     }
     grid.innerHTML = h;
     const hidden = state.slots.slice(state.size).filter(Boolean).length;
@@ -501,23 +721,99 @@ button{cursor:pointer}
     signupsDirty = false;
     const placed = new Map();
     state.slots.forEach((m, i) => { if (m && m.n) placed.set(m.n.toLowerCase(), i); });
-    signups.innerHTML = "<h2>Signups <small>" + state.signups.length + "</small></h2>" +
+    signups.innerHTML = '<div class="phead"><h2 class="ttl">Signups <span class="count">' + state.signups.length + "</span></h2></div>" +
       '<p class="hint">Add your name, then your specs with + (up to ' + MAX_CLASSES + " classes, best first). Click a spec to place that player, or drag it onto a slot.</p>" +
       signupRow({ id: "", n: "", c: [] }, placed) + newestFirst().map((u) => signupRow(u, placed)).join("");
     applyFilter();
   }
 
   function renderBuffs(a) {
-    let h = '<section class="bsec"><h2>Composition</h2><dl class="stats">' + statsHTML(a) + "</dl></section>";
+    let h = '<section class="bsec"><h4>Composition</h4><dl class="stats">' + statsHTML(a) + "</dl></section>";
     BUFFS.forEach(([sec, party, rows]) => {
-      h += '<section class="bsec"><h2>' + sec + (party ? "<small>per group</small>" : "") + "</h2>" + rows.map(([tag, label, icon, src]) => {
+      h += '<section class="bsec"><h4>' + sec + (party ? "<small>per group</small>" : "") + "</h4>" + rows.map(([tag, label, icon, src]) => {
         const n = a.tags[tag] || 0;
         return '<button type="button" class="brow' + (n ? " on" : "") + (pinned === tag ? " pin" : "") + '" data-buff="' + tag + '" title="' + esc(src) + '">' + img(icon) + "<b>" + n + "</b><span>" + esc(label) + "</span></button>";
       }).join("") + "</section>";
     });
     const ns = notes(a);
     if (ns.length) h += '<ul class="notes">' + ns.map((t) => "<li>" + esc(t) + "</li>").join("") + "</ul>";
-    buffs.innerHTML = h;
+    buffs.innerHTML = '<div class="phead"><h2 class="ttl">Coverage <small>hover or click a row to see who brings it</small></h2></div><div class="buffs-body">' + h + "</div>";
+  }
+
+  function rankBadge(rank) {
+    return '<span class="rk r' + Math.min(rank + 1, 3) + '" title="' + ordinal(rank + 1) + ' choice">' + ordinal(rank + 1) + "</span>";
+  }
+  function renderSuggest() {
+    const sg = suggest(), raid = sg.raid, t = sg.t;
+    if (!raid.length) {
+      suggestEl.innerHTML = '<div class="phead"><h2 class="ttl">Suggested comp</h2></div><p class="hint">Once people sign up with their specs, the best comp for them shows here.</p>';
+      return;
+    }
+    const specs = raid.map((m) => SPEC[m.s]), tags = new Set(specs.flatMap(specTags));
+    const count = (f) => specs.filter(f).length;
+    const canBring = (f) => [...signupsByName().values()].some((u) => u.c.some((k) => f(SPEC[k])));
+    // Counts always show with their label; buffs show a label only when missing, an icon when covered.
+    let missing = "", covered = "";
+    const need = (ok, possible, icon, label, title, always) => {
+      const tip = esc(title + (ok ? "" : possible ? ". Missing." : ". Nobody signed up can bring it."));
+      const bare = ok && !always;
+      const h = '<li class="' + (ok ? "ok" : possible ? "miss" : "miss none") + (bare ? " bare" : "") + '" title="' + tip + '">' + img(icon) + (bare ? "" : esc(label)) + "</li>";
+      if (always) missing += h; else if (ok) covered += h; else missing += h;
+    };
+    const tanks = count((sp) => sp.role === "tank"), heals = count((sp) => sp.role === "heal"), pals = count((sp) => sp.cls === "paladin");
+    need(tanks >= t.tank, canBring((sp) => sp.role === "tank"), "ability_warrior_defensivestance", "Tanks " + tanks + "/" + t.tank, "Tanks", true);
+    need(heals >= t.heal, canBring((sp) => sp.role === "heal"), "spell_holy_flashheal", "Healers " + heals + "/" + t.heal, "About one healer per 3–4 players", true);
+    need(pals >= t.paladin, canBring((sp) => sp.cls === "paladin"), "spell_magic_greaterblessingofkings", "Paladins " + pals + "/" + t.paladin, "Each paladin gives one blessing (Kings, Wisdom, Might, Salvation, Light)", true);
+    BLESSINGS.concat(NEEDS).forEach(([tag], i) => {
+      const b = BUFF[tag], ok = i < BLESSINGS.length ? i < pals : tags.has(tag);
+      const possible = i < BLESSINGS.length ? canBring((sp) => sp.cls === "paladin") : canBring((sp) => specTags(sp).includes(tag));
+      need(ok, possible, b.icon, b.label, b.label + " · " + b.src);
+    });
+    const needs = missing + (covered ? '<li class="sep" aria-hidden="true"></li>' + covered : "");
+    const ranks = {};
+    raid.forEach((m) => { ranks[m.rank] = (ranks[m.rank] || 0) + 1; });
+    const rankSum = Object.keys(ranks).sort((a, b) => a - b).map((r) => "<b>" + ranks[r] + "</b> on " + ordinal(+r + 1) + " choice").join(", ");
+    let groupsH = "";
+    for (let g = 0; g * 5 < raid.length || g === 0; g++) {
+      let cells = "";
+      for (let i = g * 5; i < g * 5 + 5; i++) {
+        const m = sg.slots[i];
+        if (!m) { cells += '<div class="sg-cell empty"></div>'; continue; }
+        const sp = SPEC[m.s], c = CLASS[sp.cls];
+        cells += '<div class="sg-cell" style="--c:' + c.color + ";--cn:" + (c.text || c.color) + '" title="' + esc(m.n + ": " + specName(sp) + " (" + ordinal(m.rank + 1) + " choice)") + '">' + img(sp.icon) + '<span class="nm">' + esc(m.n) + "</span>" + rankBadge(m.rank) + "</div>";
+      }
+      groupsH += '<section class="group"><h3>Group ' + (g + 1) + "<span>" + sg.slots.slice(g * 5, g * 5 + 5).filter(Boolean).length + "/5</span></h3>" + '<div class="cells">' + cells + "</div></section>";
+    }
+    suggestEl.innerHTML = '<div class="phead"><h2 class="ttl">Suggested comp <small>best fit for the signups, updates as they change</small></h2>' +
+      '<button type="button" class="btn ' + (useArmed ? "armed" : "primary") + '" data-act="use-suggest">' + (useArmed ? "Click again to replace the groups" : "Use this comp") + "</button></div>" +
+      '<p class="sg-sum"><b>' + raid.length + "</b> players: " + rankSum + ".</p>" +
+      '<ul class="needs">' + needs + "</ul>" +
+      '<div class="grid">' + groupsH + "</div>" +
+      (sg.bench.length ? '<p class="bench">Bench (raid is full): ' + sg.bench.map((u) => esc(u.n)).join(", ") + "</p>" : "");
+  }
+  function renderPrefs() {
+    const players = [...signupsByName().values()];
+    if (!players.length) { prefsEl.innerHTML = ""; prefsEl.hidden = true; return; }
+    prefsEl.hidden = false;
+    const sg = suggest(), sugBy = new Map(sg.raid.map((m) => [m.n.toLowerCase(), m.s]));
+    const curBy = new Map(state.slots.filter((m) => m && m.n).map((m) => [m.n.toLowerCase(), m.s]));
+    const cols = Math.max(...players.map((u) => u.c.length));
+    let head = "<tr><th>Player</th>";
+    for (let r = 0; r < cols; r++) head += "<th>" + ordinal(r + 1) + "</th>";
+    const rows = players.map((u) => {
+      const key = u.n.toLowerCase();
+      let tds = "";
+      for (let r = 0; r < cols; r++) {
+        const k = u.c[r];
+        if (!k) { tds += "<td></td>"; continue; }
+        const sp = SPEC[k], isSug = sugBy.get(key) === k, isCur = curBy.get(key) === k;
+        tds += '<td><span class="pref' + (isSug ? " sug" : "") + (isCur ? " cur" : "") + '" style="--c:' + CLASS[sp.cls].color + '" title="' + esc(ordinal(r + 1) + " choice: " + specName(sp) + (isSug ? ". Suggested." : "") + (isCur ? ". Playing this in the raid now." : "")) + '">' + img(sp.icon) + esc(sp.label + " " + CLASS[sp.cls].name) + "</span></td>";
+      }
+      return '<tr><td class="who">' + esc(u.n) + "</td>" + tds + "</tr>";
+    }).join("");
+    prefsEl.innerHTML = '<div class="phead"><h2 class="ttl">Preferences <small>left to right: what each player wants most</small></h2></div>' +
+      '<p class="legend"><span><i class="l-sug"></i>Suggested comp</span><span><i class="l-cur"></i>In the raid groups now</span></p>' +
+      '<div class="prefs-wrap"><table><thead>' + head + "</tr></thead><tbody>" + rows + "</tbody></table></div>";
   }
 
   function applyFilter() {
@@ -545,7 +841,7 @@ button{cursor:pointer}
 
   function renderAll() {
     const a = analyze();
-    renderTools(); renderBanner(); renderGrid(a); renderSignups(); renderBuffs(a); applyFilter();
+    renderTools(); renderBanner(); renderGrid(a); renderSignups(); renderSuggest(); renderPrefs(); renderBuffs(a); applyFilter();
   }
 
   /* ---------- Sync ---------- */
@@ -741,6 +1037,14 @@ button{cursor:pointer}
         if (!clearArmed) { clearArmed = setTimeout(() => { clearArmed = 0; renderTools(); }, 4000); renderTools(); return; }
         clearTimeout(clearArmed); clearArmed = 0; sel = null; editing = null;
         change((s) => { for (let i = 0; i < MAX; i++) s.slots[i] = null; });
+        return;
+      }
+      if (a === "use-suggest") {
+        if (!useArmed) { useArmed = setTimeout(() => { useArmed = 0; renderSuggest(); }, 4000); renderSuggest(); return; }
+        clearTimeout(useArmed); useArmed = 0; sel = null; editing = null;
+        const slots = suggest().slots;
+        change((s) => { for (let i = 0; i < MAX; i++) s.slots[i] = slots[i] ? { s: slots[i].s, n: slots[i].n } : null; });
+        toast("Groups replaced with the suggested comp");
         return;
       }
     }
