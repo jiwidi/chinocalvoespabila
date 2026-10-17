@@ -30,6 +30,14 @@
   --bad:#e5564b;
   --ok:#4cc46b;
   --radius:8px;
+  /* Roles and primary stats, used by the composition card and the preference chips */
+  --tank:#5aa0ff;
+  --heal:#4cc46b;
+  --melee:#ef6a5a;
+  --range:#c08cff;
+  --int:#62b3ff;
+  --agi:#f2c94c;
+  --str:#ef6a5a;
   --font:"Open Sans",Arial,"Helvetica Neue",Helvetica,sans-serif;
   --narrow:"Open Sans",Arial,sans-serif;
   --display:"Barlow Condensed","Arial Narrow",Arial,sans-serif;
@@ -79,10 +87,33 @@ button{cursor:pointer}
 .banner{grid-column:1 / -1;padding:10px 14px;border:1px solid rgba(242,184,75,.5);background:#211a0c;color:#f6dca4;border-radius:var(--radius);font-size:12.5px}
 
 .hint{margin:4px 0 12px;font-size:12px;color:var(--muted)}
-.stats{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin:0;font-size:12px}
-.stats dt{color:var(--muted);text-align:right}
-.stats dd{margin:0;color:var(--soft)}
-.stats b{color:#fff;font-variant-numeric:tabular-nums}
+/* Composition: role tiles, armor and token bars */
+.comp{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin-bottom:18px}
+.ccard{padding:10px 12px 12px;border:1px solid var(--line);border-radius:6px;background:var(--panel-2)}
+.ccard h4{display:flex;justify-content:space-between;align-items:baseline;margin:0 0 10px;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.ccard h4 small{font-size:11px;font-weight:600;letter-spacing:0;text-transform:none;color:var(--soft)}
+.roles{display:grid;grid-template-columns:repeat(2,1fr);gap:6px}
+.role{display:grid;grid-template-columns:auto 1fr;grid-template-rows:auto auto;column-gap:8px;align-items:center;padding:7px 8px;border-radius:5px;background:var(--slot);box-shadow:inset 3px 0 0 var(--rc)}
+.role .ic{grid-row:1 / 3;width:28px;height:28px}
+.role b{font-size:18px;line-height:1;color:var(--rc);font-variant-numeric:tabular-nums}
+.role span{font-size:11px;font-weight:600;color:var(--soft)}
+.role.zero{opacity:.45}
+.role.zero .ic{filter:grayscale(1)}
+.r-tank{--rc:var(--tank)}.r-heal{--rc:var(--heal)}.r-melee{--rc:var(--melee)}.r-range{--rc:var(--range)}
+.meter{display:flex;gap:10px;align-items:flex-start;padding:6px 0}
+.meter + .meter{border-top:1px solid var(--line)}
+.meter > .ic{width:26px;height:26px;margin-top:1px}
+.meter.zero{opacity:.45}
+.meter.zero .ic{filter:grayscale(1)}
+.m-body{flex:1;min-width:0}
+.m-top{display:flex;justify-content:space-between;align-items:baseline;font-size:12px;font-weight:600;color:var(--soft)}
+.m-top b{font-size:13px;color:#fff;font-variant-numeric:tabular-nums}
+.bar{display:flex;gap:2px;height:6px;margin:5px 0 5px;border-radius:3px;background:var(--slot);overflow:hidden}
+.bar i{display:block;height:100%;border-radius:2px}
+.m-legend{display:flex;flex-wrap:wrap;gap:2px 10px}
+.st{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--muted)}
+.st i{width:7px;height:7px;border-radius:2px;background:var(--sc)}
+.s-int{--sc:var(--int)}.s-agi{--sc:var(--agi)}.s-str{--sc:var(--str)}
 
 /* Icons */
 .ic{display:block;flex:none;background:var(--panel-2);border-radius:4px;object-fit:cover}
@@ -206,13 +237,23 @@ button{cursor:pointer}
 .prefs th{padding:0 4px 6px;text-align:left;font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);white-space:nowrap}
 .prefs td{padding:4px 0;border-top:1px solid var(--line);vertical-align:middle}
 .prefs td.who{padding-left:4px;padding-right:8px;font-weight:700;font-size:13px;white-space:nowrap;color:#fff}
-.pref{display:inline-flex;align-items:center;gap:7px;height:30px;padding:0 10px 0 3px;border-radius:5px;background:var(--slot);box-shadow:inset 3px 0 0 var(--c);white-space:nowrap;font-weight:600;font-size:12px;color:var(--soft)}
-.pref .ic{width:24px;height:24px;margin-left:3px}
-.pref.sug{background:rgba(76,196,107,.1);box-shadow:inset 3px 0 0 var(--c),inset 0 0 0 1px rgba(76,196,107,.6);color:#fff}
-.pref.cur{outline:2px solid #fff;outline-offset:1px}
+/* A preference: class-tinted chip, spec name in class color, role tag. Lower choices fade a little. */
+.pref{position:relative;display:inline-flex;align-items:center;gap:8px;height:36px;padding:0 8px 0 3px;border-radius:5px;background:linear-gradient(90deg,color-mix(in srgb,var(--c) 24%,var(--slot)) 0%,var(--slot) 85%);box-shadow:inset 3px 0 0 var(--c);white-space:nowrap}
+.pref .ic{width:28px;height:28px;margin-left:3px}
+.p-txt{display:flex;flex-direction:column;line-height:1.15}
+.p-txt b{font-size:12px;font-weight:700;color:var(--cn,var(--c))}
+.p-txt small{font-size:10.5px;color:var(--muted)}
+.rtag{margin-left:2px;padding:1px 6px;border-radius:9px;font-size:9.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--rc);background:color-mix(in srgb,var(--rc) 14%,transparent)}
+.pref.rank2{opacity:.85}
+.pref.rank3{opacity:.72}
+.pref.rank4{opacity:.6}
+.pref.sug{opacity:1;box-shadow:inset 3px 0 0 var(--c),0 0 0 2px var(--ok)}
+.pref.sug::after{content:"\2713";position:absolute;top:-7px;right:-7px;width:16px;height:16px;border-radius:50%;background:var(--ok);color:#06210f;font-size:10px;font-weight:700;line-height:16px;text-align:center}
+.pref.cur{opacity:1;outline:2px solid #fff;outline-offset:3px}
 .legend{display:flex;flex-wrap:wrap;gap:4px 16px;margin:0 0 10px;font-size:11.5px;color:var(--muted)}
 .legend i{display:inline-block;width:12px;height:12px;margin-right:6px;vertical-align:-2px;border-radius:3px;background:var(--slot)}
-.legend .l-sug{box-shadow:inset 0 0 0 1px rgba(76,196,107,.8);background:rgba(76,196,107,.15)}
+.legend .l-sug{box-shadow:0 0 0 2px var(--ok)}
+.legend .rtag{margin:0 2px 0 0}
 .legend .l-cur{outline:2px solid #fff}
 
 /* Copy dialog and toast */
@@ -257,7 +298,7 @@ button{cursor:pointer}
   const API = "/api/comp";
   const ICON = (name) => "https://wow.zamimg.com/images/wow/icons/medium/" + name + ".jpg";
   const MAX = 40;
-  const SIZES = [10, 20, 40];
+  const SIZES = [10, 20]; // the API still accepts 40; the page does not offer it for now
   const NAME_MAX = 20;
   const FULL = "The raid is full. Remove someone or switch to a bigger size.";
   const MAX_CLASSES = 3; // per signup; any number of specs within those classes
@@ -490,7 +531,8 @@ button{cursor:pointer}
   }
 
   // What a raid wants, as points. The solver trades these against how far down each player's list it has to go.
-  // Sources: Classic raid templates (e.g. AQ20: 2 paladins or shamans, 3 priests, 1 druid healing; 40-man: 4 paladins, one per blessing).
+  // Templates the group plays: 10 = 2 tanks, 2 healers, 6 dps; 20 = 2 tanks, 3 or 4 healers, 14-15 dps with one or two
+  // dps who can flex to healing. Ranged (healers count as ranged) should match or outnumber melee.
   const PREF_COST = (r) => 13 * r - r * r; // 1st 0, 2nd 12, 3rd 22, 4th 30, 5th 36
   const BLESSINGS = [["kings", 25], ["wisdom", 15], ["might", 12], ["salv", 10], ["light", 5]]; // each paladin covers one blessing
   const NEEDS = [ // [tag, points] for buffs and debuffs one player is enough for
@@ -498,23 +540,33 @@ button{cursor:pointer}
     ["dcurse", 8], ["armor2", 6], ["crit", 5], ["scrit", 4], ["demo", 4], ["purge", 4], ["ddisease", 4], ["dpoison", 4],
     ["rap", 3], ["hit", 3], ["spirit", 3], ["shadowres", 3], ["tongues", 2], ["mortal", 2]
   ];
-  function targets(size, n) {
-    return {
-      tank: size >= 40 ? 3 : size >= 20 ? 2 : 1,
-      heal: Math.max(1, Math.round(n * 0.28)), // about 1 healer per 3.5 players
-      paladin: size >= 40 ? 4 : size >= 20 ? 2 : 1
-    };
+  // heal: healers wanted, healMax: most healers before it hurts, flex: dps who could switch to healing.
+  function targets(size) {
+    return size <= 10
+      ? { tank: 2, heal: 2, healMax: 2, flex: 1, paladin: 1 }
+      : { tank: 2, heal: 3, healMax: 4, flex: 2, paladin: 2 };
   }
-  function compScore(specs, t) {
+  const canHeal = (c) => c.some((k) => SPEC[k].role === "heal");
+  // A dps player whose signup also lists a healing spec.
+  const isFlex = (k, c) => (SPEC[k].role === "melee" || SPEC[k].role === "range") && canHeal(c);
+  // entries: [{ k: chosen spec, c: that player's signup specs }]
+  function compScore(entries, t) {
     const cls = {}, role = { tank: 0, heal: 0, melee: 0, range: 0 }, tags = new Set();
-    specs.forEach((k) => {
+    let flex = 0;
+    entries.forEach(({ k, c }) => {
       const sp = SPEC[k];
       cls[sp.cls] = (cls[sp.cls] || 0) + 1;
       role[sp.role]++;
+      if (isFlex(k, c)) flex++;
       specTags(sp).forEach((x) => tags.add(x));
     });
-    let s = 40 * Math.min(role.tank, t.tank) - 10 * Math.max(0, role.tank - t.tank);
-    s += 30 * Math.min(role.heal, t.heal) - 12 * Math.max(0, role.heal - t.heal - 1);
+    let s = 40 * Math.min(role.tank, t.tank) - 20 * Math.max(0, role.tank - t.tank);
+    s += 30 * Math.min(role.heal, t.heal) + 4 * Math.max(0, Math.min(role.heal, t.healMax) - t.heal) - 15 * Math.max(0, role.heal - t.healMax);
+    s += 8 * Math.min(flex, t.flex);
+    // Melee against ranged, healers counted as ranged: lose points for every melee too many, gain a little for extra ranged.
+    const ranged = role.range + role.heal;
+    s -= 10 * Math.max(0, role.melee - ranged);
+    s += 3 * Math.min(2, Math.max(0, ranged - role.melee));
     const pal = cls.paladin || 0;
     BLESSINGS.slice(0, pal).forEach(([, w]) => { s += w; });
     s += 10 * Math.min(pal, t.paladin);
@@ -529,18 +581,18 @@ button{cursor:pointer}
     const key = state.size + "|" + pets + "|" + JSON.stringify(state.signups);
     if (suggestMemo.key === key) return suggestMemo.out;
     const players = [...signupsByName().values()];
-    const n = players.length, cap = Math.min(n, state.size), t = targets(state.size, cap);
+    const n = players.length, cap = Math.min(n, state.size), t = targets(state.size);
     // pick[i] is an index into players[i].c, or -1 when benched. Earlier signups are kept over later ones on ties.
     const pick = players.map((u, i) => (i < cap ? 0 : -1));
     const value = (p) => {
       let s = 0;
-      const specs = [];
+      const entries = [];
       p.forEach((r, i) => {
         if (r < 0) { s -= 0.1 * (n - i); return; }
-        specs.push(players[i].c[r]);
+        entries.push({ k: players[i].c[r], c: players[i].c });
         s -= PREF_COST(r);
       });
-      return s + compScore(specs, t);
+      return s + compScore(entries, t);
     };
     // Hill climbing: take the best single change (or swap with the bench) until nothing improves,
     // then try changing two players at once to get past spots where one change alone does not pay off.
@@ -633,16 +685,39 @@ button{cursor:pointer}
       '<span class="live ' + status[0] + '" role="status"><i></i>' + status[1] + "</span>";
   }
 
-  function statsHTML(a) {
-    const n = (k) => "<b>" + (a.armor[k] || 0) + "</b>";
-    const r = a.roles, t = a.tokens;
-    return "<dt>Players</dt><dd><b>" + a.players + "</b> / " + state.size + "</dd>" +
-      "<dt>Roles</dt><dd><b>" + r.tank + "</b> Tank &nbsp;<b>" + r.heal + "</b> Heal &nbsp;<b>" + r.melee + "</b> Melee &nbsp;<b>" + r.range + "</b> Range</dd>" +
-      "<dt>Cloth</dt><dd>" + n("cloth") + " Int</dd>" +
-      "<dt>Leather</dt><dd>" + n("leather_int") + " Int &nbsp;" + n("leather_agi") + " Agi</dd>" +
-      "<dt>Mail</dt><dd>" + n("mail_int") + " Int &nbsp;" + n("mail_agi") + " Agi</dd>" +
-      "<dt>Plate</dt><dd>" + n("plate_int") + " Int &nbsp;" + n("plate_str") + " Str</dd>" +
-      "<dt>Tokens</dt><dd><b>" + (t.conqueror || 0) + "</b> Conq &nbsp;<b>" + (t.protector || 0) + "</b> Prot &nbsp;<b>" + (t.vanquisher || 0) + "</b> Vanq</dd>";
+  const ROLE_UI = [["tank", "Tanks", "ability_warrior_defensivestance"], ["heal", "Healers", "spell_holy_flashheal"], ["melee", "Melee", "ability_dualwield"], ["range", "Ranged", "ability_marksmanship"]];
+  const STAT_UI = { int: "Int", agi: "Agi", str: "Str" };
+  const ARMOR_UI = [ // [label, icon, [[armor key, stat]]]
+    ["Cloth", "inv_chest_cloth_21", [["cloth", "int"]]],
+    ["Leather", "inv_chest_leather_09", [["leather_int", "int"], ["leather_agi", "agi"]]],
+    ["Mail", "inv_chest_chain_05", [["mail_int", "int"], ["mail_agi", "agi"]]],
+    ["Plate", "inv_chest_plate06", [["plate_int", "int"], ["plate_str", "str"]]]
+  ];
+  const TOKEN_UI = [["conqueror", "Conqueror", ["paladin", "priest", "warlock"]], ["protector", "Protector", ["warrior", "hunter", "shaman"]], ["vanquisher", "Vanquisher", ["rogue", "mage", "druid"]]];
+  // Roles as tiles; armor and tier tokens as bars, so loot overlap shows at a glance.
+  function compHTML(a) {
+    const total = Math.max(a.players, 1);
+    const bar = (segs) => '<span class="bar">' + segs.filter((s) => s[0]).map(([n, color, tip]) => '<i style="width:' + (100 * n / total) + "%;background:" + color + '" title="' + esc(tip) + '"></i>').join("") + "</span>";
+    const roles = ROLE_UI.map(([k, label, icon]) => {
+      const n = a.roles[k];
+      return '<div class="role r-' + k + (n ? "" : " zero") + '">' + img(icon) + "<b>" + n + "</b><span>" + label + "</span></div>";
+    }).join("");
+    const armor = ARMOR_UI.map(([label, icon, parts]) => {
+      const n = parts.reduce((s, [k]) => s + (a.armor[k] || 0), 0);
+      const legend = parts.map(([k, st]) => '<span class="st s-' + st + '"><i></i>' + (a.armor[k] || 0) + " " + STAT_UI[st] + "</span>").join("");
+      return '<div class="meter' + (n ? "" : " zero") + '">' + img(icon) + '<div class="m-body"><div class="m-top"><span>' + label + "</span><b>" + n + "</b></div>" +
+        bar(parts.map(([k, st]) => [a.armor[k] || 0, "var(--" + st + ")", (a.armor[k] || 0) + " " + label + " " + STAT_UI[st]])) + '<div class="m-legend">' + legend + "</div></div></div>";
+    }).join("");
+    const tokens = TOKEN_UI.map(([k, label, classes]) => {
+      const n = a.tokens[k] || 0;
+      const legend = classes.map((c) => '<span class="st" style="--sc:' + CLASS[c].color + '"><i></i>' + (a.classes[c] || 0) + " " + CLASS[c].name + "</span>").join("");
+      return '<div class="meter' + (n ? "" : " zero") + '"><div class="m-body"><div class="m-top"><span>' + label + "</span><b>" + n + "</b></div>" +
+        bar(classes.map((c) => [a.classes[c] || 0, CLASS[c].color, (a.classes[c] || 0) + " " + CLASS[c].name])) + '<div class="m-legend">' + legend + "</div></div></div>";
+    }).join("");
+    return '<div class="comp">' +
+      '<div class="ccard"><h4>Roles <small>' + a.players + " / " + state.size + " players</small></h4>" + '<div class="roles">' + roles + "</div></div>" +
+      '<div class="ccard"><h4>Armor</h4>' + armor + "</div>" +
+      '<div class="ccard"><h4>Tier tokens</h4>' + tokens + "</div></div>";
   }
 
   // state.signups is in signup order; the page shows the newest first.
@@ -691,7 +766,7 @@ button{cursor:pointer}
     }
     grid.innerHTML = h;
     const hidden = state.slots.slice(state.size).filter(Boolean).length;
-    if (hidden) grid.insertAdjacentHTML("beforeend", '<p class="foot" style="grid-column:1/-1">' + plural(hidden, "player is", "players are") + " in groups hidden at size " + state.size + ". Switch to 40 to see them.</p>");
+    if (hidden) grid.insertAdjacentHTML("beforeend", '<p class="foot" style="grid-column:1/-1">' + plural(hidden, "player is", "players are") + " in groups hidden at size " + state.size + (state.size < 20 ? ". Switch to 20 to see them." : ". Clear groups to remove them.") + "</p>");
     if (editing !== null) {
       const input = $("#name-input");
       if (input) { input.focus(); input.setSelectionRange(input.value.length, input.value.length); }
@@ -739,7 +814,7 @@ button{cursor:pointer}
   }
 
   function renderBuffs(a) {
-    let h = '<section class="bsec"><h4>Composition</h4><dl class="stats">' + statsHTML(a) + "</dl></section>";
+    let h = "";
     BUFFS.forEach(([sec, party, rows]) => {
       h += '<section class="bsec"><h4>' + sec + (party ? "<small>per group</small>" : "") + "</h4>" + rows.map(([tag, label, icon, src]) => {
         const n = a.tags[tag] || 0;
@@ -748,7 +823,7 @@ button{cursor:pointer}
     });
     const ns = notes(a);
     if (ns.length) h += '<ul class="notes">' + ns.map((t) => "<li>" + esc(t) + "</li>").join("") + "</ul>";
-    buffs.innerHTML = '<div class="phead"><h2 class="ttl">Coverage <small>hover or click a row to see who brings it</small></h2></div><div class="buffs-body">' + h + "</div>";
+    buffs.innerHTML = '<div class="phead"><h2 class="ttl">Coverage <small>hover or click a row to see who brings it</small></h2></div>' + compHTML(a) + '<div class="buffs-body">' + h + "</div>";
   }
 
   function rankBadge(rank) {
@@ -773,7 +848,12 @@ button{cursor:pointer}
     };
     const tanks = count((sp) => sp.role === "tank"), heals = count((sp) => sp.role === "heal"), pals = count((sp) => sp.cls === "paladin");
     need(tanks >= t.tank, canBring((sp) => sp.role === "tank"), "ability_warrior_defensivestance", "Tanks " + tanks + "/" + t.tank, "Tanks", true);
-    need(heals >= t.heal, canBring((sp) => sp.role === "heal"), "spell_holy_flashheal", "Healers " + heals + "/" + t.heal, "About one healer per 3–4 players", true);
+    const healGoal = t.heal === t.healMax ? String(t.heal) : t.heal + "–" + t.healMax;
+    need(heals >= t.heal && heals <= t.healMax, canBring((sp) => sp.role === "heal"), "spell_holy_flashheal", "Healers " + heals + "/" + healGoal, "Healers: " + healGoal + " for a raid of " + state.size, true);
+    const flex = raid.filter((m) => isFlex(m.s, m.u.c)).length;
+    need(flex >= t.flex, [...signupsByName().values()].some((u) => u.c.some((k) => SPEC[k].role !== "heal") && canHeal(u.c)), "spell_nature_healingtouch", "Flex healers " + flex + "/" + t.flex, "DPS players who also signed up with a healing spec, so they can switch if needed", true);
+    const melee = count((sp) => sp.role === "melee"), ranged = count((sp) => sp.role === "range" || sp.role === "heal");
+    need(ranged >= melee, true, "ability_marksmanship", "Melee " + melee + " · Ranged " + ranged, "Healers count as ranged. Ranged should match or outnumber melee", true);
     need(pals >= t.paladin, canBring((sp) => sp.cls === "paladin"), "spell_magic_greaterblessingofkings", "Paladins " + pals + "/" + t.paladin, "Each paladin gives one blessing (Kings, Wisdom, Might, Salvation, Light)", true);
     BLESSINGS.concat(NEEDS).forEach(([tag], i) => {
       const b = BUFF[tag], ok = i < BLESSINGS.length ? i < pals : tags.has(tag);
@@ -818,12 +898,15 @@ button{cursor:pointer}
         const k = u.c[r];
         if (!k) { tds += "<td></td>"; continue; }
         const sp = SPEC[k], isSug = sugBy.get(key) === k, isCur = curBy.get(key) === k;
-        tds += '<td><span class="pref' + (isSug ? " sug" : "") + (isCur ? " cur" : "") + '" style="--c:' + CLASS[sp.cls].color + '" title="' + esc(ordinal(r + 1) + " choice: " + specName(sp) + (isSug ? ". Suggested." : "") + (isCur ? ". Playing this in the raid now." : "")) + '">' + img(sp.icon) + esc(sp.label + " " + CLASS[sp.cls].name) + "</span></td>";
+        const c = CLASS[sp.cls], roleName = ROLE_UI.find((x) => x[0] === sp.role)[1].replace(/s$/, "");
+        tds += '<td><span class="pref rank' + Math.min(r + 1, 4) + (isSug ? " sug" : "") + (isCur ? " cur" : "") + '" style="--c:' + c.color + ";--cn:" + (c.text || c.color) + '" title="' + esc(ordinal(r + 1) + " choice: " + specName(sp) + " (" + roleName + ")" + (isSug ? ". Suggested." : "") + (isCur ? ". Playing this in the raid now." : "")) + '">' +
+          img(sp.icon) + '<span class="p-txt"><b>' + esc(sp.label) + "</b><small>" + esc(c.name) + "</small></span>" + '<span class="rtag r-' + sp.role + '">' + roleName + "</span></span></td>";
       }
       return '<tr><td class="who">' + esc(u.n) + "</td>" + tds + "</tr>";
     }).join("");
     prefsEl.innerHTML = '<div class="phead"><h2 class="ttl">Preferences <small>left to right: what each player wants most</small></h2></div>' +
-      '<p class="legend"><span><i class="l-sug"></i>Suggested comp</span><span><i class="l-cur"></i>In the raid groups now</span></p>' +
+      '<p class="legend"><span><i class="l-sug"></i>Suggested comp</span><span><i class="l-cur"></i>In the raid groups now</span><span>' +
+      ROLE_UI.map(([k, label]) => '<span class="rtag r-' + k + '">' + label.replace(/s$/, "") + "</span>").join("") + "</span></p>" +
       '<div class="prefs-wrap"><table><thead>' + head + "</tr></thead><tbody>" + rows + "</tbody></table></div>";
   }
 

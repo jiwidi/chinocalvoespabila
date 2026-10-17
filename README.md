@@ -5,7 +5,7 @@ A shared, live raid composition planner for World of Warcraft: Forever. Everyone
 
 - Signups (left): each player writes a name and the specs they can play, best first. Up to 3 classes per player, with any number of specs in those classes. Newest signups show first. The list is separate from the groups.
 - Groups of five (right), built from the signups: click an empty slot and pick from the signups not in the raid yet, click a spec in the signups to put that player in the next empty slot, or drag a spec onto a slot. A player is in the raid only once; clicking another of their specs switches it. Signups already in the raid show their group. Each slot shows the player's name; the icon and class color show the spec.
-- Raid size 10, 20 or 40. **Clear groups** empties the groups and keeps the signups.
+- Raid size 10 or 20 (the API still accepts 40). **Clear groups** empties the groups and keeps the signups.
 - Coverage panel (under the groups): composition, raid buffs, totems, party buffs (per group), debuffs, resistances, dispels. Hover or click a row to highlight who brings it and which signups could.
 - Heads-up notes for blessing, totem and curse limits.
 - Copy roster as text for Discord.
