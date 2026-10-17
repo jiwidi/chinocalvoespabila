@@ -1,4 +1,4 @@
-# Raid Comp · WoW Forever
+# Supreme Forever · WoW Forever raid planner
 
 
 A shared, live raid composition planner for World of Warcraft: Forever. Everyone with the link edits the same raid, and changes show up for everyone else within a couple of seconds.

@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Raid Comp · WoW Forever</title>
-<meta name="description" content="Shared, live raid composition planner for World of Warcraft: Forever.">
+<title>Supreme Forever · Raid planner</title>
+<meta name="description" content="Supreme Forever: shared, live raid planner for World of Warcraft: Forever.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Open+Sans:wght@400;600;700&display=swap">
@@ -25,7 +25,7 @@
   --text:#e8e8ea;
   --soft:#c4c4c9;
   --muted:#8d8d95;
-  --faint:#55555c;
+  --faint:#6c6c74;
   --warn:#f2b84b;
   --bad:#e5564b;
   --ok:#4cc46b;
@@ -59,6 +59,7 @@ button{cursor:pointer}
 .top{position:sticky;top:0;z-index:20;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 18px;padding:10px max(16px,env(safe-area-inset-right)) 10px max(16px,env(safe-area-inset-left));background:rgba(14,14,16,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
 .brand{display:flex;align-items:center;gap:10px}
 .brand .mark{width:30px;height:30px;border-radius:6px;background:linear-gradient(135deg,#f2b84b,#b8741f);display:grid;place-items:center;color:var(--accent-ink);font-family:var(--display);font-weight:700;font-size:17px}
+.brand h1 span{color:var(--accent)}
 .brand h1{margin:0;font-family:var(--display);font-size:22px;line-height:1;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#fff}
 .brand p{margin:2px 0 0;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
 .tools{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
@@ -79,7 +80,7 @@ button{cursor:pointer}
 .live.bad i{background:var(--bad)}
 
 /* Layout: signups take the left column; groups, suggestion, preferences and coverage stack on the right. */
-.layout{display:grid;grid-template-columns:430px minmax(0,1fr);gap:16px;align-items:start;max-width:1520px;margin:0 auto;padding:16px max(16px,env(safe-area-inset-right)) 32px max(16px,env(safe-area-inset-left))}
+.layout{display:grid;grid-template-columns:460px minmax(0,1fr);gap:16px;align-items:start;max-width:1520px;margin:0 auto;padding:16px max(16px,env(safe-area-inset-right)) 32px max(16px,env(safe-area-inset-left))}
 .plan,.side{display:grid;gap:16px;min-width:0}
 @media (max-width:960px){.layout{grid-template-columns:minmax(0,1fr)}}
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);min-width:0;padding:14px 16px 16px}
@@ -120,7 +121,7 @@ button{cursor:pointer}
 .ic.broken{opacity:0}
 
 /* Groups: each group is a card, each slot a dark row tinted with the class color */
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:12px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
 .group{padding:10px;border:1px solid var(--line);border-radius:6px;background:var(--panel-2)}
 .group h3{display:flex;justify-content:space-between;align-items:baseline;margin:0 2px 8px;font-family:var(--display);font-size:13.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--soft)}
 .group h3 span{font-family:var(--font);font-size:11px;font-weight:600;letter-spacing:0;color:var(--muted)}
@@ -155,6 +156,7 @@ button{cursor:pointer}
 .prio .pr:hover .ic{opacity:.85;filter:none}
 .prio .pr.cur .ic{opacity:1;filter:none;box-shadow:0 0 0 1px #fff}
 .cell.filled:hover .prio,.cell.filled:focus-within .prio{margin-right:24px}
+@media (hover:none){.cell.filled .prio{margin-right:24px}}
 .party{display:flex;flex-wrap:wrap;gap:4px;min-height:18px;margin:8px 2px 0}
 .party .ic{width:18px;height:18px}
 .foot{margin:12px 2px 0;font-size:11.5px;color:var(--faint)}
@@ -165,7 +167,7 @@ button{cursor:pointer}
 .su:hover{background:var(--panel-2)}
 .su.placed .su-name,.su.placed .su-specs{opacity:.55}
 .su.placed:hover .su-name,.su.placed:hover .su-specs,.su.placed:focus-within .su-name,.su.placed:focus-within .su-specs{opacity:1}
-.su-name{flex:0 0 112px;width:112px;height:30px;padding:0 8px;border:1px solid transparent;border-radius:5px;background:none;font-weight:700;font-size:13px;color:#fff}
+.su-name{flex:0 0 128px;width:128px;text-overflow:ellipsis;height:30px;padding:0 8px;border:1px solid transparent;border-radius:5px;background:none;font-weight:700;font-size:13px;color:#fff}
 .su-name:hover{border-color:var(--line-2)}
 .su-name:focus{border-color:var(--accent);background:#000}
 .su.new{margin-bottom:8px;padding:8px;border:1px dashed var(--line-2);background:var(--slot)}
@@ -173,7 +175,7 @@ button{cursor:pointer}
 .su-specs{flex:1;min-width:0;display:flex;flex-wrap:wrap;align-items:center;gap:5px}
 .chip{position:relative;display:inline-flex;border-radius:5px;box-shadow:0 0 0 2px var(--c);cursor:grab}
 .chip button{display:block;padding:0;border:0;background:none;border-radius:5px}
-.chip .ic{width:22px;height:22px}
+.chip .ic{width:20px;height:20px}
 .chip .x{position:absolute;top:-8px;right:-8px;width:15px;height:15px;border:0;border-radius:50%;background:var(--bad);color:#fff;font-size:10px;font-weight:700;line-height:15px;opacity:0}
 .chip:hover .x,.chip .x:focus-visible{opacity:1}
 .chip.on{box-shadow:0 0 0 2px var(--c),0 0 0 4px #fff}
@@ -232,12 +234,15 @@ button{cursor:pointer}
 .bench{margin:12px 2px 0;font-size:12px;color:var(--muted)}
 
 /* Preferences */
-.prefs-wrap{overflow-x:auto;margin:0 -4px}
-.prefs table{border-collapse:separate;border-spacing:4px 0;width:100%;font-size:12px}
-.prefs th{padding:0 4px 6px;text-align:left;font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);white-space:nowrap}
-.prefs td{padding:4px 0;border-top:1px solid var(--line);vertical-align:middle}
-.prefs td.who{padding-left:4px;padding-right:8px;font-weight:700;font-size:13px;white-space:nowrap;color:#fff}
-/* A preference: class-tinted chip, spec name in class color, role tag. Lower choices fade a little. */
+.plist{display:grid}
+.prow{display:grid;grid-template-columns:150px minmax(0,1fr);gap:10px;align-items:center;padding:7px 2px;border-top:1px solid var(--line)}
+.prow .who{display:flex;align-items:center;gap:7px;min-width:0;font-weight:700;font-size:13px;color:#fff}
+.prow .who span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fx-mini{width:18px;height:18px;border-radius:50%}
+.pchips{display:flex;flex-wrap:wrap;gap:8px 10px}
+.pref .pn{position:absolute;top:-6px;left:-6px;display:grid;place-items:center;width:16px;height:16px;border-radius:50%;background:var(--panel);box-shadow:0 0 0 1px var(--line-2);color:var(--soft);font-style:normal;font-size:9.5px;font-weight:700;z-index:1}
+.pref.rank1 .pn{background:var(--accent);box-shadow:none;color:var(--accent-ink)}
+@media (max-width:620px){.prow{grid-template-columns:minmax(0,1fr)}.pref .rtag{display:none}}
 .pref{position:relative;display:inline-flex;align-items:center;gap:8px;height:36px;padding:0 8px 0 3px;border-radius:5px;background:linear-gradient(90deg,color-mix(in srgb,var(--c) 24%,var(--slot)) 0%,var(--slot) 85%);box-shadow:inset 3px 0 0 var(--c);white-space:nowrap}
 .pref .ic{width:28px;height:28px;margin-left:3px}
 .p-txt{display:flex;flex-direction:column;line-height:1.15}
@@ -329,16 +334,23 @@ button{cursor:pointer}
 .dialog .row{display:flex;justify-content:flex-end;margin-top:10px}
 .toast{position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:40;max-width:calc(100% - 32px);padding:9px 16px;background:var(--text);color:#000;font-weight:600;font-size:12px;border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,.5)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+@media (max-width:700px){
+  .top{position:static}
+  .brand h1{font-size:20px}
+}
 @media (max-width:520px){
-  .su{flex-wrap:wrap}
-  .su-name{flex:1 1 140px}
+  .su:not(.new){display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;row-gap:6px}
+  .su:not(.new) .su-name{width:auto}
+  .su:not(.new) .su-specs{grid-column:1 / -1;order:5;padding-left:36px}
+  .su.new{flex-wrap:wrap}
+  .su.new .btn.join{flex:1 1 100%}
   .grid{grid-template-columns:minmax(0,1fr)}
 }
 </style>
 </head>
 <body>
 <header class="top">
-  <div class="brand"><span class="mark" aria-hidden="true">R</span><div><h1>Raid Comp</h1><p>World of Warcraft: Forever</p></div></div>
+  <div class="brand"><span class="mark" aria-hidden="true">S</span><div><h1>Supreme <span>Forever</span></h1><p>Raid planner · World of Warcraft: Forever</p></div></div>
   <div class="tools" id="tools"></div>
 </header>
 <main class="layout">
@@ -608,24 +620,37 @@ button{cursor:pointer}
   }
 
   // What a raid wants, as points. The solver trades these against how far down each player's list it has to go.
+  // Priority, as WoW Forever guides put it for fixed 10/20 rosters: tanks and healers first, then must-have tools
+  // (interrupts, dispels), then buffs that cover a 5-player group (avoiding redundant ones), raid-wide buffs, damage last.
   // Templates the group plays: 10 = 2 tanks, 2 healers, 6 dps; 20 = 2 tanks, 3 or 4 healers, 14-15 dps with one or two
   // dps who can flex to healing. Ranged (healers count as ranged) should match or outnumber melee.
+  // Forever beta notes used here: Leader of the Pack and Moonkin aura don't stack in a group; Windfury, Flametongue and
+  // Grace of Air are group-wide and exclude each other; Curse of the Elements covers all magic; Expose Armor replaces
+  // Sunder stacking; Druids and Hunters have no interrupt.
   // Kept modest so a player moves to a lower choice when the raid clearly gains (a missing healer, a useless duplicate).
   const PREF_COST = (r) => 6.5 * r - 0.5 * r * r; // 1st 0, 2nd 6, 3rd 11, 4th 15, 5th 18
   // Hybrid dps specs are brought for their one-of-a-kind buff; a second copy adds little over a pure dps class.
   const HYBRID_DPS = new Set(["druid_balance", "druid_feral", "paladin_retribution", "priest_shadow", "shaman_elemental", "shaman_enhancement"]);
   const HYBRID_DUP_COST = 10; // per extra copy of the same hybrid spec
   const BLESSINGS = [["kings", 25], ["wisdom", 15], ["might", 12], ["salv", 10], ["light", 5]]; // each paladin covers one blessing
-  const NEEDS = [ // [tag, points] for buffs and debuffs one player is enough for
-    ["stam", 25], ["motw", 25], ["int", 20], ["armor1", 15], ["ap", 12], ["coe", 12], ["wf", 10], ["brez", 10], ["dmagic", 10],
-    ["dcurse", 8], ["armor2", 6], ["crit", 5], ["scrit", 4], ["demo", 4], ["purge", 4], ["ddisease", 4], ["dpoison", 4],
-    ["frenzy", 6], ["rap", 3], ["hit", 3], ["spirit", 3], ["shadowres", 3], ["natureres", 2], ["tongues", 2], ["mortal", 2]
+  // Interrupts: Pummel/Shield Bash, Kick, Counterspell, Earth Shock, Spell Lock (felhunter), Silence (Shadow).
+  const canKick = (k) => ["warrior", "rogue", "mage", "shaman", "warlock"].includes(SPEC[k].cls) || k === "priest_shadow";
+  // Buffs that reach one 5-player group: the first provider is worth `first`, each extra one (up to one per group) `more`.
+  const GROUP_BUFFS = [ // [label, providers(spec) -> bool, first, more]
+    ["totems", (sp) => sp.cls === "shaman", 14, 7], // Windfury / Grace of Air / Mana Spring per group
+    ["druid aura", (sp) => sp.key === "druid_feral" || sp.key === "druid_guardian" || sp.key === "druid_balance", 6, 3], // LotP or Moonkin, not both in one group
+    ["paladin aura", (sp) => sp.cls === "paladin", 4, 3]
+  ];
+  const NEEDS = [ // [tag, points] for buffs, debuffs and tools one player is enough for
+    ["stam", 22], ["motw", 22], ["int", 16], ["armor1", 15], ["coe", 14], ["dmagic", 14], ["ap", 12], ["dcurse", 12], ["brez", 10],
+    ["ddisease", 6], ["dpoison", 6], ["armor2", 6], ["frenzy", 6], ["purge", 5], ["demo", 4], ["hit", 3], ["spirit", 3],
+    ["rap", 3], ["shadowres", 3], ["tongues", 3], ["natureres", 2], ["mortal", 2]
   ];
   // heal: healers wanted, healMax: most healers before it hurts, flex: dps who could switch to healing.
   function targets(size) {
     return size <= 10
-      ? { tank: 2, heal: 2, healMax: 2, flex: 1, paladin: 1 }
-      : { tank: 2, heal: 3, healMax: 4, flex: 2, paladin: 2 };
+      ? { tank: 2, heal: 2, healMax: 2, flex: 1, paladin: 1, kick: 2 }
+      : { tank: 2, heal: 3, healMax: 4, flex: 2, paladin: 2, kick: 3 };
   }
   const canHeal = (c) => c.some((k) => SPEC[k].role === "heal");
   // A dps player whose signup also lists a healing spec.
@@ -633,7 +658,8 @@ button{cursor:pointer}
   // entries: [{ k: chosen spec, c: that player's signup specs }]
   function compScore(entries, t) {
     const cls = {}, role = { tank: 0, heal: 0, melee: 0, range: 0 }, tags = new Set(), seen = {};
-    let flex = 0, dup = 0;
+    let flex = 0, dup = 0, kick = 0;
+    const groupBuff = GROUP_BUFFS.map(() => 0);
     entries.forEach(({ k, c }) => {
       const sp = SPEC[k];
       if (HYBRID_DPS.has(k) && seen[k]) dup++;
@@ -641,8 +667,11 @@ button{cursor:pointer}
       cls[sp.cls] = (cls[sp.cls] || 0) + 1;
       role[sp.role]++;
       if (isFlex(k, c)) flex++;
+      if (canKick(k)) kick++;
+      GROUP_BUFFS.forEach(([, has], i) => { if (has(sp)) groupBuff[i]++; });
       specTags(sp).forEach((x) => tags.add(x));
     });
+    const groups = Math.max(1, Math.ceil(entries.length / 5));
     let s = 40 * Math.min(role.tank, t.tank) - 20 * Math.max(0, role.tank - t.tank);
     s += 30 * Math.min(role.heal, t.heal) + 4 * Math.max(0, Math.min(role.heal, t.healMax) - t.heal) - 15 * Math.max(0, role.heal - t.healMax);
     s += 8 * Math.min(flex, t.flex);
@@ -654,8 +683,12 @@ button{cursor:pointer}
     const pal = cls.paladin || 0;
     BLESSINGS.slice(0, pal).forEach(([, w]) => { s += w; });
     s += 10 * Math.min(pal, t.paladin);
-    if ((cls.shaman || 0) >= 2) s += 5; // totems for a second group
-    if ((cls.warlock || 0) >= 2) s += 5; // a second curse
+    s += 8 * Math.min(kick, t.kick);
+    GROUP_BUFFS.forEach(([, , first, more], i) => {
+      const n = Math.min(groupBuff[i], groups);
+      if (n) s += first + more * (n - 1);
+    });
+    if ((cls.warlock || 0) >= 2) s += 5; // a second curse (Recklessness or Tongues)
     NEEDS.forEach(([tag, w]) => { if (tags.has(tag)) s += w; });
     return s;
   }
@@ -740,6 +773,7 @@ button{cursor:pointer}
         if (sp.role === "heal") v -= 10 * count((x) => x.role === "heal");
         if (sp.cls === "shaman") v += 3 * count(phys) - 15 * count((x) => x.cls === "shaman");
         if (sp.cls === "paladin") v -= 12 * count((x) => x.cls === "paladin");
+        if (sp.cls === "druid" && sp.role !== "heal") v -= 10 * count((x) => x.cls === "druid" && x.role !== "heal"); // one crit aura per group
         if (sp.cls === "warlock") v -= 4 * count((x) => x.cls === "warlock");
         if (v > bestV) { bestV = v; bestG = gi; }
       });
@@ -834,7 +868,7 @@ button{cursor:pointer}
   // The player's signup specs, best first, with the one they are playing lit up.
   // Click one to make it the spec the player plays in this slot.
   function prioHTML(c, cur) {
-    return '<span class="prio">' + c.slice(0, 5).map((k, r) => {
+    return '<span class="prio">' + c.slice(0, 4).map((k, r) => {
       const label = ordinal(r + 1) + " choice: " + specName(SPEC[k]) + (k === cur ? " (playing)" : ". Click to play this.");
       return '<button type="button" class="pr' + (k === cur ? " cur" : "") + '" data-act="main-spec" data-spec="' + k + '" title="' + esc(label) + '" aria-label="' + esc(label) + '" aria-pressed="' + (k === cur) + '">' + img(SPEC[k].icon) + "</button>";
     }).join("") + "</span>";
@@ -899,7 +933,7 @@ button{cursor:pointer}
     const placed = new Map();
     state.slots.forEach((m, i) => { if (m && m.n) placed.set(m.n.toLowerCase(), i); });
     signups.innerHTML = '<div class="phead"><h2 class="ttl">Signups <span class="count">' + state.signups.length + "</span></h2></div>" +
-      '<p class="hint">Write your name and join: you pick Horde or Alliance, then your specs (up to ' + MAX_CLASSES + " classes, best first). Drag a spec left or right to change its priority, or add one with +. Click a spec to place that player, or drag it onto a slot.</p>" +
+      '<p class="hint">Join with your name, pick a side, then your specs (best first, up to ' + MAX_CLASSES + " classes). Drag specs to reorder them; click or drag one onto a slot to place the player.</p>" +
       signupRow({ id: "", n: "", c: [] }, placed) + newestFirst().map((u) => signupRow(u, placed)).join("");
     applyFilter();
   }
@@ -945,6 +979,8 @@ button{cursor:pointer}
     need(flex >= t.flex, [...signupsByName().values()].some((u) => u.c.some((k) => SPEC[k].role !== "heal") && canHeal(u.c)), "spell_nature_healingtouch", "Flex healers " + flex + "/" + t.flex, "DPS players who also signed up with a healing spec, so they can switch if needed", true);
     const melee = count((sp) => sp.role === "melee"), ranged = count((sp) => sp.role === "range" || sp.role === "heal");
     need(ranged >= melee, true, "ability_marksmanship", "Melee " + melee + " · Ranged " + ranged, "Healers count as ranged. Ranged should match or outnumber melee", true);
+    const kicks = raid.filter((m) => canKick(m.s)).length;
+    need(kicks >= t.kick, [...signupsByName().values()].some((u) => u.c.some(canKick)), "ability_kick", "Interrupts " + kicks + "/" + t.kick, "Players who can interrupt a cast: Warrior, Rogue, Mage, Shaman, Warlock (felhunter), Shadow Priest. Druids, Hunters and Paladins can't", true);
     need(pals >= t.paladin, canBring((sp) => sp.cls === "paladin"), "spell_magic_greaterblessingofkings", "Paladins " + pals + "/" + t.paladin, "Each paladin gives one blessing (Kings, Wisdom, Might, Salvation, Light)", true);
     BLESSINGS.concat(NEEDS).forEach(([tag], i) => {
       const b = BUFF[tag], ok = i < BLESSINGS.length ? i < pals : tags.has(tag);
@@ -979,26 +1015,21 @@ button{cursor:pointer}
     prefsEl.hidden = false;
     const sg = suggest(), sugBy = new Map(sg.raid.map((m) => [m.n.toLowerCase(), m.s]));
     const curBy = new Map(state.slots.filter((m) => m && m.n).map((m) => [m.n.toLowerCase(), m.s]));
-    const cols = Math.max(...players.map((u) => u.c.length));
-    let head = "<tr><th>Player</th>";
-    for (let r = 0; r < cols; r++) head += "<th>" + ordinal(r + 1) + "</th>";
+    // One row per player; the chips wrap instead of scrolling sideways, each numbered by preference.
     const rows = players.map((u) => {
-      const key = u.n.toLowerCase();
-      let tds = "";
-      for (let r = 0; r < cols; r++) {
-        const k = u.c[r];
-        if (!k) { tds += "<td></td>"; continue; }
+      const key = u.n.toLowerCase(), fx = FACTION[u.f];
+      const chips = u.c.map((k, r) => {
         const sp = SPEC[k], isSug = sugBy.get(key) === k, isCur = curBy.get(key) === k;
         const c = CLASS[sp.cls], roleName = ROLE_UI.find((x) => x[0] === sp.role)[1].replace(/s$/, "");
-        tds += '<td><span class="pref rank' + Math.min(r + 1, 4) + (isSug ? " sug" : "") + (isCur ? " cur" : "") + '" style="--c:' + c.color + ";--cn:" + (c.text || c.color) + '" title="' + esc(ordinal(r + 1) + " choice: " + specName(sp) + " (" + roleName + ")" + (isSug ? ". Suggested." : "") + (isCur ? ". Playing this in the raid now." : "")) + '">' +
-          img(sp.icon) + '<span class="p-txt"><b>' + esc(sp.label) + "</b><small>" + esc(c.name) + "</small></span>" + '<span class="rtag r-' + sp.role + '">' + roleName + "</span></span></td>";
-      }
-      return '<tr><td class="who">' + esc(u.n) + "</td>" + tds + "</tr>";
+        return '<span class="pref rank' + Math.min(r + 1, 4) + (isSug ? " sug" : "") + (isCur ? " cur" : "") + '" style="--c:' + c.color + ";--cn:" + (c.text || c.color) + '" title="' + esc(ordinal(r + 1) + " choice: " + specName(sp) + " (" + roleName + ")" + (isSug ? ". Suggested." : "") + (isCur ? ". Playing this in the raid now." : "")) + '">' +
+          '<i class="pn">' + (r + 1) + "</i>" + img(sp.icon) + '<span class="p-txt"><b>' + esc(sp.label) + "</b><small>" + esc(c.name) + "</small></span>" + '<span class="rtag r-' + sp.role + '">' + roleName + "</span></span>";
+      }).join("");
+      return '<div class="prow"><div class="who">' + (fx ? img(fx.icon, "fx-mini", fx.name) : "") + "<span>" + esc(u.n) + '</span></div><div class="pchips">' + chips + "</div></div>";
     }).join("");
     prefsEl.innerHTML = '<div class="phead"><h2 class="ttl">Preferences <small>left to right: what each player wants most</small></h2></div>' +
       '<p class="legend"><span><i class="l-sug"></i>Suggested comp</span><span><i class="l-cur"></i>In the raid groups now</span><span>' +
       ROLE_UI.map(([k, label]) => '<span class="rtag r-' + k + '">' + label.replace(/s$/, "") + "</span>").join("") + "</span></p>" +
-      '<div class="prefs-wrap"><table><thead>' + head + "</tr></thead><tbody>" + rows + "</tbody></table></div>";
+      '<div class="plist">' + rows + "</div>";
   }
 
   function applyFilter() {
@@ -1174,7 +1205,7 @@ button{cursor:pointer}
     else if (act === "su-place") placePlayer(key, u.n);
   }
   function rosterText() {
-    const a = analyze(), lines = ["Raid comp: " + a.players + "/" + state.size + " players (" + a.roles.tank + " tank, " + a.roles.heal + " heal, " + a.roles.melee + " melee, " + a.roles.range + " range)", ""];
+    const a = analyze(), lines = ["Supreme Forever raid: " + a.players + "/" + state.size + " players (" + a.roles.tank + " tank, " + a.roles.heal + " heal, " + a.roles.melee + " melee, " + a.roles.range + " range)", ""];
     for (let g = 0; g < state.size / 5; g++) {
       const mem = state.slots.slice(g * 5, g * 5 + 5).filter(Boolean).map((m) => (m.n || "?") + " (" + specName(SPEC[m.s]) + ")");
       lines.push("Group " + (g + 1) + ": " + (mem.length ? mem.join(", ") : "empty"));
