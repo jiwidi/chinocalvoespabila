@@ -1,5 +1,6 @@
 # Raid Comp · WoW Forever
 
+
 A shared, live raid composition planner for World of Warcraft: Forever. Everyone with the link edits the same raid, and changes show up for everyone else within a couple of seconds.
 
 - Signups (left): each player writes a name and the specs they can play, best first. Up to 3 classes per player, with any number of specs in those classes. Newest signups show first. The list is separate from the groups.
