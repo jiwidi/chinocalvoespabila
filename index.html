@@ -632,6 +632,7 @@ button{cursor:pointer}
   // Hybrid dps specs are brought for their one-of-a-kind buff; a second copy adds little over a pure dps class.
   const HYBRID_DPS = new Set(["druid_balance", "druid_feral", "paladin_retribution", "priest_shadow", "shaman_elemental", "shaman_enhancement"]);
   const HYBRID_DUP_COST = 10; // per extra copy of the same hybrid spec
+  const FIRST_WARLOCK = 20;
   const BLESSINGS = [["kings", 25], ["wisdom", 15], ["might", 12], ["salv", 10], ["light", 5]]; // each paladin covers one blessing
   // Interrupts: Pummel/Shield Bash, Kick, Counterspell, Earth Shock, Spell Lock (felhunter), Silence (Shadow).
   const canKick = (k) => ["warrior", "rogue", "mage", "shaman", "warlock"].includes(SPEC[k].cls) || k === "priest_shadow";
@@ -688,7 +689,9 @@ button{cursor:pointer}
       const n = Math.min(groupBuff[i], groups);
       if (n) s += first + more * (n - 1);
     });
-    if ((cls.warlock || 0) >= 2) s += 5; // a second curse (Recklessness or Tongues)
+    // The first warlock brings utility no tag covers (Healthstones, summoning, Soulstone on top of a curse): worth a lot.
+    // More warlocks add only a second curse.
+    if (cls.warlock) s += FIRST_WARLOCK + (cls.warlock >= 2 ? 5 : 0);
     NEEDS.forEach(([tag, w]) => { if (tags.has(tag)) s += w; });
     return s;
   }
@@ -979,6 +982,8 @@ button{cursor:pointer}
     need(flex >= t.flex, [...signupsByName().values()].some((u) => u.c.some((k) => SPEC[k].role !== "heal") && canHeal(u.c)), "spell_nature_healingtouch", "Flex healers " + flex + "/" + t.flex, "DPS players who also signed up with a healing spec, so they can switch if needed", true);
     const melee = count((sp) => sp.role === "melee"), ranged = count((sp) => sp.role === "range" || sp.role === "heal");
     need(ranged >= melee, true, "ability_marksmanship", "Melee " + melee + " · Ranged " + ranged, "Healers count as ranged. Ranged should match or outnumber melee", true);
+    const locks = count((sp) => sp.cls === "warlock");
+    need(locks >= 1, canBring((sp) => sp.cls === "warlock"), "spell_shadow_soulgem", "Warlock " + Math.min(locks, 1) + "/1", "One warlock brings Healthstones, summoning, Soulstone and Curse of the Elements; more add little", true);
     const kicks = raid.filter((m) => canKick(m.s)).length;
     need(kicks >= t.kick, [...signupsByName().values()].some((u) => u.c.some(canKick)), "ability_kick", "Interrupts " + kicks + "/" + t.kick, "Players who can interrupt a cast: Warrior, Rogue, Mage, Shaman, Warlock (felhunter), Shadow Priest. Druids, Hunters and Paladins can't", true);
     need(pals >= t.paladin, canBring((sp) => sp.cls === "paladin"), "spell_magic_greaterblessingofkings", "Paladins " + pals + "/" + t.paladin, "Each paladin gives one blessing (Kings, Wisdom, Might, Salvation, Light)", true);
