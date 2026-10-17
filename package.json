@@ -1,0 +1,13 @@
+{
+  "name": "chinocalvoespabila",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Live, shared raid composition planner for World of Warcraft: Forever",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@upstash/redis": "1.38.4"
+  }
+}

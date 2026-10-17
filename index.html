@@ -1,0 +1,736 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Raid Comp · WoW Forever</title>
+<meta name="description" content="Shared, live raid composition planner for World of Warcraft: Forever.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@700&display=swap">
+<style>
+:root{
+  /* Three panels like a raid tool: spec palette | raid groups | buff coverage. Dark, steel-blue game UI. */
+  --bg:#06080c;
+  --panel:#0d1118;
+  --panel-2:#151b26;
+  --line:#2a3f52;
+  --line-2:#4d7697;
+  --accent:#78b2e0;
+  --text:#e9edf2;
+  --muted:#8a95a5;
+  --faint:#4b5666;
+  --warn:#e5b14f;
+  --bad:#e05a4e;
+  --ok:#4fc46f;
+  --font:Verdana,Geneva,Tahoma,"DejaVu Sans",sans-serif;
+  --narrow:"Roboto Condensed","Arial Narrow",Tahoma,sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font);font-size:13px;line-height:1.3}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+[hidden]{display:none!important}
+:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+
+/* Top bar */
+.top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 18px;padding:10px max(14px,env(safe-area-inset-right)) 10px max(14px,env(safe-area-inset-left));background:var(--panel);border-bottom:1px solid var(--line)}
+.brand h1{margin:0;font-size:24px;line-height:1;color:var(--accent);font-weight:700;letter-spacing:.2px}
+.brand p{margin:3px 0 0;font-size:12px;font-weight:700;color:var(--accent);opacity:.75}
+.tools{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.btn{height:30px;padding:0 12px;border:2px solid var(--line-2);border-radius:2px;background:#000;font-weight:700;font-size:12px;white-space:nowrap}
+.btn:hover{border-color:var(--accent)}
+.btn.armed{border-color:var(--bad);color:#ffb4ab}
+.seg{display:inline-flex;align-items:center;border:2px solid var(--line-2);border-radius:2px;background:#000;height:30px}
+.seg span{padding:0 8px;font-size:11px;font-weight:700;color:var(--muted)}
+.seg button{height:26px;padding:0 10px;border:0;border-left:1px solid var(--line);background:#000;font-weight:700;font-size:12px;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--line-2);color:#fff}
+.live{display:inline-flex;align-items:center;gap:6px;min-width:118px;padding:0 4px;font-size:12px;font-weight:700;color:var(--muted)}
+.live i{width:8px;height:8px;border-radius:50%;background:var(--faint)}
+.live.ok i{background:var(--ok);box-shadow:0 0 6px var(--ok)}
+.live.busy i{background:var(--accent)}
+.live.bad i{background:var(--bad)}
+
+/* Layout */
+.layout{display:grid;grid-template-columns:360px minmax(0,1fr) 290px;gap:10px;align-items:start;max-width:1500px;margin:0 auto;padding:10px max(10px,env(safe-area-inset-right)) 24px max(10px,env(safe-area-inset-left))}
+@media (max-width:1180px){.layout{grid-template-columns:350px minmax(0,1fr)}.buffs{grid-column:1 / -1;columns:3 230px;column-gap:24px}}
+@media (max-width:760px){.layout{grid-template-columns:minmax(0,1fr)}.buffs{columns:2 220px}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:3px;min-width:0}
+.banner{grid-column:1 / -1;padding:10px 12px;border:1px solid var(--warn);background:#1d1709;color:#f6dca4;border-radius:3px;font-size:12.5px}
+
+/* Spec palette */
+.palette{padding:6px 10px 12px}
+.palette h2{margin:10px 0 6px;text-align:center;font-size:13px;color:#fff}
+.palette h2:first-child{margin-top:4px}
+.specs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px 4px}
+.spec{display:flex;align-items:center;gap:3px;min-width:0;padding:0;border:0;background:none;text-align:left;transition:opacity .12s}
+.spec .ic{width:24px;height:24px}
+.spec .lbl{flex:1;min-width:0;display:flex;align-items:center;justify-content:center;height:22px;padding:0 3px;background:var(--c);color:var(--ci);border:1px solid #000;font-family:var(--narrow);font-weight:700;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.spec:hover .lbl{filter:brightness(1.15)}
+.palette.filtering .spec:not(.elig){opacity:.2}
+.palette.filtering .spec.elig .lbl{box-shadow:0 0 0 2px #fff}
+.hint{margin:12px 2px 0;font-size:11.5px;color:var(--muted)}
+.stats{display:grid;grid-template-columns:auto 1fr;gap:3px 10px;margin-top:12px;padding-top:10px;border-top:1px solid var(--line);font-size:12px;font-weight:700}
+.stats dt{color:var(--muted);text-align:right}
+.stats dd{margin:0}
+.stats b{color:var(--accent);font-variant-numeric:tabular-nums}
+
+/* Icons */
+.ic{display:block;flex:none;background:var(--panel-2);border:1px solid #000;object-fit:cover}
+.ic.broken{opacity:0}
+
+/* Groups */
+.groups{padding:8px 14px 14px}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 18px}
+@media (max-width:460px){.grid{grid-template-columns:minmax(0,1fr)}}
+.group h3{margin:2px 0 6px;text-align:center;font-size:13px;color:#fff}
+.cells{display:flex;flex-direction:column;gap:4px}
+.cell{position:relative;display:flex;align-items:center;height:30px;border:2px solid var(--line-2);background:#000;cursor:pointer;transition:opacity .12s}
+.cell.empty:hover{border-color:var(--accent)}
+.cell.sel{border-color:#fff;box-shadow:0 0 0 1px #fff}
+.cell.filled{border:1px solid #000;background:var(--c);color:var(--ci)}
+.cell.filled .ic{width:28px;height:28px;border:0;border-right:1px solid #000}
+.cell .nm{flex:1;min-width:0;padding:0 24px 0 6px;text-align:center;font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cell .nm.anon{font-weight:400;font-style:italic;opacity:.65}
+.cell input{flex:1;min-width:0;height:22px;margin:0 26px 0 4px;padding:0 6px;border:1px solid #000;border-radius:2px;background:rgba(255,255,255,.92);color:#000;font-weight:700;font-size:13px;text-align:center}
+.cell .x{position:absolute;right:3px;top:50%;transform:translateY(-50%);width:20px;height:20px;padding:0;border:0;border-radius:2px;background:rgba(0,0,0,.45);color:#fff;font-weight:700;font-size:12px;line-height:20px;opacity:0}
+.cell:hover .x,.cell.editing .x,.cell:focus-within .x{opacity:1}
+@media (hover:none){.cell .x{opacity:.9}}
+.cell.drop{outline:2px dashed #fff;outline-offset:1px}
+.cell.dragging{opacity:.35}
+.grid.filtering .cell.filled:not(.hl){opacity:.3}
+.cell.hl{box-shadow:0 0 0 2px #fff,0 0 10px rgba(255,255,255,.6)}
+.party{display:flex;flex-wrap:wrap;gap:3px;min-height:20px;margin-top:5px}
+.party .ic{width:18px;height:18px}
+.foot{margin:14px 2px 0;font-size:11.5px;color:var(--muted)}
+
+/* Buffs */
+.buffs{padding:4px 10px 12px}
+.bsec{break-inside:avoid;padding-top:6px}
+.buffs h2{margin:4px 0 3px;font-size:14px;color:var(--accent)}
+.buffs h2 small{font-size:10.5px;color:var(--muted);font-weight:400;margin-left:4px}
+.brow{display:flex;align-items:center;gap:6px;width:100%;padding:1px 4px;border:0;border-radius:2px;background:none;text-align:left;font-weight:700;font-size:12px;color:#fff}
+.brow .ic{width:16px;height:16px;opacity:.4}
+.brow b{min-width:14px;text-align:right;font-variant-numeric:tabular-nums}
+.brow.on{color:var(--accent)}
+.brow.on .ic{opacity:1}
+.brow:hover{background:var(--panel-2)}
+.brow.pin{background:var(--panel-2);box-shadow:inset 0 0 0 1px var(--accent)}
+.notes{margin:10px 0 0;padding:0;list-style:none;display:grid;gap:6px;break-inside:avoid}
+.notes li{padding:6px 8px;border-left:2px solid var(--warn);background:#18140b;font-size:11.5px;line-height:1.4;color:#f1dfb8}
+
+/* Copy dialog and toast */
+.overlay{position:fixed;inset:0;z-index:30;display:grid;place-items:center;padding:16px;background:rgba(0,0,0,.7)}
+.dialog{width:min(560px,100%);padding:14px;background:var(--panel);border:2px solid var(--line-2);border-radius:3px}
+.dialog h3{margin:0 0 8px;font-size:14px;color:var(--accent)}
+.dialog textarea{width:100%;height:240px;padding:8px;background:#000;color:var(--text);border:1px solid var(--line-2);font:12px/1.4 ui-monospace,Menlo,Consolas,monospace}
+.dialog .row{display:flex;justify-content:flex-end;margin-top:8px}
+.toast{position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:40;max-width:calc(100% - 32px);padding:8px 14px;background:var(--text);color:#000;font-weight:700;font-size:12px;border-radius:3px;box-shadow:0 6px 20px rgba(0,0,0,.5)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand"><h1>Raid Comp</h1><p>World of Warcraft: Forever</p></div>
+  <div class="tools" id="tools"></div>
+</header>
+<main class="layout">
+  <div class="banner" id="banner" hidden></div>
+  <section class="panel palette" id="palette" aria-label="Specs"></section>
+  <section class="panel groups" aria-label="Raid groups">
+    <div class="grid" id="grid"></div>
+    <p class="foot">Everyone with this link edits the same raid. Changes show up for the others within a couple of seconds.</p>
+  </section>
+  <aside class="panel buffs" id="buffs" aria-label="Buffs and debuffs"></aside>
+</main>
+<div id="dialog-root"></div>
+<div class="toast" id="toast" role="status" hidden></div>
+<script>
+(() => {
+  "use strict";
+  const API = "/api/comp";
+  const ICON = (name) => "https://wow.zamimg.com/images/wow/icons/medium/" + name + ".jpg";
+  const MAX = 40;
+  const SIZES = [10, 20, 40];
+  const NAME_MAX = 20;
+  const POLL_MS = 1500;
+  const PETS_KEY = "raidcomp-hunter-pets";
+
+  /* ---------- Game data (WoW Forever) ---------- */
+  const CLASS = {
+    druid: { name: "Druid", color: "#FF7C0A" },
+    hunter: { name: "Hunter", color: "#AAD372" },
+    mage: { name: "Mage", color: "#3FC7EB" },
+    paladin: { name: "Paladin", color: "#F48CBA" },
+    priest: { name: "Priest", color: "#FFFFFF" },
+    rogue: { name: "Rogue", color: "#FFF468" },
+    shaman: { name: "Shaman", color: "#0070DD", ink: "#ffffff" },
+    warlock: { name: "Warlock", color: "#8788EE" },
+    warrior: { name: "Warrior", color: "#C69B6D" }
+  };
+  const DRUID = ["motw", "innervate", "armor2", "brez", "dcurse", "dpoison"];
+  const HUNTER = ["hit", "natureres", "frenzy"], PET = ["ap", "tongues", "mortal"];
+  const MAGE = ["int", "amp", "dcurse"];
+  const PALADIN = ["kings", "wisdom", "light", "aura", "might", "salv", "jol", "jow", "resaura", "dmagic", "ddisease", "dpoison"];
+  const PRIEST = ["stam", "shadowres", "spirit", "purge", "dmagic", "ddisease"];
+  const ROGUE = ["armor1", "mortal", "tongues"];
+  const SHAMAN = ["wf", "goa", "ft", "soe", "mst", "hst", "ground", "tremor", "restotem", "purge", "ddisease", "dpoison"];
+  const WARLOCK = ["bp", "coe", "armor2", "tongues", "brez", "purge", "dmagic"];
+  const WARRIOR = ["ap", "armor1", "demo", "clap"];
+  // key, class, spec, role, armor, tier token, icon, tags, hunter-pet tags
+  const SPEC_ROWS = [
+    ["druid_balance", "druid", "Balance", "range", "leather_int", "vanquisher", "spell_nature_starfall", DRUID.concat("scrit", "hit")],
+    ["druid_feral", "druid", "Feral", "melee", "leather_agi", "vanquisher", "ability_druid_catform", DRUID.concat("crit", "demo")],
+    ["druid_guardian", "druid", "Guardian", "tank", "leather_agi", "vanquisher", "ability_racial_bearform", DRUID.concat("crit", "demo")],
+    ["druid_restoration", "druid", "Restoration", "heal", "leather_int", "vanquisher", "spell_nature_healingtouch", DRUID],
+    ["hunter_beast_mastery", "hunter", "Beast Mastery", "range", "mail_agi", "protector", "ability_hunter_beasttaming", HUNTER, PET],
+    ["hunter_marksmanship", "hunter", "Marksmanship", "range", "mail_agi", "protector", "ability_marksmanship", HUNTER.concat("rap"), PET],
+    ["hunter_survival", "hunter", "Survival", "melee", "mail_agi", "protector", "ability_hunter_swiftstrike", HUNTER, PET],
+    ["mage_arcane", "mage", "Arcane", "range", "cloth", "vanquisher", "spell_holy_magicalsentry", MAGE],
+    ["mage_fire", "mage", "Fire", "range", "cloth", "vanquisher", "spell_fire_firebolt02", MAGE],
+    ["mage_frost", "mage", "Frost", "range", "cloth", "vanquisher", "spell_frost_frostbolt02", MAGE],
+    ["paladin_holy", "paladin", "Holy", "heal", "plate_int", "conqueror", "spell_holy_holybolt", PALADIN],
+    ["paladin_protection", "paladin", "Protection", "tank", "plate_str", "conqueror", "spell_holy_devotionaura", PALADIN],
+    ["paladin_retribution", "paladin", "Retribution", "melee", "plate_str", "conqueror", "spell_holy_auraoflight", PALADIN.concat("demo")],
+    ["priest_discipline", "priest", "Discipline", "heal", "cloth", "conqueror", "spell_holy_wordfortitude", PRIEST.concat("pi")],
+    ["priest_holy", "priest", "Holy", "heal", "cloth", "conqueror", "spell_holy_guardianspirit", PRIEST],
+    ["priest_shadow", "priest", "Shadow", "range", "cloth", "conqueror", "spell_shadow_shadowwordpain", PRIEST.concat("di", "ve")],
+    ["rogue_assassination", "rogue", "Assassination", "melee", "leather_agi", "vanquisher", "ability_rogue_eviscerate", ROGUE],
+    ["rogue_combat", "rogue", "Combat", "melee", "leather_agi", "vanquisher", "ability_backstab", ROGUE],
+    ["rogue_subtlety", "rogue", "Subtlety", "melee", "leather_agi", "vanquisher", "ability_stealth", ROGUE],
+    ["shaman_elemental", "shaman", "Elemental", "range", "mail_int", "protector", "spell_nature_lightning", SHAMAN],
+    ["shaman_enhancement", "shaman", "Enhancement", "melee", "mail_agi", "protector", "spell_nature_lightningshield", SHAMAN],
+    ["shaman_restoration", "shaman", "Restoration", "heal", "mail_int", "protector", "spell_nature_magicimmunity", SHAMAN.concat("tide")],
+    ["warlock_affliction", "warlock", "Affliction", "range", "cloth", "conqueror", "spell_shadow_deathcoil", WARLOCK],
+    ["warlock_demonology", "warlock", "Demonology", "range", "cloth", "conqueror", "spell_shadow_metamorphosis", WARLOCK],
+    ["warlock_destruction", "warlock", "Destruction", "range", "cloth", "conqueror", "spell_shadow_rainoffire", WARLOCK],
+    ["warrior_arms", "warrior", "Arms", "melee", "plate_str", "protector", "ability_warrior_savageblow", WARRIOR.concat("mortal")],
+    ["warrior_fury", "warrior", "Fury", "melee", "plate_str", "protector", "ability_warrior_innerrage", WARRIOR],
+    ["warrior_protection", "warrior", "Protection", "tank", "plate_str", "protector", "ability_warrior_defensivestance", WARRIOR]
+  ];
+  const SPEC = {};
+  SPEC_ROWS.forEach((r) => {
+    SPEC[r[0]] = { key: r[0], cls: r[1], label: r[2], role: r[3], armor: r[4], token: r[5], icon: r[6], tags: r[7], pet: r[8] || [] };
+  });
+  const PALETTE = [
+    ["Tank", ["druid_guardian", "paladin_protection", "warrior_protection"]],
+    ["Heal", ["druid_restoration", "paladin_holy", "shaman_restoration", "priest_holy", "priest_discipline"]],
+    ["Caster / Range", ["mage_arcane", "mage_fire", "mage_frost", "warlock_affliction", "warlock_demonology", "warlock_destruction", "hunter_beast_mastery", "hunter_marksmanship", "shaman_elemental", "druid_balance", "priest_shadow"]],
+    ["Melee", ["rogue_assassination", "rogue_combat", "rogue_subtlety", "warrior_arms", "warrior_fury", "shaman_enhancement", "druid_feral", "hunter_survival", "paladin_retribution"]]
+  ];
+  // [section, party-only?, [[tag, label, icon, sources]]]
+  const BUFFS = [
+    ["Raid buffs", false, [
+      ["int", "Intellect", "spell_holy_arcaneintellect", "Arcane Brilliance (Mage)"],
+      ["stam", "Stamina", "spell_holy_prayeroffortitude", "Prayer of Fortitude (Priest)"],
+      ["spirit", "Spirit", "spell_holy_divinespirit", "Prayer of Spirit (Priest)"],
+      ["motw", "Stats (Flat)", "spell_nature_regeneration", "Gift of the Wild (Druid)"],
+      ["scrit", "3% Spell Crit", "spell_nature_forceofnature", "Moonkin Aura (Balance)"],
+      ["crit", "3% Range / Melee Crit", "spell_nature_unyeildingstamina", "Leader of the Pack (Feral, Guardian)"],
+      ["rap", "Ranged Attack Power", "ability_trueshot", "Trueshot Aura (Marksmanship)"],
+      ["ap", "Melee Attack Power", "ability_warrior_battleshout", "Battle Shout (Warrior), Furious Howl (wolf pet)"],
+      ["might", "Melee Attack Power (Paladin)", "spell_holy_fistofjustice", "Greater Blessing of Might (Paladin)"],
+      ["kings", "10% Stats", "spell_magic_greaterblessingofkings", "Greater Blessing of Kings (Paladin)"],
+      ["wisdom", "Mana Restoration", "spell_holy_greaterblessingofwisdom", "Greater Blessing of Wisdom (Paladin)"],
+      ["light", "Healing Received", "spell_holy_greaterblessingoflight", "Greater Blessing of Light (Paladin)"],
+      ["salv", "Reduced Threat", "spell_holy_greaterblessingofsalvation", "Greater Blessing of Salvation (Paladin)"]]],
+    ["Raid totems", false, [
+      ["wf", "Windfury Totem", "spell_nature_windfury", "Shaman air totem"],
+      ["ft", "Flametongue Totem", "spell_nature_guardianward", "Shaman fire totem"],
+      ["goa", "Grace of Air Totem", "spell_nature_invisibilitytotem", "Shaman air totem"],
+      ["soe", "Strength of Earth Totem", "spell_nature_earthbindtotem", "Shaman earth totem"]]],
+    ["Party buffs", true, [
+      ["di", "Spirit", "spell_warlock_demonsoul", "Dark Inspiration (Shadow Priest)"],
+      ["ve", "Health Return", "spell_shadow_unsummonbuilding", "Vampiric Embrace (Shadow Priest)"],
+      ["bp", "Stamina", "spell_shadow_bloodboil", "Blood Pact (Warlock imp)"],
+      ["aura", "Auras", "spell_holy_devotionaura", "Devotion, Concentration or Retribution Aura (Paladin)"]]],
+    ["Party totems", true, [
+      ["hst", "Healing Stream Totem", "inv_spear_04", "Shaman water totem"],
+      ["mst", "Mana Spring Totem", "spell_nature_manaregentotem", "Shaman water totem"],
+      ["tide", "Mana Tide Totem", "spell_frost_summonwaterelemental", "Restoration Shaman"],
+      ["ground", "Grounding Totem", "spell_nature_groundingtotem", "Shaman air totem"],
+      ["tremor", "Tremor Totem", "spell_nature_tremortotem", "Shaman earth totem"]]],
+    ["Offensive debuffs", false, [
+      ["coe", "10% Magic Damage", "spell_shadow_chilltouch", "Curse of the Elements (Warlock)"],
+      ["jol", "Judgement of Light", "spell_holy_healingaura", "Paladin"],
+      ["jow", "Judgement of Wisdom", "spell_holy_righteousnessaura", "Paladin"]]],
+    ["Armor reduction", false, [
+      ["armor1", "Armor (Major)", "ability_warrior_sunder", "Sunder Armor (Warrior), Expose Armor (Rogue)"],
+      ["armor2", "Armor (Minor)", "spell_nature_faeriefire", "Faerie Fire (Druid), Curse of Recklessness (Warlock)"]]],
+    ["Reduction debuffs", false, [
+      ["demo", "Attack Power", "ability_warrior_warcry", "Demoralizing Shout (Warrior), Demoralizing Roar (Feral, Guardian), Vindication (Retribution)"],
+      ["clap", "Attack Speed", "ability_thunderclap", "Thunder Clap (Warrior)"],
+      ["tongues", "Casting Speed", "spell_shadow_curseoftounges", "Curse of Tongues (Warlock), Mind-numbing Poison (Rogue), Sonic Blast (bat pet)"],
+      ["mortal", "Healing", "ability_warrior_savageblow", "Mortal Strike (Arms), Wound Poison (Rogue), Dismember (crocolisk pet)"],
+      ["hit", "2% Hit", "ability_hunter_criticalshot", "Scorpid Sting (Hunter), Insect Swarm (Balance)"]]],
+    ["Single-player buffs", false, [
+      ["pi", "Power Infusion", "spell_holy_powerinfusion", "Discipline Priest"],
+      ["innervate", "Innervate", "spell_nature_lightning", "Druid"]]],
+    ["Raid resistance", false, [
+      ["shadowres", "Shadow Resistance", "spell_holy_prayerofshadowprotection", "Prayer of Shadow Protection (Priest)"],
+      ["natureres", "Nature Resistance", "spell_nature_protectionformnature", "Aspect of the Wild (Hunter)"],
+      ["resaura", "Resistance Auras", "spell_fire_sealoffire", "Fire, Frost and Shadow Resistance Aura (Paladin)"],
+      ["restotem", "Resistance Totems", "spell_frostresistancetotem_01", "Fire, Frost and Nature Resistance Totem (Shaman)"]]],
+    ["Raid utility", false, [
+      ["amp", "Magic", "spell_holy_flashheal", "Amplify Magic, Dampen Magic (Mage)"],
+      ["brez", "Combat Resurrection", "spell_nature_reincarnation", "Rebirth (Druid), Soulstone (Warlock)"]]],
+    ["Offensive dispel", false, [
+      ["purge", "Magic", "spell_nature_purge", "Purge (Shaman), Dispel Magic (Priest), Devour Magic (felhunter)"],
+      ["frenzy", "Frenzy", "spell_nature_drowsy", "Tranquilizing Shot (Hunter)"]]],
+    ["Defensive dispel", false, [
+      ["dmagic", "Magic", "spell_holy_dispelmagic", "Cleanse (Paladin), Dispel Magic (Priest), Devour Magic (felhunter)"],
+      ["dcurse", "Curse", "spell_holy_removecurse", "Remove Curse (Druid), Remove Lesser Curse (Mage)"],
+      ["ddisease", "Disease", "spell_holy_nullifydisease", "Cleanse (Paladin), Abolish Disease (Priest), Cure Disease (Shaman)"],
+      ["dpoison", "Poison", "spell_nature_nullifypoison", "Cleanse (Paladin), Abolish Poison (Druid), Cure Poison (Shaman)"]]]
+  ];
+  const BUFF = {};
+  const PARTY_TAGS = new Set();
+  BUFFS.forEach(([sec, party, rows]) => rows.forEach(([tag, label, icon, src]) => {
+    BUFF[tag] = { tag, label, icon, src, sec };
+    if (party) PARTY_TAGS.add(tag);
+  }));
+
+  /* ---------- Helpers ---------- */
+  const $ = (s) => document.querySelector(s);
+  const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const cleanName = (s) => String(s == null ? "" : s).replace(/[\u0000-\u001f\u007f<>]/g, "").trim().slice(0, NAME_MAX);
+  const img = (name, cls, title) => '<img class="ic ' + (cls || "") + '" src="' + ICON(name) + '" alt=""' + (title ? ' title="' + esc(title) + '"' : "") + ' loading="lazy" onerror="this.classList.add(\'broken\')">';
+  const specName = (sp) => sp.label + " " + CLASS[sp.cls].name;
+  const plural = (n, one, many) => n + " " + (n === 1 ? one : many || one + "s");
+  function normalize(d) {
+    d = d && typeof d === "object" ? d : {};
+    const src = Array.isArray(d.slots) ? d.slots : [];
+    const slots = [];
+    for (let i = 0; i < MAX; i++) {
+      const v = src[i];
+      slots.push(v && SPEC[v.s] ? { s: v.s, n: cleanName(v.n) } : null);
+    }
+    return { v: Number(d.v) || 0, size: SIZES.includes(d.size) ? d.size : 20, slots };
+  }
+  const same = (a, b) => (a ? a.s + "|" + a.n : "") === (b ? b.s + "|" + b.n : "");
+
+  /* ---------- State ---------- */
+  let state = normalize({});
+  let loaded = false;
+  let serverV = -1;
+  let pending = null; // changes not yet sent: {slots:{}, size?}
+  let inFlight = false;
+  let net = "connecting"; // connecting | ok | offline | nostore
+  let failures = 0;
+  let pollTimer = null;
+  let deferred = null; // remote state that arrived while you were typing or dragging
+  let sel = null; // selected slot index
+  let editing = null; // slot index whose name is being edited
+  let draftName = "";
+  let drag = null; // {type:"spec", key} | {type:"cell", i}
+  let pinned = null; // pinned buff tag
+  let hovered = null;
+  let clearArmed = 0;
+  let pets = true;
+  try { pets = localStorage.getItem(PETS_KEY) !== "off"; } catch (e) {}
+
+  function specTags(sp) { return pets ? sp.tags.concat(sp.pet) : sp.tags; }
+  function firstEmpty() {
+    for (let i = 0; i < state.size; i++) if (!state.slots[i]) return i;
+    return null;
+  }
+
+  /* ---------- Analysis ---------- */
+  function analyze() {
+    const tags = {}, roles = { tank: 0, heal: 0, melee: 0, range: 0 }, armor = {}, tokens = {}, classes = {}, party = [];
+    let players = 0;
+    for (let g = 0; g < state.size / 5; g++) {
+      const p = {};
+      for (let k = 0; k < 5; k++) {
+        const m = state.slots[g * 5 + k];
+        if (!m) continue;
+        const sp = SPEC[m.s];
+        players++;
+        roles[sp.role]++;
+        armor[sp.armor] = (armor[sp.armor] || 0) + 1;
+        tokens[sp.token] = (tokens[sp.token] || 0) + 1;
+        classes[sp.cls] = (classes[sp.cls] || 0) + 1;
+        specTags(sp).forEach((t) => {
+          tags[t] = (tags[t] || 0) + 1;
+          if (PARTY_TAGS.has(t)) p[t] = true;
+        });
+      }
+      party.push(Object.keys(p));
+    }
+    return { tags, roles, armor, tokens, classes, party, players };
+  }
+  function notes(a) {
+    const out = [];
+    const pal = a.classes.paladin || 0, sha = a.classes.shaman || 0, wl = a.classes.warlock || 0;
+    if (pal > 0 && pal < 4) out.push(plural(pal, "paladin") + ": each player can hold " + plural(pal, "blessing") + " at once, one per paladin.");
+    if (sha === 1) out.push("1 shaman: one totem per element at a time. Windfury, Grace of Air and Grounding are all air totems.");
+    if (wl > 0 && wl < 3) out.push(plural(wl, "warlock") + ": one curse per warlock on the boss (Elements, Recklessness, Tongues).");
+    if (a.players && !a.roles.tank) out.push("No tank yet.");
+    return out;
+  }
+
+  /* ---------- Rendering ---------- */
+  const tools = $("#tools"), palette = $("#palette"), grid = $("#grid"), buffs = $("#buffs"), banner = $("#banner"), dialogRoot = $("#dialog-root");
+
+  function renderTools() {
+    const status = !loaded && net === "connecting" ? ["", "Connecting…"]
+      : net === "nostore" ? ["bad", "No database"]
+      : net === "offline" ? ["bad", "Offline, retrying"]
+      : inFlight || pending ? ["busy", "Saving…"]
+      : ["ok", "Live"];
+    tools.innerHTML =
+      '<div class="seg" role="group" aria-label="Raid size"><span>Size</span>' +
+      SIZES.map((s) => '<button type="button" data-size="' + s + '" aria-pressed="' + (state.size === s) + '">' + s + "</button>").join("") + "</div>" +
+      '<button type="button" class="btn" data-act="pets" aria-pressed="' + pets + '">Hunter pets: ' + (pets ? "On" : "Off") + "</button>" +
+      '<button type="button" class="btn" data-act="copy">Copy roster</button>' +
+      '<button type="button" class="btn' + (clearArmed ? " armed" : "") + '" data-act="clear">' + (clearArmed ? "Click again to clear" : "Clear all") + "</button>" +
+      '<span class="live ' + status[0] + '" role="status"><i></i>' + status[1] + "</span>";
+  }
+
+  function renderPalette(a) {
+    let h = "";
+    PALETTE.forEach(([title, keys]) => {
+      h += "<h2>" + title + '</h2><div class="specs">' + keys.map((k) => {
+        const sp = SPEC[k], c = CLASS[sp.cls];
+        return '<button type="button" class="spec" draggable="true" data-spec="' + k + '" style="--c:' + c.color + ";--ci:" + (c.ink || "#111") + '" title="' + esc(specName(sp)) + '">' + img(sp.icon) + '<span class="lbl">' + esc(sp.label) + "</span></button>";
+      }).join("") + "</div>";
+    });
+    h += '<p class="hint">Click a spec to add it to the selected slot, or the next empty one, then type the player\'s name. You can also drag specs and players around.</p>';
+    h += '<dl class="stats" id="stats"></dl>';
+    palette.innerHTML = h;
+  }
+
+  function renderStats(a) {
+    const n = (k) => "<b>" + (a.armor[k] || 0) + "</b>";
+    const r = a.roles, t = a.tokens;
+    $("#stats").innerHTML =
+      "<dt>Players</dt><dd><b>" + a.players + "</b> / " + state.size + "</dd>" +
+      "<dt>Roles</dt><dd><b>" + r.tank + "</b> Tank &nbsp;<b>" + r.heal + "</b> Heal &nbsp;<b>" + r.melee + "</b> Melee &nbsp;<b>" + r.range + "</b> Range</dd>" +
+      "<dt>Cloth</dt><dd>" + n("cloth") + " Int</dd>" +
+      "<dt>Leather</dt><dd>" + n("leather_int") + " Int &nbsp;" + n("leather_agi") + " Agi</dd>" +
+      "<dt>Mail</dt><dd>" + n("mail_int") + " Int &nbsp;" + n("mail_agi") + " Agi</dd>" +
+      "<dt>Plate</dt><dd>" + n("plate_int") + " Int &nbsp;" + n("plate_str") + " Str</dd>" +
+      "<dt>Tokens</dt><dd><b>" + (t.conqueror || 0) + "</b> Conq &nbsp;<b>" + (t.protector || 0) + "</b> Prot &nbsp;<b>" + (t.vanquisher || 0) + "</b> Vanq</dd>";
+  }
+
+  function cellHTML(i) {
+    const m = state.slots[i], g = Math.floor(i / 5) + 1, k = (i % 5) + 1;
+    const selCls = sel === i ? " sel" : "";
+    if (!m) return '<div class="cell empty' + selCls + '" data-i="' + i + '" role="button" tabindex="0" aria-label="Group ' + g + ", slot " + k + ': empty"></div>';
+    const sp = SPEC[m.s], c = CLASS[sp.cls], full = specName(sp);
+    const isEdit = editing === i;
+    const label = isEdit
+      ? '<input id="name-input" maxlength="' + NAME_MAX + '" autocomplete="off" spellcheck="false" placeholder="Name" aria-label="Player name" value="' + esc(draftName) + '">'
+      : '<span class="nm' + (m.n ? "" : " anon") + '">' + esc(m.n || full) + "</span>";
+    return '<div class="cell filled' + selCls + (isEdit ? " editing" : "") + '" data-i="' + i + '" draggable="' + !isEdit + '" role="button" tabindex="0" style="--c:' + c.color + ";--ci:" + (c.ink || "#111") + '" title="' + esc((m.n ? m.n + ": " : "") + full) + '" aria-label="Group ' + g + ", slot " + k + ": " + esc((m.n ? m.n + ", " : "") + full) + '">' +
+      img(sp.icon) + label + '<button type="button" class="x" data-act="remove" aria-label="Remove ' + esc(m.n || full) + '">&times;</button></div>';
+  }
+
+  function renderGrid(a) {
+    let h = "";
+    for (let g = 0; g < state.size / 5; g++) {
+      let cells = "";
+      for (let i = g * 5; i < g * 5 + 5; i++) cells += cellHTML(i);
+      const party = a.party[g].map((t) => img(BUFF[t].icon, "", BUFF[t].sec.replace(/s$/, "") + ": " + BUFF[t].label + " · " + BUFF[t].src)).join("");
+      h += '<section class="group" aria-label="Group ' + (g + 1) + '"><h3>Group ' + (g + 1) + '</h3><div class="cells">' + cells + '</div><div class="party">' + party + "</div></section>";
+    }
+    grid.innerHTML = h;
+    const hidden = state.slots.slice(state.size).filter(Boolean).length;
+    if (hidden) grid.insertAdjacentHTML("beforeend", '<p class="foot" style="grid-column:1/-1">' + plural(hidden, "player is", "players are") + " in groups hidden at size " + state.size + ". Switch to 40 to see them.</p>");
+    if (editing !== null) {
+      const input = $("#name-input");
+      if (input) { input.focus(); input.setSelectionRange(input.value.length, input.value.length); }
+    }
+  }
+
+  function renderBuffs(a) {
+    let h = "";
+    BUFFS.forEach(([sec, party, rows]) => {
+      h += '<section class="bsec"><h2>' + sec + (party ? "<small>per group</small>" : "") + "</h2>" + rows.map(([tag, label, icon, src]) => {
+        const n = a.tags[tag] || 0;
+        return '<button type="button" class="brow' + (n ? " on" : "") + (pinned === tag ? " pin" : "") + '" data-buff="' + tag + '" title="' + esc(src) + '">' + img(icon) + "<b>" + n + "</b><span>" + esc(label) + "</span></button>";
+      }).join("") + "</section>";
+    });
+    const ns = notes(a);
+    if (ns.length) h += '<ul class="notes">' + ns.map((t) => "<li>" + esc(t) + "</li>").join("") + "</ul>";
+    buffs.innerHTML = h;
+  }
+
+  function applyFilter() {
+    const tag = hovered || pinned;
+    palette.classList.toggle("filtering", !!tag);
+    palette.querySelectorAll(".spec").forEach((el) => {
+      el.classList.toggle("elig", !!tag && specTags(SPEC[el.dataset.spec]).includes(tag));
+    });
+    let any = false;
+    grid.querySelectorAll(".cell").forEach((el) => {
+      const m = state.slots[+el.dataset.i];
+      const on = !!tag && !!m && specTags(SPEC[m.s]).includes(tag);
+      if (on) any = true;
+      el.classList.toggle("hl", on);
+    });
+    grid.classList.toggle("filtering", any);
+  }
+
+  function renderBanner() {
+    if (net === "nostore") {
+      banner.hidden = false;
+      banner.textContent = "This site isn't connected to a database yet. In Vercel, open the project, go to Storage, add Upstash for Redis and connect it to this project, then redeploy.";
+    } else banner.hidden = true;
+  }
+
+  function renderAll() {
+    const a = analyze();
+    renderTools(); renderBanner(); renderStats(a); renderGrid(a); renderBuffs(a); applyFilter();
+  }
+
+  /* ---------- Sync ---------- */
+  function diff(before, after) {
+    const ch = { slots: {} };
+    let any = false;
+    for (let i = 0; i < MAX; i++) {
+      if (!same(before.slots[i], after.slots[i])) { ch.slots[i] = after.slots[i] ? { s: after.slots[i].s, n: after.slots[i].n } : null; any = true; }
+    }
+    if (before.size !== after.size) { ch.size = after.size; any = true; }
+    return any ? ch : null;
+  }
+  function merge(into, ch) {
+    Object.keys(ch.slots).forEach((k) => { into.slots[k] = ch.slots[k]; });
+    if ("size" in ch) into.size = ch.size;
+    return into;
+  }
+  function change(fn) {
+    if (!loaded) { toast("Still connecting to the raid…"); return; }
+    const before = { size: state.size, slots: state.slots.slice() };
+    fn(state);
+    const ch = diff(before, state);
+    if (ch) { pending = merge(pending || { slots: {} }, ch); flush(); }
+    renderAll();
+  }
+  function readJSON(r) {
+    return r.json().catch(() => ({})).then((j) => {
+      if (!r.ok) { const e = new Error(j.message || "Request failed"); e.status = r.status; throw e; }
+      return j;
+    });
+  }
+  function flush() {
+    if (inFlight || !pending) return;
+    const body = pending;
+    pending = null;
+    inFlight = true;
+    renderTools();
+    fetch(API, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
+      .then(readJSON)
+      .then((s) => {
+        inFlight = false; failures = 0; net = "ok";
+        if (pending) flush(); else accept(s, true);
+        renderTools(); renderBanner();
+      }, (err) => {
+        inFlight = false;
+        if (err.status === 400) { toast("The server rejected that change: " + err.message); poll(); return; }
+        pending = pending ? merge(body, pending) : body;
+        failures++;
+        net = err.status === 503 ? "nostore" : "offline";
+        renderTools(); renderBanner();
+        setTimeout(flush, Math.min(15000, 1000 * 2 ** failures));
+      });
+  }
+  function accept(s, fromWrite) {
+    if (!s || typeof s.v !== "number") return;
+    if (inFlight || pending) return;
+    if (s.v < serverV) return;
+    if (s.v === serverV && loaded && !fromWrite) return;
+    if (editing !== null || drag) { deferred = s; return; }
+    deferred = null;
+    serverV = s.v;
+    const next = normalize(s);
+    const changed = !loaded || next.size !== state.size || next.slots.some((m, i) => !same(m, state.slots[i]));
+    state = next;
+    loaded = true;
+    if (changed) renderAll();
+  }
+  function applyDeferred() {
+    if (deferred && editing === null && !drag) { const d = deferred; deferred = null; accept(d, true); }
+  }
+  function poll() {
+    clearTimeout(pollTimer);
+    if (document.hidden) return;
+    fetch(API).then(readJSON).then((s) => {
+      failures = 0;
+      if (net !== "ok") { net = "ok"; renderBanner(); }
+      accept(s, false);
+      renderTools();
+      pollTimer = setTimeout(poll, POLL_MS);
+    }, (err) => {
+      failures++;
+      net = err.status === 503 ? "nostore" : "offline";
+      if (net === "nostore" && !loaded) { loaded = false; }
+      renderTools(); renderBanner();
+      pollTimer = setTimeout(poll, Math.min(15000, POLL_MS * 2 ** Math.min(failures, 4)));
+    });
+  }
+  document.addEventListener("visibilitychange", () => { if (document.hidden) clearTimeout(pollTimer); else poll(); });
+
+  /* ---------- Actions ---------- */
+  function startEdit(i) {
+    editing = i;
+    draftName = state.slots[i] ? state.slots[i].n : "";
+    renderGrid(analyze()); applyFilter();
+  }
+  function commitEdit(keep) {
+    if (editing === null) return;
+    const i = editing, m = state.slots[i];
+    editing = null;
+    const nm = cleanName(draftName);
+    if (keep !== false && m && nm !== m.n) change((s) => { s.slots[i] = { s: m.s, n: nm }; });
+    else renderAll();
+    applyDeferred();
+  }
+  function placeSpec(key, target) {
+    const i = target != null ? target : sel != null ? sel : firstEmpty();
+    if (i == null) { toast("The raid is full. Remove someone or switch to a bigger size."); return; }
+    if (i >= state.size) return;
+    const cur = state.slots[i];
+    sel = null;
+    if (cur) change((s) => { s.slots[i] = { s: key, n: cur.n }; });
+    else { change((s) => { s.slots[i] = { s: key, n: "" }; }); if (loaded) startEdit(i); }
+  }
+  function removeSlot(i) {
+    if (editing === i) editing = null;
+    if (sel === i) sel = null;
+    change((s) => { s.slots[i] = null; });
+  }
+  function rosterText() {
+    const a = analyze(), lines = ["Raid comp: " + a.players + "/" + state.size + " players (" + a.roles.tank + " tank, " + a.roles.heal + " heal, " + a.roles.melee + " melee, " + a.roles.range + " range)", ""];
+    for (let g = 0; g < state.size / 5; g++) {
+      const mem = state.slots.slice(g * 5, g * 5 + 5).filter(Boolean).map((m) => (m.n || "?") + " (" + specName(SPEC[m.s]) + ")");
+      lines.push("Group " + (g + 1) + ": " + (mem.length ? mem.join(", ") : "empty"));
+    }
+    const missing = BUFFS.filter((b) => !b[1]).flatMap((b) => b[2]).filter((r) => !a.tags[r[0]]).map((r) => r[1]);
+    if (missing.length) lines.push("", "Missing: " + missing.join(", "));
+    return lines.join("\n");
+  }
+  function showCopyDialog(text) {
+    dialogRoot.innerHTML = '<div class="overlay" data-act="close-dialog"><div class="dialog" role="dialog" aria-modal="true" aria-labelledby="copy-title"><h3 id="copy-title">Copy this roster</h3><textarea id="copy-text" readonly aria-label="Roster text">' + esc(text) + '</textarea><div class="row"><button type="button" class="btn" data-act="close-dialog">Done</button></div></div></div>';
+    const ta = $("#copy-text"); ta.focus(); ta.select();
+  }
+  let toastTimer = null;
+  function toast(msg) {
+    const t = $("#toast"); t.textContent = msg; t.hidden = false;
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, 2600);
+  }
+
+  /* ---------- Events ---------- */
+  document.addEventListener("click", (e) => {
+    const t = e.target;
+    if (t.closest && t.closest(".overlay") && (t.classList.contains("overlay") || t.dataset.act === "close-dialog")) { dialogRoot.innerHTML = ""; return; }
+    const sizeBtn = t.closest("[data-size]");
+    if (sizeBtn) { const z = +sizeBtn.dataset.size; if (z !== state.size) { sel = null; change((s) => { s.size = z; }); } return; }
+    const act = t.closest("[data-act]");
+    if (act) {
+      const a = act.dataset.act;
+      if (a === "remove") { removeSlot(+act.closest(".cell").dataset.i); return; }
+      if (a === "pets") {
+        pets = !pets;
+        try { localStorage.setItem(PETS_KEY, pets ? "on" : "off"); } catch (err) {}
+        renderAll(); return;
+      }
+      if (a === "copy") {
+        const text = rosterText();
+        try { navigator.clipboard.writeText(text).then(() => toast("Roster copied"), () => showCopyDialog(text)); }
+        catch (err) { showCopyDialog(text); }
+        return;
+      }
+      if (a === "clear") {
+        if (!clearArmed) { clearArmed = setTimeout(() => { clearArmed = 0; renderTools(); }, 4000); renderTools(); return; }
+        clearTimeout(clearArmed); clearArmed = 0; sel = null; editing = null;
+        change((s) => { for (let i = 0; i < MAX; i++) s.slots[i] = null; });
+        return;
+      }
+    }
+    const spec = t.closest(".spec");
+    if (spec) { placeSpec(spec.dataset.spec); return; }
+    const brow = t.closest(".brow");
+    if (brow) { pinned = pinned === brow.dataset.buff ? null : brow.dataset.buff; renderBuffs(analyze()); applyFilter(); return; }
+    const cell = t.closest(".cell");
+    if (cell) {
+      if (t.tagName === "INPUT") return;
+      const i = +cell.dataset.i;
+      if (cell.classList.contains("empty")) { sel = sel === i ? null : i; if (editing !== null) commitEdit(); renderGrid(analyze()); applyFilter(); return; }
+      if (editing === i) return;
+      if (editing !== null) commitEdit();
+      sel = i; startEdit(i);
+      return;
+    }
+    if (sel !== null && !t.closest(".palette")) { sel = null; renderGrid(analyze()); applyFilter(); }
+  });
+  document.addEventListener("keydown", (e) => {
+    const t = e.target;
+    if (t.id === "name-input") {
+      if (e.key === "Enter") { e.preventDefault(); sel = null; commitEdit(); }
+      else if (e.key === "Escape") { e.preventDefault(); sel = null; commitEdit(false); }
+      return;
+    }
+    if ((e.key === "Enter" || e.key === " ") && t.classList && t.classList.contains("cell")) { e.preventDefault(); t.click(); return; }
+    if (e.key === "Escape") {
+      if (dialogRoot.innerHTML) { dialogRoot.innerHTML = ""; return; }
+      sel = null; pinned = null; renderGrid(analyze()); renderBuffs(analyze()); applyFilter();
+    }
+  });
+  document.addEventListener("input", (e) => { if (e.target.id === "name-input") draftName = e.target.value; });
+  document.addEventListener("focusout", (e) => {
+    if (e.target.id !== "name-input") return;
+    // Let a click on a palette spec land first so it can change this player's spec.
+    setTimeout(() => { if (editing !== null && document.activeElement && document.activeElement.id !== "name-input") commitEdit(); }, 0);
+  });
+
+  buffs.addEventListener("mouseover", (e) => { const b = e.target.closest(".brow"); const tag = b ? b.dataset.buff : null; if (tag !== hovered) { hovered = tag; applyFilter(); } });
+  buffs.addEventListener("mouseleave", () => { hovered = null; applyFilter(); });
+
+  // Drag and drop: specs onto slots, players between slots, players off the raid to remove them.
+  document.addEventListener("dragstart", (e) => {
+    const spec = e.target.closest && e.target.closest(".spec");
+    const cell = e.target.closest && e.target.closest(".cell.filled");
+    if (spec) drag = { type: "spec", key: spec.dataset.spec };
+    else if (cell && editing === null) { drag = { type: "cell", i: +cell.dataset.i }; cell.classList.add("dragging"); }
+    else return;
+    e.dataTransfer.effectAllowed = "move";
+    try { e.dataTransfer.setData("text/plain", drag.type === "spec" ? drag.key : String(drag.i)); } catch (err) {}
+  });
+  document.addEventListener("dragover", (e) => {
+    if (!drag) return;
+    const cell = e.target.closest(".cell");
+    const offRaid = drag.type === "cell" && e.target.closest(".palette, .buffs");
+    if (!cell && !offRaid) return;
+    e.preventDefault();
+    grid.querySelectorAll(".drop").forEach((el) => { if (el !== cell) el.classList.remove("drop"); });
+    if (cell) cell.classList.add("drop");
+  });
+  document.addEventListener("drop", (e) => {
+    if (!drag) return;
+    e.preventDefault();
+    const d = drag;
+    drag = null;
+    const cell = e.target.closest(".cell");
+    if (cell) {
+      const to = +cell.dataset.i;
+      if (d.type === "spec") placeSpec(d.key, to);
+      else if (d.i !== to) change((s) => { const x = s.slots[d.i]; s.slots[d.i] = s.slots[to]; s.slots[to] = x; });
+      else renderAll();
+    } else if (d.type === "cell" && e.target.closest(".palette, .buffs")) removeSlot(d.i);
+    applyDeferred();
+  });
+  document.addEventListener("dragend", () => {
+    drag = null;
+    grid.querySelectorAll(".drop, .dragging").forEach((el) => el.classList.remove("drop", "dragging"));
+    applyDeferred();
+  });
+
+  renderPalette();
+  renderAll();
+  poll();
+})();
+</script>
+</body>
+</html>
