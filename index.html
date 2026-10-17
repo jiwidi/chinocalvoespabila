@@ -99,34 +99,34 @@ button{cursor:pointer}
 .party .ic{width:18px;height:18px}
 .foot{margin:14px 2px 0;font-size:11.5px;color:var(--muted)}
 
-/* Signups: who can come and what they can play. A separate list, not linked to the groups. */
-.signups{padding:8px 10px 12px;container-type:inline-size}
+/* Signups: who can come and what they can play. A separate list, not linked to the groups.
+   One compact row per player: name, spec icons framed in class color, group tag, delete. */
+.signups{padding:8px 10px 10px}
 .signups h2{margin:2px 0 0;font-size:14px;color:var(--accent)}
 .signups h2 small{font-size:11px;color:var(--muted)}
-.su.placed{opacity:.55}
+.su{display:flex;flex-wrap:wrap;align-items:center;gap:3px 6px;min-height:30px;padding:2px 2px 2px 0;border-bottom:1px solid var(--line)}
+.su:hover{background:var(--panel-2)}
+.su.placed{opacity:.5}
 .su.placed:hover,.su.placed:focus-within{opacity:1}
-.su .where{font-size:11px;font-weight:700;color:var(--accent)}
-.chip{cursor:grab}
-.chip.on{box-shadow:0 0 0 2px #fff}
-.signups.filtering .chip:not(.elig){opacity:.2}
-.signups.filtering .chip.elig{opacity:1;box-shadow:0 0 0 2px #fff}
-.su{display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;margin-bottom:4px;padding:3px;border:1px solid var(--line);background:#000}
-.su-name{flex:0 1 150px;min-width:96px;height:26px;padding:0 6px;border:1px solid var(--line-2);border-radius:2px;background:var(--panel-2);font-weight:700;font-size:13px}
-.su.new .su-name{border-style:dashed;background:#000}
+.su-name{flex:0 0 128px;width:128px;height:24px;padding:0 5px;border:1px solid transparent;border-radius:2px;background:none;font-family:var(--narrow);font-weight:700;font-size:13.5px}
+.su-name:hover{border-color:var(--line-2)}
+.su-name:focus{border-color:var(--accent);background:#000}
+.su.new .su-name{border:1px dashed var(--line-2)}
 .su-specs{flex:1;min-width:0;display:flex;flex-wrap:wrap;align-items:center;gap:4px}
-.chip{display:inline-flex;align-items:center;height:24px;border:1px solid #000;background:var(--c);color:var(--ci);font-family:var(--narrow);font-weight:700;font-size:12px;white-space:nowrap}
-.su-specs .chip:not(:first-child){opacity:.72}
-.su-specs .chip:hover{opacity:1}
-.chip .ic{width:22px;height:22px;border:0;border-right:1px solid #000}
-.chip button{height:22px;padding:0 3px 0 5px;border:0;background:none;color:inherit;font:inherit}
-.chip button + button{padding:0 6px 0 3px;opacity:.55}
-.chip button:hover{opacity:1;text-decoration:underline}
-.su-add{height:24px;max-width:110px;padding:0 4px;border:1px dashed var(--line-2);border-radius:2px;background:#000;color:var(--muted);font-weight:700;font-size:12px;cursor:pointer}
-.su-add:hover{border-color:var(--accent);color:var(--text)}
-.su-add option,.su-add optgroup{background:var(--panel);color:var(--text)}
-.su .mini{height:24px;padding:0 6px;border:0;border-radius:2px;background:none;color:var(--muted);font-weight:700;font-size:12px}
+.chip{position:relative;display:inline-flex;border:2px solid var(--c);cursor:grab}
+.chip button{display:block;padding:0;border:0;background:none}
+.chip .ic{width:20px;height:20px;border:0}
+.chip .x{position:absolute;top:-7px;right:-7px;width:13px;height:13px;border:1px solid var(--line-2);border-radius:50%;background:#000;color:#fff;font-size:10px;font-weight:700;line-height:11px;opacity:0}
+.chip:hover .x,.chip .x:focus-visible{opacity:1}
+.chip.on{outline:2px solid #fff;outline-offset:1px}
+.signups.filtering .chip:not(.elig){opacity:.2}
+.signups.filtering .chip.elig{outline:2px solid #fff;outline-offset:1px}
+.su-add{appearance:none;width:24px;height:24px;padding:0;border:1px dashed var(--line-2);border-radius:2px;background:#000;color:var(--muted);font-weight:700;font-size:14px;text-align:center;text-align-last:center;cursor:pointer}
+.su-add:hover{border-color:var(--accent);color:#fff}
+.su-add option,.su-add optgroup{background:var(--panel);color:var(--text);font-size:12px;text-align:left}
+.su .where{font-size:11px;font-weight:700;color:var(--accent)}
+.su .mini{width:20px;height:24px;padding:0;border:0;border-radius:2px;background:none;color:var(--muted);font-weight:700;font-size:12px}
 .su .mini:hover{color:#fff}
-@container (max-width:520px){.su-name{flex:1}.su-specs{order:1;flex-basis:100%}}
 
 /* Buffs */
 .buffs{padding:4px 14px 12px;columns:220px;column-gap:28px}
@@ -482,16 +482,16 @@ button{cursor:pointer}
     const chips = u.c.map((k) => {
       const sp = SPEC[k], c = CLASS[sp.cls], full = specName(sp);
       const tip = m ? full + ". " + who + " is in group " + g + (m.s === k ? " as this spec." : ". Click to switch to this spec.") : full + ". Click to put " + who + " in the raid, or drag onto a slot.";
-      return '<span class="chip' + (m && m.s === k ? " on" : "") + '" draggable="true" data-spec="' + k + '" style="--c:' + c.color + ";--ci:" + (c.ink || "#111") + '">' + img(sp.icon) +
-        '<button type="button" data-act="su-place" data-spec="' + k + '" title="' + esc(tip) + '">' + esc(sp.label) + "</button>" +
-        '<button type="button" data-act="su-drop" data-spec="' + k + '" aria-label="Remove ' + esc(full) + " from " + esc(who) + '">&times;</button></span>';
+      return '<span class="chip' + (m && m.s === k ? " on" : "") + '" draggable="true" data-spec="' + k + '" style="--c:' + c.color + '">' +
+        '<button type="button" data-act="su-place" data-spec="' + k + '" title="' + esc(tip) + '" aria-label="' + esc(full) + '">' + img(sp.icon) + "</button>" +
+        '<button type="button" class="x" data-act="su-drop" data-spec="' + k + '" aria-label="Remove ' + esc(full) + " from " + esc(who) + '">&times;</button></span>';
     }).join("");
     const opts = specOptions(u.c);
     return '<div class="su' + (u.id ? "" : " new") + (m ? " placed" : "") + '" data-id="' + esc(u.id) + '">' +
-      '<input class="su-name" maxlength="' + NAME_MAX + '" autocomplete="off" spellcheck="false" placeholder="' + (u.id ? "Name" : "Your name, to sign up") + '" aria-label="Name" value="' + esc(u.n) + '">' +
+      '<input class="su-name" maxlength="' + NAME_MAX + '" autocomplete="off" spellcheck="false" placeholder="' + (u.id ? "Name" : "Your name") + '" aria-label="Name" value="' + esc(u.n) + '">' +
+      '<span class="su-specs">' + chips + (opts ? '<select class="su-add" title="Add a spec" aria-label="Add a spec for ' + esc(who) + '"><option value="">+</option>' + opts + "</select>" : "") + "</span>" +
       (m ? '<span class="where" title="In group ' + g + '">G' + g + "</span>" : "") +
-      (u.id ? '<button type="button" class="mini" data-act="su-del" aria-label="Remove ' + esc(who) + ' from signups">&times;</button>' : "") +
-      '<span class="su-specs">' + chips + (opts ? '<select class="su-add" aria-label="Add a spec for ' + esc(who) + '"><option value="">+ Spec</option>' + opts + "</select>" : "") + "</span></div>";
+      (u.id ? '<button type="button" class="mini" data-act="su-del" aria-label="Remove ' + esc(who) + ' from signups">&times;</button>' : "") + "</div>";
   }
   let signupsDirty = false, holdSignups = false;
   function renderSignups() {
@@ -502,7 +502,7 @@ button{cursor:pointer}
     const placed = new Map();
     state.slots.forEach((m, i) => { if (m && m.n) placed.set(m.n.toLowerCase(), i); });
     signups.innerHTML = "<h2>Signups <small>" + state.signups.length + "</small></h2>" +
-      '<p class="hint">Sign up with your name and the specs you can play (up to ' + MAX_CLASSES + " classes), best first. To build the raid, click an empty slot and pick a signup, click a spec here to put that player in the next empty slot, or drag a spec onto a slot.</p>" +
+      '<p class="hint">Add your name, then your specs with + (up to ' + MAX_CLASSES + " classes, best first). Click a spec to place that player, or drag it onto a slot.</p>" +
       signupRow({ id: "", n: "", c: [] }, placed) + newestFirst().map((u) => signupRow(u, placed)).join("");
     applyFilter();
   }
