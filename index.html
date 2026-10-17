@@ -80,7 +80,7 @@ button{cursor:pointer}
 
 /* Layout: signups take the left column; groups, suggestion, preferences and coverage stack on the right. */
 .layout{display:grid;grid-template-columns:430px minmax(0,1fr);gap:16px;align-items:start;max-width:1520px;margin:0 auto;padding:16px max(16px,env(safe-area-inset-right)) 32px max(16px,env(safe-area-inset-left))}
-.plan{display:grid;gap:16px;min-width:0}
+.plan,.side{display:grid;gap:16px;min-width:0}
 @media (max-width:960px){.layout{grid-template-columns:minmax(0,1fr)}}
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);min-width:0;padding:14px 16px 16px}
 .phead{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 12px;margin:0 0 12px}
@@ -165,7 +165,7 @@ button{cursor:pointer}
 .su:hover{background:var(--panel-2)}
 .su.placed .su-name,.su.placed .su-specs{opacity:.55}
 .su.placed:hover .su-name,.su.placed:hover .su-specs,.su.placed:focus-within .su-name,.su.placed:focus-within .su-specs{opacity:1}
-.su-name{flex:0 0 122px;width:122px;height:30px;padding:0 8px;border:1px solid transparent;border-radius:5px;background:none;font-weight:700;font-size:13px;color:#fff}
+.su-name{flex:0 0 112px;width:112px;height:30px;padding:0 8px;border:1px solid transparent;border-radius:5px;background:none;font-weight:700;font-size:13px;color:#fff}
 .su-name:hover{border-color:var(--line-2)}
 .su-name:focus{border-color:var(--accent);background:#000}
 .su.new{margin-bottom:8px;padding:8px;border:1px dashed var(--line-2);background:var(--slot)}
@@ -256,9 +256,43 @@ button{cursor:pointer}
 .legend .rtag{margin:0 2px 0 0}
 .legend .l-cur{outline:2px solid #fff}
 
+/* Horde or Alliance (easter egg) */
+.f-a{--fc:#3a7bff}
+.f-h{--fc:#e5413a}
+.fx-btn{flex:none;display:grid;place-items:center;width:28px;height:28px;padding:0;border:1px dashed var(--line-2);border-radius:50%;background:none;color:var(--muted);font-weight:700;font-size:13px;overflow:hidden;transition:transform .12s,border-color .12s}
+.fx-btn:hover{border-color:var(--accent);color:var(--accent);transform:scale(1.1)}
+.fx-btn.f-a,.fx-btn.f-h{border:0;box-shadow:0 0 0 2px var(--fc)}
+.fx-btn .ic{width:28px;height:28px;border-radius:50%}
+.fx-btn.ghost{visibility:hidden}
+.fx-dialog{text-align:center}
+.fx-dialog h3{display:flex;align-items:center;justify-content:center;gap:10px;margin:2px 0 4px;font-family:var(--display);font-size:26px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+.fx-dialog h3 .ic{width:34px;height:34px;border-radius:50%}
+.fx-who{margin:0 0 14px;color:var(--muted)}
+.fx-choices{display:flex;align-items:center;justify-content:center;gap:14px;margin:6px 0 4px}
+.fx-vs{font-family:var(--display);font-size:22px;font-weight:700;color:var(--faint)}
+.fx-choice{display:flex;flex-direction:column;align-items:center;gap:10px;width:min(170px,38vw);padding:18px 12px 14px;border:1px solid var(--line-2);border-radius:10px;background:radial-gradient(circle at 50% 30%,color-mix(in srgb,var(--fc) 30%,transparent),var(--panel-2) 70%);transition:transform .15s,box-shadow .15s,border-color .15s}
+.fx-choice img{width:min(96px,22vw);height:min(96px,22vw);border-radius:50%;box-shadow:0 0 0 3px var(--fc),0 0 24px color-mix(in srgb,var(--fc) 60%,transparent)}
+.fx-choice span{font-family:var(--display);font-size:22px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#fff}
+.fx-choice:hover,.fx-choice:focus-visible{transform:translateY(-3px);border-color:var(--fc);box-shadow:0 10px 30px color-mix(in srgb,var(--fc) 35%,transparent)}
+.fx-choice.on{border-color:var(--fc)}
+.fx-cheer{border-color:var(--fc);box-shadow:0 0 60px color-mix(in srgb,var(--fc) 35%,transparent)}
+.fx-cheer h3{color:var(--fc)}
+.fx-photo{display:block;max-width:100%;max-height:60vh;margin:8px auto 10px;border-radius:8px;box-shadow:0 0 0 2px var(--fc)}
+.fx-dialog .row{justify-content:center;gap:8px}
+.fx-score{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.fx-side{display:flex;align-items:center;gap:10px}
+.fx-side.f-h{text-align:right}
+.fx-side .ic{width:40px;height:40px;border-radius:50%;box-shadow:0 0 0 2px var(--fc)}
+.fx-side b{display:block;font-family:var(--display);font-size:28px;line-height:1;color:var(--fc)}
+.fx-side span{font-size:11.5px;font-weight:600;color:var(--soft)}
+.fx-bar{display:flex;gap:3px;height:10px;margin:12px 0 2px;border-radius:5px;overflow:hidden;background:var(--slot)}
+.fx-bar i{display:block;height:100%;background:var(--fc);transition:width .4s}
+.fx-bar.empty i{opacity:.25}
+.fx-none{margin:10px 0 0}
+
 /* Copy dialog and toast */
-.overlay{position:fixed;inset:0;z-index:30;display:grid;place-items:center;padding:16px;background:rgba(0,0,0,.7)}
-.dialog{width:min(560px,100%);padding:16px;background:var(--panel);border:1px solid var(--line-2);border-radius:var(--radius)}
+.overlay{position:fixed;inset:0;z-index:30;display:flex;overflow-y:auto;padding:16px;background:rgba(0,0,0,.7)}
+.dialog{margin:auto;width:min(560px,100%);padding:16px;background:var(--panel);border:1px solid var(--line-2);border-radius:var(--radius)}
 .dialog h3{margin:0 0 10px;font-size:14px;color:#fff}
 .dialog textarea{width:100%;height:240px;padding:10px;background:#000;color:var(--text);border:1px solid var(--line-2);border-radius:5px;font:12px/1.45 ui-monospace,Menlo,Consolas,monospace}
 .dialog .row{display:flex;justify-content:flex-end;margin-top:10px}
@@ -278,7 +312,10 @@ button{cursor:pointer}
 </header>
 <main class="layout">
   <div class="banner" id="banner" hidden></div>
-  <section class="panel signups" id="signups" aria-label="Signups"></section>
+  <div class="side">
+    <section class="panel signups" id="signups" aria-label="Signups"></section>
+    <section class="panel factions" id="factions" aria-label="Horde vs Alliance"></section>
+  </div>
   <div class="plan">
     <section class="panel groups" aria-label="Raid groups">
       <div class="phead"><h2 class="ttl">Raid groups <small>click a slot to fill it, drag to move</small></h2></div>
@@ -426,6 +463,11 @@ button{cursor:pointer}
       ["ddisease", "Disease", "spell_holy_nullifydisease", "Cleanse (Paladin), Abolish Disease (Priest), Cure Disease (Shaman)"],
       ["dpoison", "Poison", "spell_nature_nullifypoison", "Cleanse (Paladin), Abolish Poison (Druid), Cure Poison (Shaman)"]]]
   ];
+  // Easter egg: each signup can pick a side. The cheer plays sounds/<file>.mp3 if it exists, else the browser says it.
+  const FACTION = {
+    a: { name: "Alliance", es: "Alianza", cheer: "¡Por la Alianza!", icon: "ui_allianceicon", photo: "img/alianza.webp", sound: "sounds/alianza.mp3", color: "#3a7bff", pitch: 1, rate: 1 },
+    h: { name: "Horde", es: "Horda", cheer: "¡Mi vida por la Horda!", icon: "ui_hordeicon", photo: "img/horda.webp", sound: "sounds/horda.mp3", color: "#e5413a", pitch: 0.4, rate: 0.85 }
+  };
   const BUFF = {};
   const PARTY_TAGS = new Set();
   BUFFS.forEach(([sec, party, rows]) => rows.forEach(([tag, label, icon, src]) => {
@@ -450,7 +492,11 @@ button{cursor:pointer}
       slots.push(v && SPEC[v.s] ? { s: v.s, n: cleanName(v.n) } : null);
     }
     const signups = (Array.isArray(d.signups) ? d.signups : []).filter((u) => u && typeof u.id === "string")
-      .map((u) => ({ id: u.id, n: cleanName(u.n), c: (Array.isArray(u.c) ? u.c : []).filter((k) => SPEC[k]) }));
+      .map((u) => {
+        const o = { id: u.id, n: cleanName(u.n), c: (Array.isArray(u.c) ? u.c : []).filter((k) => SPEC[k]) };
+        if (FACTION[u.f]) o.f = u.f;
+        return o;
+      });
     return { v: Number(d.v) || 0, size: SIZES.includes(d.size) ? d.size : 20, slots, signups };
   }
   const same = (a, b) => (a ? a.s + "|" + a.n : "") === (b ? b.s + "|" + b.n : "");
@@ -668,7 +714,7 @@ button{cursor:pointer}
 
   /* ---------- Rendering ---------- */
   const tools = $("#tools"), grid = $("#grid"), signups = $("#signups"), buffs = $("#buffs"), banner = $("#banner"), dialogRoot = $("#dialog-root");
-  const suggestEl = $("#suggest"), prefsEl = $("#prefs");
+  const suggestEl = $("#suggest"), prefsEl = $("#prefs"), factionsEl = $("#factions");
 
   function renderTools() {
     const status = !loaded && net === "connecting" ? ["", "Connecting…"]
@@ -793,7 +839,10 @@ button{cursor:pointer}
         '<button type="button" class="x" data-act="su-drop" data-spec="' + k + '" aria-label="Remove ' + esc(full) + " from " + esc(who) + '">&times;</button></span>';
     }).join("");
     const opts = specOptions(u.c);
-    return '<div class="su' + (u.id ? "" : " new") + (m ? " placed" : "") + '" data-id="' + esc(u.id) + '">' +
+    const fx = FACTION[u.f];
+    const side = !u.id ? '<span class="fx-btn ghost" aria-hidden="true"></span>'
+      : '<button type="button" class="fx-btn' + (fx ? " f-" + u.f : "") + '" data-act="fx-open" title="' + esc(fx ? who + " fights for the " + fx.name + ". Click to change." : "¿Horda o Alianza? Pick a side for " + who) + '" aria-label="' + esc(fx ? "Faction: " + fx.name : "Pick Horde or Alliance") + '">' + (fx ? img(fx.icon) : "?") + "</button>";
+    return '<div class="su' + (u.id ? "" : " new") + (m ? " placed" : "") + '" data-id="' + esc(u.id) + '">' + side +
       '<input class="su-name" maxlength="' + NAME_MAX + '" autocomplete="off" spellcheck="false" placeholder="' + (u.id ? "Name" : "Your name") + '" aria-label="Name" value="' + esc(u.n) + '">' +
       '<span class="su-specs">' + chips + (opts ? '<select class="su-add" title="Add a spec" aria-label="Add a spec for ' + esc(who) + '"><option value="">+</option>' + opts + "</select>" : "") + "</span>" +
       (m ? '<span class="where" title="In group ' + g + '">G' + g + "</span>" : "") +
@@ -935,7 +984,7 @@ button{cursor:pointer}
 
   function renderAll() {
     const a = analyze();
-    renderTools(); renderBanner(); renderGrid(a); renderSignups(); renderSuggest(); renderPrefs(); renderBuffs(a); applyFilter();
+    renderTools(); renderBanner(); renderGrid(a); renderSignups(); renderFactions(); renderSuggest(); renderPrefs(); renderBuffs(a); applyFilter();
   }
 
   /* ---------- Sync ---------- */
@@ -949,7 +998,7 @@ button{cursor:pointer}
     const su = {};
     new Set(before.signups.concat(after.signups).map((u) => u.id)).forEach((id) => {
       const b = before.signups.find((u) => u.id === id), a = after.signups.find((u) => u.id === id);
-      if (JSON.stringify(b) !== JSON.stringify(a)) su[id] = a ? { n: a.n, c: a.c } : null;
+      if (JSON.stringify(b) !== JSON.stringify(a)) su[id] = a ? { n: a.n, c: a.c, f: a.f } : null;
     });
     if (Object.keys(su).length) { ch.signups = su; any = true; }
     return any ? ch : null;
@@ -1070,7 +1119,7 @@ button{cursor:pointer}
       if (!n && !c.length) return;
       id = row.dataset.id = newId(); // later edits in this row, before it redraws, go to the same signup
     }
-    updateSignup(id, n || c.length ? { id, n, c } : null);
+    updateSignup(id, n || c.length ? { ...cur, id, n, c } : null);
   }
   function updateSignup(id, u) {
     change((s) => {
@@ -1099,6 +1148,68 @@ button{cursor:pointer}
     dialogRoot.innerHTML = '<div class="overlay" data-act="close-dialog"><div class="dialog" role="dialog" aria-modal="true" aria-labelledby="copy-title"><h3 id="copy-title">Copy this roster</h3><textarea id="copy-text" readonly aria-label="Roster text">' + esc(text) + '</textarea><div class="row"><button type="button" class="btn" data-act="close-dialog">Done</button></div></div></div>';
     const ta = $("#copy-text"); ta.focus(); ta.select();
   }
+  /* ---------- Horde or Alliance (easter egg) ---------- */
+  function showFactionPicker(id) {
+    const u = state.signups.find((x) => x.id === id);
+    if (!u) return;
+    const choice = (f) => '<button type="button" class="fx-choice f-' + f + (u.f === f ? " on" : "") + '" data-act="fx-pick" data-f="' + f + '" data-id="' + esc(id) + '">' +
+      '<img src="https://wow.zamimg.com/images/wow/icons/large/' + FACTION[f].icon + '.jpg" alt="" onerror="this.classList.add(\'broken\')"><span>' + FACTION[f].es + "</span></button>";
+    dialogRoot.innerHTML = '<div class="overlay" data-act="close-dialog"><div class="dialog fx-dialog" role="dialog" aria-modal="true" aria-labelledby="fx-title">' +
+      '<h3 id="fx-title">¿Horda o Alianza?</h3><p class="fx-who">' + esc(u.n || "This player") + ", pick your side.</p>" +
+      '<div class="fx-choices">' + choice("a") + '<span class="fx-vs">VS</span>' + choice("h") + "</div>" +
+      '<div class="row"><button type="button" class="btn" data-act="close-dialog">Close</button></div></div></div>';
+    const first = dialogRoot.querySelector(".fx-choice");
+    if (first) first.focus();
+  }
+  function showFactionCheer(f, who) {
+    const fx = FACTION[f];
+    dialogRoot.innerHTML = '<div class="overlay" data-act="close-dialog"><div class="dialog fx-dialog fx-cheer f-' + f + '" role="dialog" aria-modal="true" aria-labelledby="fx-title">' +
+      '<h3 id="fx-title">' + img(fx.icon) + esc(fx.cheer) + "</h3>" +
+      '<img class="fx-photo" src="' + fx.photo + '" alt="' + esc(fx.cheer) + '">' +
+      '<p class="fx-who">' + esc(who || "Someone") + " joins the " + fx.name + ".</p>" +
+      '<div class="row"><button type="button" class="btn" data-act="fx-replay" data-f="' + f + '">Play again</button><button type="button" class="btn primary" data-act="close-dialog">' + esc(fx.cheer) + "</button></div></div></div>";
+    cheer(f);
+  }
+  // Plays the faction's sound file, or has the browser shout it when there is no file.
+  let cheerAudio = null;
+  function cheer(f) {
+    const fx = FACTION[f];
+    let done = false;
+    const speak = () => {
+      if (done) return;
+      done = true;
+      try {
+        const say = new SpeechSynthesisUtterance(fx.cheer);
+        say.lang = "es-ES"; say.pitch = fx.pitch; say.rate = fx.rate; say.volume = 1;
+        speechSynthesis.cancel(); speechSynthesis.speak(say);
+      } catch (err) { /* no speech support: the photo is enough */ }
+    };
+    try {
+      if (cheerAudio) cheerAudio.pause();
+      cheerAudio = new Audio(fx.sound);
+      cheerAudio.addEventListener("error", speak);
+      cheerAudio.play().then(() => { done = true; }, speak);
+    } catch (err) { speak(); }
+  }
+  function pickFaction(id, f) {
+    const u = state.signups.find((x) => x.id === id);
+    if (!u || !FACTION[f]) return;
+    if (u.f !== f) updateSignup(id, { ...u, f });
+    showFactionCheer(f, u.n);
+  }
+  // Horde vs Alliance share among signups that picked a side.
+  function renderFactions() {
+    const players = [...signupsByName().values()];
+    const a = players.filter((u) => u.f === "a").length, h = players.filter((u) => u.f === "h").length, total = a + h, none = players.length - total;
+    const pa = total ? Math.round((100 * a) / total) : 50, ph = total ? 100 - pa : 50;
+    const lead = !total ? "Nobody has picked a side yet." : a === h ? "It's a tie." : (a > h ? "The Alliance" : "The Horde") + " leads.";
+    factionsEl.innerHTML = '<div class="phead"><h2 class="ttl">Horde vs Alliance <small>' + esc(lead) + "</small></h2></div>" +
+      '<div class="fx-score"><div class="fx-side f-a">' + img(FACTION.a.icon) + "<div><b>" + (total ? pa + "%" : "–") + "</b><span>Alianza · " + a + "</span></div></div>" +
+      '<div class="fx-side f-h"><div><b>' + (total ? ph + "%" : "–") + "</b><span>Horda · " + h + "</span></div>" + img(FACTION.h.icon) + "</div></div>" +
+      '<div class="fx-bar' + (total ? "" : " empty") + '"><i class="f-a" style="width:' + pa + '%"></i><i class="f-h" style="width:' + ph + '%"></i></div>' +
+      (none ? '<p class="hint fx-none">' + plural(none, "player has", "players have") + " not picked a side. Click the ? next to your name.</p>" : "");
+  }
+
   let toastTimer = null;
   function toast(msg) {
     const t = $("#toast"); t.textContent = msg; t.hidden = false;
@@ -1115,6 +1226,9 @@ button{cursor:pointer}
     if (act) {
       const a = act.dataset.act;
       if (a.startsWith("su-")) { signupAction(a, act.closest(".su").dataset.id, act.dataset.spec); return; }
+      if (a === "fx-open") { showFactionPicker(act.closest(".su").dataset.id); return; }
+      if (a === "fx-pick") { pickFaction(act.dataset.id, act.dataset.f); return; }
+      if (a === "fx-replay") { cheer(act.dataset.f); return; }
       if (a === "remove") { removeSlot(+act.closest(".cell").dataset.i); return; }
       if (a === "main-spec") {
         const i = +act.closest(".cell").dataset.i, m = state.slots[i], k = act.dataset.spec;

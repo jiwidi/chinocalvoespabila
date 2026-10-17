@@ -34,11 +34,14 @@ function cleanName(value) {
 
 const classOf = (spec) => spec.split("_")[0];
 
-// A signup: a name and the specs that player can bring, best first. Not linked to the raid groups.
-// Keeps specs from the first MAX_CLASSES classes only.
+const FACTIONS = new Set(["a", "h"]); // Alliance, Horde
+
+// A signup: a name, the specs that player can bring (best first) and optionally their faction (f).
+// Not linked to the raid groups. Keeps specs from the first MAX_CLASSES classes only.
 function cleanSignup(v) {
   if (!v || typeof v !== "object") return null;
   const n = cleanName(v.n);
+  const f = FACTIONS.has(v.f) ? v.f : undefined;
   const c = [];
   const classes = new Set();
   for (const k of Array.isArray(v.c) ? v.c : []) {
@@ -47,7 +50,8 @@ function cleanSignup(v) {
     classes.add(classOf(k));
     c.push(k);
   }
-  return n || c.length ? { n, c } : null;
+  if (!n && !c.length) return null;
+  return f ? { n, c, f } : { n, c };
 }
 
 // HGETALL comes back as a flat [field, value, ...] array when automatic deserialization is off.
