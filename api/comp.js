@@ -5,9 +5,8 @@
 // Storage: Upstash Redis (Vercel Marketplace). Each slot is its own hash field,
 // so two people editing different slots at the same time never overwrite each other.
 //
-// Faction changes: each visitor can switch a signup's side at most FACTION_CHANGES times (a first pick is free).
-// Only the admin can remove a signup. A request with the header x-raidcomp-admin: <RAIDCOMP_ADMIN_KEY>
-// skips both rules, to fix data.
+// Signups: once someone has signed up, only the admin can change or remove that signup (see guardSignups).
+// The admin sends the header x-raidcomp-admin: <RAIDCOMP_ADMIN_KEY>.
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { Redis } from "@upstash/redis";
 
@@ -28,14 +27,9 @@ const NAME_MAX = 20;
 const MAX_SIGNUPS = 100; // per request
 const MAX_CLASSES = 3; // per signup; any number of specs within those classes
 const SIGNUP_ID = /^[a-z0-9]{6,24}$/;
-const FACTION_CHANGES = 2; // per visitor
-const DEVICE_ID = /^[a-z0-9]{16,40}$/;
 const ADMIN_KEY = process.env.RAIDCOMP_ADMIN_KEY || "";
 const PREFIX = process.env.RAIDCOMP_PREFIX || "raidcomp";
-const KEYS = {
-  version: `${PREFIX}:v`, slots: `${PREFIX}:slots`, meta: `${PREFIX}:meta`, signups: `${PREFIX}:signups`,
-  fxChanges: `${PREFIX}:fxchanges`, // visitor key -> faction changes made
-};
+const KEYS = { version: `${PREFIX}:v`, slots: `${PREFIX}:slots`, meta: `${PREFIX}:meta`, signups: `${PREFIX}:signups` };
 
 class BadRequest extends Error {}
 
@@ -142,18 +136,6 @@ function parseChanges(body) {
   return out;
 }
 
-// Who is asking, without storing who they are: keyed hashes of IP + browser, and of the page's random device id.
-// ponytail: a new network plus cleared browser storage gets a fresh budget; enough to slow down a guildmate, not an attacker.
-function visitorKeys(req) {
-  const h = req.headers || {};
-  const ip = String(h["x-real-ip"] || h["x-forwarded-for"] || (req.socket && req.socket.remoteAddress) || "").split(",")[0].trim();
-  const hash = (s) => createHmac("sha256", ADMIN_KEY || "raidcomp").update(s).digest("hex").slice(0, 24);
-  const keys = ["net:" + hash(ip + "|" + (h["user-agent"] || ""))];
-  const device = String(h["x-raidcomp-device"] || "");
-  if (DEVICE_ID.test(device)) keys.push("dev:" + hash(device));
-  return keys;
-}
-
 function isAdmin(req) {
   const given = String((req.headers || {})["x-raidcomp-admin"] || "");
   if (!ADMIN_KEY || !given) return false;
@@ -161,46 +143,37 @@ function isAdmin(req) {
   return timingSafeEqual(digest(given), digest(ADMIN_KEY));
 }
 
-// Only the admin key removes signups; without it they stay and the rest of the request still saves.
-function guardDeletes(req, changes) {
-  const ids = Object.keys(changes.signups).filter((id) => changes.signups[id] === null);
+// Once someone has signed up, only the admin can change or remove that signup. Without the admin key a request
+// can only fill in what is still missing (a first side, the first specs); the rest of the signup keeps its
+// stored values, the other changes in the request still save, and the reply gets a warning.
+async function guardSignups(store, req, changes) {
+  const ids = Object.keys(changes.signups);
   if (!ids.length || isAdmin(req)) return null;
-  for (const id of ids) delete changes.signups[id];
-  return "Only the admin can remove a signup.";
-}
-
-// Switching a signup's side counts against the visitor; over the limit the stored side stays and the rest still saves.
-// ponytail: read-then-write, so two requests at the same instant can each use the last change; a Lua script would fix that.
-async function guardFactions(store, req, changes) {
-  const none = { bumps: [], warning: null };
-  const ids = Object.keys(changes.signups).filter((id) => changes.signups[id]);
-  if (!ids.length) return none;
-  const before = await store.factions(ids);
-  const switched = [];
+  const stored = await store.signups(ids);
+  let warning = null;
   ids.forEach((id, i) => {
-    const u = changes.signups[id];
-    if (!before[i]) return; // no side yet: a first pick is free
-    if (!u.f) changes.signups[id] = { ...u, f: before[i] }; // a page that leaves f out keeps the side
-    else if (u.f !== before[i]) switched.push([id, before[i]]);
+    const old = stored[i], u = changes.signups[id];
+    if (!old) return; // a new signup
+    if (u === null) {
+      delete changes.signups[id];
+      warning = "Only the admin can remove a signup.";
+      return;
+    }
+    const c = old.c.length ? old.c : u.c;
+    const f = old.f || u.f;
+    const locked = u.n !== old.n || c.join() !== u.c.join() || (u.f !== undefined && u.f !== f);
+    if (locked) warning = warning || "Only the admin can change a signup.";
+    changes.signups[id] = f ? { n: old.n, c, f } : { n: old.n, c }; // a page that leaves f out keeps the side
   });
-  if (!switched.length || isAdmin(req)) return none;
-  const keys = visitorKeys(req);
-  const used = Math.max(...(await store.factionChanges(keys)));
-  const blocked = switched.slice(Math.max(0, FACTION_CHANGES - used));
-  for (const [id, f] of blocked) changes.signups[id] = { ...changes.signups[id], f };
-  const made = switched.length - blocked.length;
-  return {
-    bumps: made ? keys.map((k) => [k, made]) : [],
-    warning: blocked.length ? "Side not changed: you have no side changes left. Ask the raid leader to change it." : null,
-  };
+  return warning;
 }
 
 // HMGET without automatic deserialization gives an array in field order; accept an object too.
 function inOrder(raw, fields) {
   return Array.isArray(raw) ? raw : fields.map((f) => (raw && raw[f] != null ? raw[f] : null));
 }
-const factionOf = (raw) => {
-  try { return (typeof raw === "string" ? JSON.parse(raw) : raw)?.f || null; } catch { return null; }
+const parseSignup = (raw) => {
+  try { return cleanSignup(typeof raw === "string" ? JSON.parse(raw) : raw); } catch { return null; }
 };
 
 // Queue HSET for new values and HDEL for nulls on one hash.
@@ -225,17 +198,13 @@ function redisStore() {
       const [v, slots, meta, signups] = await redis.pipeline().get(KEYS.version).hgetall(KEYS.slots).hgetall(KEYS.meta).hgetall(KEYS.signups).exec();
       return toState(v, slots, meta, signups);
     },
-    async factions(ids) {
-      return inOrder(await redis.hmget(KEYS.signups, ...ids), ids).map(factionOf);
+    async signups(ids) {
+      return inOrder(await redis.hmget(KEYS.signups, ...ids), ids).map(parseSignup);
     },
-    async factionChanges(keys) {
-      return inOrder(await redis.hmget(KEYS.fxChanges, ...keys), keys).map((n) => Number(n) || 0);
-    },
-    async write(changes, bumps = []) {
+    async write(changes) {
       const tx = redis.multi();
       stageHash(tx, KEYS.slots, changes.slots);
       stageHash(tx, KEYS.signups, changes.signups);
-      for (const [key, n] of bumps) tx.hincrby(KEYS.fxChanges, key, n);
       if (changes.size !== undefined) tx.hset(KEYS.meta, { size: String(changes.size) });
       tx.incr(KEYS.version);
       tx.hgetall(KEYS.slots);
@@ -251,19 +220,14 @@ function redisStore() {
 // In-memory store for local development only (RAIDCOMP_MEMORY=1). Not shared between instances.
 function memoryStore() {
   const mem = (globalThis.__raidcompMemory ||= { v: 0, slots: {}, meta: {}, signups: {} });
-  mem.fxchanges ||= {};
   return {
     async read() {
       return toState(mem.v, { ...mem.slots }, { ...mem.meta }, { ...mem.signups });
     },
-    async factions(ids) {
-      return ids.map((id) => factionOf(mem.signups[id]));
+    async signups(ids) {
+      return ids.map((id) => parseSignup(mem.signups[id]));
     },
-    async factionChanges(keys) {
-      return keys.map((k) => mem.fxchanges[k] || 0);
-    },
-    async write(changes, bumps = []) {
-      for (const [key, n] of bumps) mem.fxchanges[key] = (mem.fxchanges[key] || 0) + n;
+    async write(changes) {
       for (const hash of ["slots", "signups"]) {
         for (const [field, value] of Object.entries(changes[hash])) {
           if (value) mem[hash][field] = JSON.stringify(value);
@@ -291,12 +255,10 @@ export default async function handler(req, res) {
     });
   }
   try {
-    // GET ?me=1: this visitor's side switches left (null for the admin key), so the page knows before it cheers.
+    // GET ?me=1: is this browser's admin key valid? The page shows the signup edit controls only then.
     // Not cached: unlike the comp, the answer is different for each visitor.
     if (req.method === "GET" && new URL(req.url || "/", "http://local").searchParams.has("me")) {
-      const admin = isAdmin(req);
-      const used = admin ? 0 : Math.max(...(await store.factionChanges(visitorKeys(req))));
-      return res.status(200).json({ admin, factionChangesLeft: admin ? null : Math.max(0, FACTION_CHANGES - used) });
+      return res.status(200).json({ admin: isAdmin(req) });
     }
     if (req.method === "GET") {
       const state = await store.read();
@@ -306,11 +268,9 @@ export default async function handler(req, res) {
     }
     if (req.method === "POST") {
       const changes = parseChanges(req.body);
-      const deleteWarning = guardDeletes(req, changes);
-      const { bumps, warning } = await guardFactions(store, req, changes);
-      const state = await store.write(changes, bumps);
-      const warnings = [deleteWarning, warning].filter(Boolean);
-      return res.status(200).json(warnings.length ? { ...state, warning: warnings.join(" "), factionBlocked: !!warning } : state);
+      const warning = await guardSignups(store, req, changes);
+      const state = await store.write(changes);
+      return res.status(200).json(warning ? { ...state, warning } : state);
     }
     res.setHeader("Allow", "GET, POST");
     return res.status(405).json({ error: "method_not_allowed" });
