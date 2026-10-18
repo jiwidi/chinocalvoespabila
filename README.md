@@ -40,7 +40,7 @@ Without a database you can run `RAIDCOMP_MEMORY=1 vercel dev` to use a throwaway
 `GET /api/comp` → `{ v, size, slots, signups }`:
 
 - `slots` has 40 entries of `null` or `{ s: "<class>_<spec>", n: "<name>" }`.
-- `signups` is a list of `{ id, n: "<name>", c: ["<class>_<spec>", ...] }` in signup order. `c` is ordered best first and holds specs from at most 3 classes.
+- `signups` is a list of `{ id, n: "<name>", c: ["<class>_<spec>", ...], f }` in signup order. `c` is ordered best first and holds specs from at most 3 classes. `f` is the faction: `"a"` (Alliance), `"h"` (Horde), `"d"` (doesn't mind which side), or missing if the player has not picked yet.
 
 `POST /api/comp` with any of:
 

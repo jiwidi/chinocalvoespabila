@@ -34,7 +34,7 @@ function cleanName(value) {
 
 const classOf = (spec) => spec.split("_")[0];
 
-const FACTIONS = new Set(["a", "h"]); // Alliance, Horde
+const FACTIONS = new Set(["a", "h", "d"]); // Alliance, Horde, don't mind (either side)
 
 // A signup: a name, the specs that player can bring (best first) and optionally their faction (f).
 // Not linked to the raid groups. Keeps specs from the first MAX_CLASSES classes only.
