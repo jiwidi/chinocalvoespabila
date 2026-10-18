@@ -29,6 +29,7 @@ const MAX_SIGNUPS = 100; // per request
 const MAX_CLASSES = 3; // per signup; any number of specs within those classes
 const SIGNUP_ID = /^[a-z0-9]{6,24}$/;
 const DEVICE_ID = /^[a-z0-9]{16,40}$/;
+const FINGERPRINT = /^[a-f0-9]{64}$/; // SHA-256 of the page's browser signals
 const ADMIN_KEY = process.env.RAIDCOMP_ADMIN_KEY || "";
 const PREFIX = process.env.RAIDCOMP_PREFIX || "raidcomp";
 // The deploy this code came with. Open pages reload when it changes, so everyone runs the latest version.
@@ -146,15 +147,26 @@ function parseChanges(body) {
   return out;
 }
 
-// Who is asking, without storing who they are: keyed hashes of IP + browser, and of the page's random device id.
-// ponytail: a new network plus cleared browser storage counts as a new person; enough to stop a guildmate, not an attacker.
+// IPv6 privacy addresses change often inside the home's /64, so an IPv6 address counts by its first 4 groups.
+function netOf(ip) {
+  if (ip.includes(".")) return ip.slice(ip.lastIndexOf(":") + 1); // IPv4, also when written as ::ffff:1.2.3.4
+  if (!ip.includes(":")) return ip;
+  const [head, tail = ""] = ip.toLowerCase().split("::");
+  const h = head ? head.split(":") : [], t = tail ? tail.split(":") : [];
+  return [...h, ...Array(Math.max(0, 8 - h.length - t.length)).fill("0"), ...t].slice(0, 4).map((g) => g.replace(/^0+(?=.)/, "")).join(":");
+}
+
+// Who is asking, without storing who they are: keyed hashes of IP + browser, of the page's random device id, and of
+// the page's browser fingerprint (the same in a private window and on another network). Any one of them is enough.
+// ponytail: a different device on a different network is a new person; enough to stop a guildmate, not an attacker.
 function visitorKeys(req) {
   const h = req.headers || {};
   const ip = String(h["x-real-ip"] || h["x-forwarded-for"] || (req.socket && req.socket.remoteAddress) || "").split(",")[0].trim();
   const hash = (s) => createHmac("sha256", ADMIN_KEY || "raidcomp").update(s).digest("hex").slice(0, 24);
-  const keys = ["net:" + hash(ip + "|" + (h["user-agent"] || ""))];
-  const device = String(h["x-raidcomp-device"] || "");
+  const keys = ["net:" + hash(netOf(ip) + "|" + (h["user-agent"] || ""))];
+  const device = String(h["x-raidcomp-device"] || ""), fp = String(h["x-raidcomp-fp"] || "");
   if (DEVICE_ID.test(device)) keys.push("dev:" + hash(device));
+  if (FINGERPRINT.test(fp)) keys.push("fp:" + hash(fp));
   return keys;
 }
 
