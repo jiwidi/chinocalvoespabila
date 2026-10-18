@@ -29,6 +29,9 @@ const { default: handler } = await import("../api/comp.js");
 
 const PORT = Number(process.env.PORT) || 3000;
 const INDEX = fileURLToPath(new URL("../index.html", import.meta.url));
+// The response headers from vercel.json (the CSP and others), so a page change that breaks them shows up here too.
+const VERCEL = JSON.parse(await readFile(fileURLToPath(new URL("../vercel.json", import.meta.url)), "utf8"));
+const HEADERS = VERCEL.headers.flatMap((rule) => rule.headers);
 // Static files the page loads from the repo (Vercel serves these on its own).
 const STATIC = { "/img/": "../img/", "/sounds/": "../sounds/" };
 const TYPES = { ".webp": "image/webp", ".png": "image/png", ".jpg": "image/jpeg", ".mp3": "audio/mpeg", ".m4a": "audio/mp4", ".ogg": "audio/ogg" };
@@ -52,6 +55,7 @@ async function readBody(req) {
 
 http.createServer(async (req, res) => {
   const { pathname } = new URL(req.url, "http://localhost");
+  for (const { key, value } of HEADERS) res.setHeader(key, value);
   try {
     if (pathname === "/api/comp") {
       req.body = await readBody(req);

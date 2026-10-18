@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "dev": "node scripts/dev.mjs",
-    "dev:prod": "node scripts/dev.mjs --seed"
+    "dev:prod": "node scripts/dev.mjs --seed",
+    "test": "node scripts/check-security.mjs"
   },
   "engines": {
     "node": ">=20"

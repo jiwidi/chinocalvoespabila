@@ -14,6 +14,7 @@ A shared, live raid composition planner for World of Warcraft: Forever. Everyone
 
 - `index.html`: the whole front end, with no build step. It polls `GET /api/comp` every 1.5 s while the tab is visible and sends edits with `POST /api/comp`.
 - `api/comp.js`: a Vercel function backed by Upstash Redis. Each slot is its own hash field, so two people editing different slots never overwrite each other. GET responses are cached on Vercel's CDN for 1 second, so many open tabs cost roughly one database read per second.
+- `vercel.json`: security headers for every response (Content-Security-Policy, `X-Content-Type-Options`, `Referrer-Policy`). If the page starts to load something from a new outside host, add that host to the CSP, or the browser blocks it. `npm test` checks this.
 - Icons are loaded from Wowhead's image CDN (`wow.zamimg.com`).
 
 ## Deploy on Vercel
@@ -33,9 +34,13 @@ vercel env pull .env.local   # pulls the Upstash credentials
 vercel dev
 ```
 
+Careful: `vercel env pull` copies the live database token and the admin key to your computer, and `vercel dev` then edits the live raid. Prefer the commands below.
+
 Without a database you can run `RAIDCOMP_MEMORY=1 vercel dev` to use a throwaway in-memory store (not shared between function instances, so don't use it in production).
 
-Or, without Vercel: `npm run dev` serves the page and the API on http://localhost:3000 with the in-memory store, and `npm run dev:prod` starts from a read-only copy of the live raid (pending approvals included). Locally the admin key is `dev`: open `http://localhost:3000/#admin=dev` to get the admin controls.
+Or, without Vercel: `npm run dev` serves the page and the API on http://localhost:3000 with the in-memory store, and `npm run dev:prod` starts from a read-only copy of the live raid (pending approvals included). Set `PORT` to use another port. The dev server sends the same headers as `vercel.json`. Locally the admin key is `dev`: open `http://localhost:3000/#admin=dev` to get the admin controls.
+
+`npm test` runs `scripts/check-security.mjs` against the in-memory store.
 
 ## API
 
@@ -80,3 +85,26 @@ To fix data, use the admin key from the `RAIDCOMP_ADMIN_KEY` environment variabl
 - With curl: send the header `X-Raidcomp-Admin: <key>`.
 
 `GET /api/comp?me=1` answers `{ "admin": true | false, "signedUp": true | false }` for the key and the visitor that send the request. `signedUp` is true when this visitor has signed up before. It is never cached.
+
+### Limits and security
+
+The URL is public, and the free Vercel and Upstash plans count every request and every database command. A "network" below is an IPv4 address or an IPv6 /64 (a /48 for admin keys). The server does this:
+
+- A `GET /api/comp` reads the database at most once a second in each function instance. This is also true when a query string or an `Authorization` header skips the CDN cache.
+- The server refuses a `POST` from another site (`403`). Browsers send `Origin` with every POST. The server accepts a request without it, for example from curl.
+- The server refuses a `POST` body over 64 KB (`413`).
+- More than 120 `POST` or `?me=1` requests a minute from one network get `429` in that function instance. The page waits and sends the edit again.
+- New signups without the admin key: at most 3 per network a day, and at most 25 waiting for approval at once. The reply has a `warning`. The admin can still add anyone.
+- After 10 wrong admin keys in 15 minutes from one network, that network gets no admin rights for 15 minutes. The right key does not help in that time.
+
+Use a long random admin key, for example the output of `openssl rand -base64 32`. The visitor hashes use the admin key as their secret. To change the admin key and keep "one signup per person", do these steps in Vercel:
+
+1. Set `RAIDCOMP_VISITOR_SECRET` to the old admin key.
+2. Set `RAIDCOMP_ADMIN_KEY` to the new key.
+3. Redeploy.
+
+These limits slow down one person with a script. They do not stop a flood from many addresses. A slow script can also use up the Upstash free plan (500,000 commands a month) over some days. So:
+
+- Add one Vercel WAF rate limit rule (Hobby includes one). It stops a flood before the function runs. Use these values: path equals `/api/comp`, method equals `POST`, action Rate Limit, fixed window 60 s, 60 requests, key IP, response 429.
+- Watch the command count in the Upstash console. Polling alone costs about 4 commands a second while at least one tab is open.
+- Under attack, turn on Attack Challenge Mode in the Vercel Firewall.

@@ -8,6 +8,10 @@
 // Signups (see guardSignups): a new signup waits for the admin's approval (p: 1), each visitor can sign up once
 // (a removed signup still counts), and once someone has signed up only the admin can change, approve or remove it.
 // The admin sends the header x-raidcomp-admin: <RAIDCOMP_ADMIN_KEY>.
+//
+// Abuse limits: the free plans count every request and every database command, and the URL is public. So a GET reads
+// the database at most once a second per instance, a POST must come from this site, and the counts below cap
+// requests, new signups and admin key guesses per network.
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { Redis } from "@upstash/redis";
 
@@ -30,13 +34,23 @@ const MAX_CLASSES = 3; // per signup; any number of specs within those classes
 const SIGNUP_ID = /^[a-z0-9]{6,24}$/;
 const DEVICE_ID = /^[a-z0-9]{16,40}$/;
 const FINGERPRINT = /^[a-f0-9]{64}$/; // SHA-256 of the page's browser signals
+const MAX_BODY = 64 * 1024; // bytes per POST; a page edit is a few KB
+const READ_MS = 1000; // a GET reuses the comp this instance read less than this long ago
+const REQUESTS_PER_MIN = 120; // POSTs and ?me=1 per network, in each function instance
+const MAX_PENDING = 25; // signups that wait for approval at once
+const NEW_SIGNUPS_PER_DAY = 3; // per network: an IPv4 address or an IPv6 /64
+const ADMIN_TRIES = 10; // wrong admin keys per network (an IPv4 address or an IPv6 /48) in 15 minutes
 const ADMIN_KEY = process.env.RAIDCOMP_ADMIN_KEY || "";
+// Key for the visitor hashes. It is the admin key unless set, so the stored hashes keep matching. Before you change
+// RAIDCOMP_ADMIN_KEY, set RAIDCOMP_VISITOR_SECRET to the old key, or every visitor can sign up once more.
+const VISITOR_SECRET = process.env.RAIDCOMP_VISITOR_SECRET || ADMIN_KEY || "raidcomp";
 const PREFIX = process.env.RAIDCOMP_PREFIX || "raidcomp";
 // The deploy this code came with. Open pages reload when it changes, so everyone runs the latest version.
 const BUILD = process.env.VERCEL_DEPLOYMENT_ID || process.env.VERCEL_GIT_COMMIT_SHA || "";
 const KEYS = {
   version: `${PREFIX}:v`, slots: `${PREFIX}:slots`, meta: `${PREFIX}:meta`, signups: `${PREFIX}:signups`,
   signers: `${PREFIX}:signers`, // visitor key -> id of the last signup made with it
+  limit: `${PREFIX}:limit:`, // + "signup:<network>" or "admin:<network>": counters that expire
 };
 
 class BadRequest extends Error {}
@@ -106,6 +120,11 @@ function toState(version, slotsHash, metaHash, signupsHash) {
   return { v: Number(version) || 0, size: SIZES.has(size) ? size : 20, slots, signups };
 }
 
+// Vercel parses a JSON body when the code first reads req.body, and throws when it cannot.
+function bodyOf(req) {
+  try { return req.body; } catch { throw new BadRequest("Body must be JSON"); }
+}
+
 function parseChanges(body) {
   if (typeof body === "string") {
     try { body = JSON.parse(body); } catch { throw new BadRequest("Body must be JSON"); }
@@ -147,26 +166,34 @@ function parseChanges(body) {
   return out;
 }
 
+// The client's address. On Vercel the platform sets x-real-ip and x-forwarded-for, so a client cannot fake them.
+function clientIp(req) {
+  const h = req.headers || {};
+  return String(h["x-real-ip"] || h["x-forwarded-for"] || (req.socket && req.socket.remoteAddress) || "").split(",")[0].trim();
+}
+
 // IPv6 privacy addresses change often inside the home's /64, so an IPv6 address counts by its first 4 groups.
-function netOf(ip) {
+// groups = 3 gives the /48, the block a home or a rented server usually gets.
+function netOf(ip, groups = 4) {
   if (ip.includes(".")) return ip.slice(ip.lastIndexOf(":") + 1); // IPv4, also when written as ::ffff:1.2.3.4
   if (!ip.includes(":")) return ip;
   const [head, tail = ""] = ip.toLowerCase().split("::");
   const h = head ? head.split(":") : [], t = tail ? tail.split(":") : [];
-  return [...h, ...Array(Math.max(0, 8 - h.length - t.length)).fill("0"), ...t].slice(0, 4).map((g) => g.replace(/^0+(?=.)/, "")).join(":");
+  return [...h, ...Array(Math.max(0, 8 - h.length - t.length)).fill("0"), ...t].slice(0, groups).map((g) => g.replace(/^0+(?=.)/, "")).join(":");
 }
+
+// Keyed hash, so the database never holds an address, a device id or a fingerprint.
+const keyed = (s) => createHmac("sha256", VISITOR_SECRET).update(s).digest("hex").slice(0, 24);
 
 // Who is asking, without storing who they are: keyed hashes of IP + browser, of the page's random device id, and of
 // the page's browser fingerprint (the same in a private window and on another network). Any one of them is enough.
 // ponytail: a different device on a different network is a new person; enough to stop a guildmate, not an attacker.
 function visitorKeys(req) {
   const h = req.headers || {};
-  const ip = String(h["x-real-ip"] || h["x-forwarded-for"] || (req.socket && req.socket.remoteAddress) || "").split(",")[0].trim();
-  const hash = (s) => createHmac("sha256", ADMIN_KEY || "raidcomp").update(s).digest("hex").slice(0, 24);
-  const keys = ["net:" + hash(netOf(ip) + "|" + (h["user-agent"] || ""))];
+  const keys = ["net:" + keyed(netOf(clientIp(req)) + "|" + (h["user-agent"] || ""))];
   const device = String(h["x-raidcomp-device"] || ""), fp = String(h["x-raidcomp-fp"] || "");
-  if (DEVICE_ID.test(device)) keys.push("dev:" + hash(device));
-  if (FINGERPRINT.test(fp)) keys.push("fp:" + hash(fp));
+  if (DEVICE_ID.test(device)) keys.push("dev:" + keyed(device));
+  if (FINGERPRINT.test(fp)) keys.push("fp:" + keyed(fp));
   return keys;
 }
 
@@ -176,21 +203,66 @@ async function hasSignup(store, keys) {
   return (await store.signers(keys)).some(Boolean);
 }
 
-function isAdmin(req) {
+// The admin key. After ADMIN_TRIES wrong keys from one network in 15 minutes, that network gets no admin rights, not
+// even with the right key, until the count expires. This slows down guessing. A short key is still weak.
+async function isAdmin(store, req) {
   const given = String((req.headers || {})["x-raidcomp-admin"] || "");
   if (!ADMIN_KEY || !given) return false;
+  const tries = "admin:" + keyed(netOf(clientIp(req), 3));
+  if ((await store.count(tries)) >= ADMIN_TRIES) return false;
   const digest = (s) => createHmac("sha256", "admin").update(s).digest(); // same length for a constant-time compare
-  return timingSafeEqual(digest(given), digest(ADMIN_KEY));
+  if (timingSafeEqual(digest(given), digest(ADMIN_KEY))) return true;
+  await store.bump(tries, 15 * 60);
+  return false;
+}
+
+// Requests per network in this function instance: a first line against floods that costs no database command.
+// ponytail: per instance, so a flood spread over many instances or networks gets more; a Vercel WAF rate limit rule
+// (see the README) stops it before the function runs.
+const hits = new Map(); // network -> { at, n }
+function flooding(net) {
+  const now = Date.now(), hit = hits.get(net);
+  if (hit && now - hit.at < 60_000) return ++hit.n > REQUESTS_PER_MIN;
+  if (hits.size >= 10_000) hits.clear(); // a flood from many networks: start over instead of growing
+  hits.set(net, { at: now, n: 1 });
+  return false;
+}
+
+// Browsers send Origin with every POST. Refuse a POST from another site: a page there could otherwise sign up its
+// visitor without asking (and that visitor then counts as signed up, for good).
+function fromOtherSite(req) {
+  const h = req.headers || {};
+  if (h["sec-fetch-site"] === "cross-site") return true;
+  if (!h.origin) return false; // not a browser, for example curl
+  try { return new URL(h.origin).host !== h.host; } catch { return true; } // "null" from a sandboxed frame, too
+}
+
+// GET reuses the comp this instance read less than READ_MS ago. The CDN cache does the same for plain polls, but a
+// query string or an Authorization header skips the CDN, and each such GET would cost 4 database commands.
+let lastRead = null; // { at, state: Promise }
+function readState(store) {
+  if (!lastRead || Date.now() - lastRead.at >= READ_MS) lastRead = { at: Date.now(), state: store.read() };
+  return lastRead.state;
+}
+
+// Why the server refuses a new signup from this visitor, or null. One signup per person, MAX_PENDING signups at most
+// waiting for approval, and NEW_SIGNUPS_PER_DAY per network (a script can change the browser keys, not its network).
+async function refuseNew(store, req, keys, madeOne) {
+  if (madeOne || (await hasSignup(store, keys))) return "You already signed up. Only one signup per person.";
+  if ((await store.pending()) >= MAX_PENDING) return "Too many signups wait for approval. Try again later, or ask the admin to add you.";
+  if ((await store.bump("signup:" + keyed(netOf(clientIp(req))), 24 * 3600)) > NEW_SIGNUPS_PER_DAY) {
+    return "Too many new signups from your network today. Ask the admin to add you.";
+  }
+  return null;
 }
 
 // Without the admin key: a new signup waits for the admin's approval, and a visitor who already has a signup cannot
-// make another. Once someone has signed up, a request can only fill in what is still missing (a first side, the
-// first specs); the rest of the signup keeps its stored values, approval included. Other changes in the request
-// still save, and the reply gets a warning. signers: the visitor keys to record for a new signup.
+// make another (see refuseNew). Once someone has signed up, a request can only fill in what is still missing (a first
+// side, the first specs); the rest of the signup keeps its stored values, approval included. Other changes in the
+// request still save, and the reply gets a warning. signers: the visitor keys to record for a new signup.
 // ponytail: read-then-write, so two requests at the same instant can each make a signup; a Lua script would fix that.
 async function guardSignups(store, req, changes) {
   const ids = Object.keys(changes.signups);
-  if (!ids.length || isAdmin(req)) return {};
   const stored = await store.signups(ids);
   const keys = visitorKeys(req);
   let warning = null, signers = null;
@@ -198,9 +270,10 @@ async function guardSignups(store, req, changes) {
     const old = stored[i], u = changes.signups[id];
     if (!old) {
       if (!u) continue; // removing a signup that is not there
-      if (signers || (await hasSignup(store, keys))) {
+      const refused = await refuseNew(store, req, keys, !!signers);
+      if (refused) {
         delete changes.signups[id];
-        warning = "You already signed up. Only one signup per person.";
+        warning = refused;
         continue;
       }
       changes.signups[id] = { ...u, p: 1 };
@@ -260,6 +333,17 @@ function redisStore() {
     async signers(keys) {
       return inOrder(await redis.hmget(KEYS.signers, ...keys), keys);
     },
+    async pending() {
+      return ((await redis.hvals(KEYS.signups)) || []).map(parseSignup).filter((u) => u && u.p).length;
+    },
+    async count(name) {
+      return Number(await redis.get(KEYS.limit + name)) || 0;
+    },
+    // Adds one to a counter and (re)starts its expiry, in one transaction so a counter never stays without one.
+    async bump(name, seconds) {
+      const [n] = await redis.multi().incr(KEYS.limit + name).expire(KEYS.limit + name, seconds).exec();
+      return Number(n);
+    },
     async write(changes, signers) {
       const tx = redis.multi();
       stageHash(tx, KEYS.slots, changes.slots);
@@ -281,6 +365,7 @@ function redisStore() {
 function memoryStore() {
   const mem = (globalThis.__raidcompMemory ||= { v: 0, slots: {}, meta: {}, signups: {} });
   mem.signers ||= {};
+  mem.limits ||= {}; // name -> { n, until }
   return {
     async read() {
       return toState(mem.v, { ...mem.slots }, { ...mem.meta }, { ...mem.signups });
@@ -290,6 +375,18 @@ function memoryStore() {
     },
     async signers(keys) {
       return keys.map((k) => mem.signers[k] || null);
+    },
+    async pending() {
+      return Object.values(mem.signups).map(parseSignup).filter((u) => u && u.p).length;
+    },
+    async count(name) {
+      const l = mem.limits[name];
+      return l && l.until > Date.now() ? l.n : 0;
+    },
+    async bump(name, seconds) {
+      const n = (await this.count(name)) + 1;
+      mem.limits[name] = { n, until: Date.now() + seconds * 1000 };
+      return n;
     },
     async write(changes, signers) {
       Object.assign(mem.signers, signers);
@@ -320,26 +417,37 @@ export default async function handler(req, res) {
     });
   }
   try {
-    // GET ?me=1: is this browser's admin key valid (the page shows the signup edit controls only then), and does this
-    // visitor already have a signup (then the page does not offer to join). Not cached: the answer is per visitor.
-    if (req.method === "GET" && new URL(req.url || "/", "http://local").searchParams.has("me")) {
-      const admin = isAdmin(req);
-      return res.status(200).json({ admin, signedUp: !admin && (await hasSignup(store, visitorKeys(req))) });
-    }
-    if (req.method === "GET") {
-      const state = await store.read();
+    const me = req.method === "GET" && new URL(req.url || "/", "http://local").searchParams.has("me");
+    if (req.method === "GET" && !me) {
+      const state = await readState(store);
       // Let Vercel's CDN answer repeat polls for one second, so 20 open tabs cost about one database read per second.
       res.setHeader("Vercel-CDN-Cache-Control", "max-age=1");
       return res.status(200).json(BUILD ? { ...state, build: BUILD } : state);
     }
-    if (req.method === "POST") {
-      const changes = parseChanges(req.body);
-      const { warning, signers } = await guardSignups(store, req, changes);
-      const state = await store.write(changes, signers);
-      return res.status(200).json(warning ? { ...state, warning } : state);
+    if (req.method !== "GET" && req.method !== "POST") {
+      res.setHeader("Allow", "GET, POST");
+      return res.status(405).json({ error: "method_not_allowed" });
     }
-    res.setHeader("Allow", "GET, POST");
-    return res.status(405).json({ error: "method_not_allowed" });
+    if (flooding(netOf(clientIp(req)))) {
+      res.setHeader("Retry-After", "60");
+      return res.status(429).json({ error: "too_many_requests", message: "Too many requests. Wait a minute, then try again." });
+    }
+    // GET ?me=1: is this browser's admin key valid (the page shows the signup edit controls only then), and does this
+    // visitor already have a signup (then the page does not offer to join). Not cached: the answer is per visitor.
+    if (me) {
+      const admin = await isAdmin(store, req);
+      return res.status(200).json({ admin, signedUp: !admin && (await hasSignup(store, visitorKeys(req))) });
+    }
+    if (fromOtherSite(req)) return res.status(403).json({ error: "forbidden", message: "Edits must come from the raid planner page." });
+    if (Number((req.headers || {})["content-length"]) > MAX_BODY) {
+      return res.status(413).json({ error: "too_large", message: "The request is too large." });
+    }
+    const changes = parseChanges(bodyOf(req));
+    const guarded = Object.keys(changes.signups).length && !(await isAdmin(store, req));
+    const { warning, signers } = guarded ? await guardSignups(store, req, changes) : {};
+    const state = await store.write(changes, signers);
+    lastRead = { at: Date.now(), state: Promise.resolve(state) }; // this instance's next GETs show the write at once
+    return res.status(200).json(warning ? { ...state, warning } : state);
   } catch (err) {
     if (err instanceof BadRequest) return res.status(400).json({ error: "bad_request", message: err.message });
     console.error("raidcomp api error", err);
