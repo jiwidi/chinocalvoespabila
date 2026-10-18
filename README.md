@@ -3,7 +3,7 @@
 
 A shared, live raid composition planner for World of Warcraft: Forever. Everyone with the link edits the same raid, and changes show up for everyone else within a couple of seconds.
 
-- Signups (left): each player writes a name and the specs they can play, best first. Up to 3 classes per player, with any number of specs in those classes. Newest signups show first. The list is separate from the groups.
+- Signups (left): each player writes a name and the specs they can play, best first. Up to 3 classes per player, with any number of specs in those classes. One signup per person. A new signup waits, greyed out, in **Waiting for approval** until the admin approves it. Newest signups show first. The list is separate from the groups.
 - Groups of five (right), built from the signups: click an empty slot and pick from the signups not in the raid yet, click a spec in the signups to put that player in the next empty slot, or drag a spec onto a slot. A player is in the raid only once; clicking another of their specs switches it. Signups already in the raid show their group. Each slot shows the player's name; the icon and class color show the spec.
 - Raid size 10 or 20 (the API still accepts 40). **Clear groups** empties the groups and keeps the signups.
 - Coverage panel (under the groups): composition, raid buffs, totems, party buffs (per group), debuffs, resistances, dispels. Hover or click a row to highlight who brings it and which signups could.
@@ -40,7 +40,7 @@ Without a database you can run `RAIDCOMP_MEMORY=1 vercel dev` to use a throwaway
 `GET /api/comp` → `{ v, size, slots, signups }`:
 
 - `slots` has 40 entries of `null` or `{ s: "<class>_<spec>", n: "<name>" }`.
-- `signups` is a list of `{ id, n: "<name>", c: ["<class>_<spec>", ...], f }` in signup order. `c` is ordered best first and holds specs from at most 3 classes. `f` is the faction: `"a"` (Alliance), `"h"` (Horde), `"d"` (doesn't mind which side), or missing if the player has not picked yet.
+- `signups` is a list of `{ id, n: "<name>", c: ["<class>_<spec>", ...], f }` in signup order. `c` is ordered best first and holds specs from at most 3 classes. `f` is the faction: `"a"` (Alliance), `"h"` (Horde), `"d"` (doesn't mind which side), or missing if the player has not picked yet. `p: 1` means the signup waits for the admin's approval. Until then it counts for nothing: it is not in the signups count, the slot picker, the suggested comp or the Horde vs Alliance score, and its specs cannot be placed.
 
 `POST /api/comp` with any of:
 
@@ -56,9 +56,13 @@ A signup id is 6–24 lowercase letters or digits. The page makes ids that start
 
 Set `RAIDCOMP_PREFIX` to keep several independent raids in one database.
 
-### Signups lock once made
+### Signup approval and lock
 
-Anyone can sign up. After that, only the admin can change or remove a signup: the name, the specs (add, remove, reorder) and the side. A player can still fill in what is missing: a first side, and the first specs if they skipped them when they joined.
+Anyone can sign up, one signup per person. The server knows a person by keyed hashes of IP + browser and of a random device id from the page (header `X-Raidcomp-Device`). It stores only the hashes, in `raidcomp:signers`. While a person's signup exists, a second signup from them is refused. If the admin removes it, that person can sign up again.
+
+A new signup gets `p: 1` and shows under **Waiting for approval**, for everyone. The admin approves it (✓), which moves it to the signups list. The admin can also move an approved signup back to waiting (↩). Signups that the admin makes are approved at once.
+
+After someone signs up, only the admin can change or remove that signup: the name, the specs (add, remove, reorder), the side, and the approval. A player can still fill in what is missing: a first side, and the first specs if they skipped them when they joined.
 
 Without the admin key, the server keeps the stored signup, still saves the other changes in the request (for example raid slots), and the reply has a `warning`. The page shows it and plays `sounds/blocked.m4a`. For visitors who are not admin, the page shows the signups read-only; the spec icons still place players in the raid.
 
@@ -67,4 +71,4 @@ To fix data, use the admin key from the `RAIDCOMP_ADMIN_KEY` environment variabl
 - In the browser: open the site once with `#admin=<key>` at the end of the URL. The page shows an **Admin** badge and all the signup edit controls on that browser. Click the badge, or open `#admin=`, to turn it off.
 - With curl: send the header `X-Raidcomp-Admin: <key>`.
 
-`GET /api/comp?me=1` answers `{ "admin": true | false }` for the key that the request sends. It is never cached.
+`GET /api/comp?me=1` answers `{ "admin": true | false, "signedUp": true | false }` for the key and the visitor that send the request. `signedUp` is true when this visitor already has a signup. It is never cached.

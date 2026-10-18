@@ -5,7 +5,8 @@
 // Storage: Upstash Redis (Vercel Marketplace). Each slot is its own hash field,
 // so two people editing different slots at the same time never overwrite each other.
 //
-// Signups: once someone has signed up, only the admin can change or remove that signup (see guardSignups).
+// Signups (see guardSignups): a new signup waits for the admin's approval (p: 1), each visitor can have one signup
+// at a time, and once someone has signed up only the admin can change, approve or remove that signup.
 // The admin sends the header x-raidcomp-admin: <RAIDCOMP_ADMIN_KEY>.
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { Redis } from "@upstash/redis";
@@ -27,9 +28,13 @@ const NAME_MAX = 20;
 const MAX_SIGNUPS = 100; // per request
 const MAX_CLASSES = 3; // per signup; any number of specs within those classes
 const SIGNUP_ID = /^[a-z0-9]{6,24}$/;
+const DEVICE_ID = /^[a-z0-9]{16,40}$/;
 const ADMIN_KEY = process.env.RAIDCOMP_ADMIN_KEY || "";
 const PREFIX = process.env.RAIDCOMP_PREFIX || "raidcomp";
-const KEYS = { version: `${PREFIX}:v`, slots: `${PREFIX}:slots`, meta: `${PREFIX}:meta`, signups: `${PREFIX}:signups` };
+const KEYS = {
+  version: `${PREFIX}:v`, slots: `${PREFIX}:slots`, meta: `${PREFIX}:meta`, signups: `${PREFIX}:signups`,
+  signers: `${PREFIX}:signers`, // visitor key -> id of the last signup made with it
+};
 
 class BadRequest extends Error {}
 
@@ -41,8 +46,8 @@ const classOf = (spec) => spec.split("_")[0];
 
 const FACTIONS = new Set(["a", "h", "d"]); // Alliance, Horde, don't mind (either side)
 
-// A signup: a name, the specs that player can bring (best first) and optionally their faction (f).
-// Not linked to the raid groups. Keeps specs from the first MAX_CLASSES classes only.
+// A signup: a name, the specs that player can bring (best first), optionally their faction (f), and p: 1 while it
+// waits for the admin's approval. Not linked to the raid groups. Keeps specs from the first MAX_CLASSES classes only.
 function cleanSignup(v) {
   if (!v || typeof v !== "object") return null;
   const n = cleanName(v.n);
@@ -56,7 +61,10 @@ function cleanSignup(v) {
     c.push(k);
   }
   if (!n && !c.length) return null;
-  return f ? { n, c, f } : { n, c };
+  const out = { n, c };
+  if (f) out.f = f;
+  if (v.p) out.p = 1;
+  return out;
 }
 
 // HGETALL comes back as a flat [field, value, ...] array when automatic deserialization is off.
@@ -136,6 +144,24 @@ function parseChanges(body) {
   return out;
 }
 
+// Who is asking, without storing who they are: keyed hashes of IP + browser, and of the page's random device id.
+// ponytail: a new network plus cleared browser storage counts as a new person; enough to stop a guildmate, not an attacker.
+function visitorKeys(req) {
+  const h = req.headers || {};
+  const ip = String(h["x-real-ip"] || h["x-forwarded-for"] || (req.socket && req.socket.remoteAddress) || "").split(",")[0].trim();
+  const hash = (s) => createHmac("sha256", ADMIN_KEY || "raidcomp").update(s).digest("hex").slice(0, 24);
+  const keys = ["net:" + hash(ip + "|" + (h["user-agent"] || ""))];
+  const device = String(h["x-raidcomp-device"] || "");
+  if (DEVICE_ID.test(device)) keys.push("dev:" + hash(device));
+  return keys;
+}
+
+// One signup per visitor at a time: true while a signup made with any of these keys still exists.
+async function hasSignup(store, keys) {
+  const ids = (await store.signers(keys)).filter(Boolean);
+  return ids.length > 0 && (await store.signups(ids)).some(Boolean);
+}
+
 function isAdmin(req) {
   const given = String((req.headers || {})["x-raidcomp-admin"] || "");
   if (!ADMIN_KEY || !given) return false;
@@ -143,29 +169,45 @@ function isAdmin(req) {
   return timingSafeEqual(digest(given), digest(ADMIN_KEY));
 }
 
-// Once someone has signed up, only the admin can change or remove that signup. Without the admin key a request
-// can only fill in what is still missing (a first side, the first specs); the rest of the signup keeps its
-// stored values, the other changes in the request still save, and the reply gets a warning.
+// Without the admin key: a new signup waits for the admin's approval, and a visitor who already has a signup cannot
+// make another. Once someone has signed up, a request can only fill in what is still missing (a first side, the
+// first specs); the rest of the signup keeps its stored values, approval included. Other changes in the request
+// still save, and the reply gets a warning. signers: the visitor keys to record for a new signup.
+// ponytail: read-then-write, so two requests at the same instant can each make a signup; a Lua script would fix that.
 async function guardSignups(store, req, changes) {
   const ids = Object.keys(changes.signups);
-  if (!ids.length || isAdmin(req)) return null;
+  if (!ids.length || isAdmin(req)) return {};
   const stored = await store.signups(ids);
-  let warning = null;
-  ids.forEach((id, i) => {
+  const keys = visitorKeys(req);
+  let warning = null, signers = null;
+  for (const [i, id] of ids.entries()) {
     const old = stored[i], u = changes.signups[id];
-    if (!old) return; // a new signup
+    if (!old) {
+      if (!u) continue; // removing a signup that is not there
+      if (signers || (await hasSignup(store, keys))) {
+        delete changes.signups[id];
+        warning = "You already signed up. Only one signup per person.";
+        continue;
+      }
+      changes.signups[id] = { ...u, p: 1 };
+      signers = Object.fromEntries(keys.map((k) => [k, id]));
+      continue;
+    }
     if (u === null) {
       delete changes.signups[id];
       warning = "Only the admin can remove a signup.";
-      return;
+      continue;
     }
     const c = old.c.length ? old.c : u.c;
     const f = old.f || u.f;
     const locked = u.n !== old.n || c.join() !== u.c.join() || (u.f !== undefined && u.f !== f);
     if (locked) warning = warning || "Only the admin can change a signup.";
-    changes.signups[id] = f ? { n: old.n, c, f } : { n: old.n, c }; // a page that leaves f out keeps the side
-  });
-  return warning;
+    const keep = { n: old.n, c };
+    if (f) keep.f = f; // a page that leaves f out keeps the side
+    if (old.p) keep.p = 1;
+    changes.signups[id] = keep;
+  }
+  return { warning, signers };
 }
 
 // HMGET without automatic deserialization gives an array in field order; accept an object too.
@@ -201,10 +243,14 @@ function redisStore() {
     async signups(ids) {
       return inOrder(await redis.hmget(KEYS.signups, ...ids), ids).map(parseSignup);
     },
-    async write(changes) {
+    async signers(keys) {
+      return inOrder(await redis.hmget(KEYS.signers, ...keys), keys);
+    },
+    async write(changes, signers) {
       const tx = redis.multi();
       stageHash(tx, KEYS.slots, changes.slots);
       stageHash(tx, KEYS.signups, changes.signups);
+      if (signers) tx.hset(KEYS.signers, signers);
       if (changes.size !== undefined) tx.hset(KEYS.meta, { size: String(changes.size) });
       tx.incr(KEYS.version);
       tx.hgetall(KEYS.slots);
@@ -220,6 +266,7 @@ function redisStore() {
 // In-memory store for local development only (RAIDCOMP_MEMORY=1). Not shared between instances.
 function memoryStore() {
   const mem = (globalThis.__raidcompMemory ||= { v: 0, slots: {}, meta: {}, signups: {} });
+  mem.signers ||= {};
   return {
     async read() {
       return toState(mem.v, { ...mem.slots }, { ...mem.meta }, { ...mem.signups });
@@ -227,7 +274,11 @@ function memoryStore() {
     async signups(ids) {
       return ids.map((id) => parseSignup(mem.signups[id]));
     },
-    async write(changes) {
+    async signers(keys) {
+      return keys.map((k) => mem.signers[k] || null);
+    },
+    async write(changes, signers) {
+      Object.assign(mem.signers, signers);
       for (const hash of ["slots", "signups"]) {
         for (const [field, value] of Object.entries(changes[hash])) {
           if (value) mem[hash][field] = JSON.stringify(value);
@@ -255,10 +306,11 @@ export default async function handler(req, res) {
     });
   }
   try {
-    // GET ?me=1: is this browser's admin key valid? The page shows the signup edit controls only then.
-    // Not cached: unlike the comp, the answer is different for each visitor.
+    // GET ?me=1: is this browser's admin key valid (the page shows the signup edit controls only then), and does this
+    // visitor already have a signup (then the page does not offer to join). Not cached: the answer is per visitor.
     if (req.method === "GET" && new URL(req.url || "/", "http://local").searchParams.has("me")) {
-      return res.status(200).json({ admin: isAdmin(req) });
+      const admin = isAdmin(req);
+      return res.status(200).json({ admin, signedUp: !admin && (await hasSignup(store, visitorKeys(req))) });
     }
     if (req.method === "GET") {
       const state = await store.read();
@@ -268,8 +320,8 @@ export default async function handler(req, res) {
     }
     if (req.method === "POST") {
       const changes = parseChanges(req.body);
-      const warning = await guardSignups(store, req, changes);
-      const state = await store.write(changes);
+      const { warning, signers } = await guardSignups(store, req, changes);
+      const state = await store.write(changes, signers);
       return res.status(200).json(warning ? { ...state, warning } : state);
     }
     res.setHeader("Allow", "GET, POST");
