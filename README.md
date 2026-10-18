@@ -56,15 +56,15 @@ A signup id is 6–24 lowercase letters or digits. The page makes ids that start
 
 Set `RAIDCOMP_PREFIX` to keep several independent raids in one database.
 
-### Limits: faction changes and removing signups
+### Signups lock once made
 
-Only the admin can remove a signup. Without the admin key, a signup `null` is ignored (the other changes in the request still save) and the reply has a `warning`. The page shows the × that removes a signup only when the server accepts the browser's admin key.
+Anyone can sign up. After that, only the admin can change or remove a signup: the name, the specs (add, remove, reorder) and the side. A player can still fill in what is missing: a first side, and the first specs if they skipped them when they joined.
 
-Each visitor can switch a signup's side at most 2 times. A player's first pick is free. The server knows a visitor by two keyed hashes: IP address + browser, and the random device id that the page sends in `X-Raidcomp-Device`. It stores only the hashes. Over the limit, the stored side stays, the other changes in the request still save, and the reply has a `warning`. The page shows it and plays `sounds/blocked.m4a`.
+Without the admin key, the server keeps the stored signup, still saves the other changes in the request (for example raid slots), and the reply has a `warning`. The page shows it and plays `sounds/blocked.m4a`. For visitors who are not admin, the page shows the signups read-only; the spec icons still place players in the raid.
 
-To fix data or remove signups, use the admin key from the `RAIDCOMP_ADMIN_KEY` environment variable in Vercel:
+To fix data, use the admin key from the `RAIDCOMP_ADMIN_KEY` environment variable in Vercel:
 
-- In the browser: open the site once with `#admin=<key>` at the end of the URL. The page shows an **Admin** badge, skips the faction limit and shows the × to remove signups on that browser. Click the badge, or open `#admin=`, to turn it off.
+- In the browser: open the site once with `#admin=<key>` at the end of the URL. The page shows an **Admin** badge and all the signup edit controls on that browser. Click the badge, or open `#admin=`, to turn it off.
 - With curl: send the header `X-Raidcomp-Admin: <key>`.
 
-A request with the admin key does not use up anyone's changes.
+`GET /api/comp?me=1` answers `{ "admin": true | false }` for the key that the request sends. It is never cached.

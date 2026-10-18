@@ -171,6 +171,7 @@ button{cursor:pointer}
 .su-name{flex:0 0 128px;width:128px;text-overflow:ellipsis;height:30px;padding:0 8px;border:1px solid transparent;border-radius:5px;background:none;font-weight:700;font-size:13px;color:#fff}
 .su-name:hover{border-color:var(--line-2)}
 .su-name:focus{border-color:var(--accent);background:#000}
+.su-name[readonly],.su-name[readonly]:hover,.su-name[readonly]:focus{border-color:transparent;background:none;cursor:default}
 .su.new{margin-bottom:8px;padding:8px;border:1px dashed var(--line-2);background:var(--slot)}
 .su.new .su-name{background:#000;border-color:var(--line-2)}
 .su-specs{flex:1;min-width:0;display:flex;flex-wrap:wrap;align-items:center;gap:5px}
@@ -268,6 +269,7 @@ button{cursor:pointer}
 .f-d{--fc:#d4a73a}
 .fx-btn{flex:none;display:grid;place-items:center;width:28px;height:28px;padding:0;border:1px dashed var(--line-2);border-radius:50%;background:none;color:var(--muted);font-weight:700;font-size:13px;overflow:hidden;transition:transform .12s,border-color .12s}
 .fx-btn:hover{border-color:var(--accent);color:var(--accent);transform:scale(1.1)}
+span.fx-btn:hover{transform:none}
 .fx-btn.f-a,.fx-btn.f-h,.fx-btn.f-d{border:0;box-shadow:0 0 0 2px var(--fc)}
 .fx-btn .ic{width:28px;height:28px;border-radius:50%}
 .fx-btn.ghost{visibility:hidden}
@@ -576,30 +578,20 @@ button{cursor:pointer}
   let useArmed = 0;
   let pets = true;
   try { pets = localStorage.getItem(PETS_KEY) !== "off"; } catch (e) {}
-  // Sent with every edit so the server can limit faction changes per visitor: a random id for this browser,
-  // and the admin key, which skips that limit.
-  const DEVICE_STORE = "raidcomp-device", ADMIN_STORE = "raidcomp-admin";
-  let deviceId = "", adminKey = "";
-  try {
-    deviceId = localStorage.getItem(DEVICE_STORE) || "";
-    if (!deviceId) { deviceId = crypto.randomUUID().replace(/-/g, ""); localStorage.setItem(DEVICE_STORE, deviceId); }
-    adminKey = localStorage.getItem(ADMIN_STORE) || "";
-  } catch (e) { /* no storage: the server still limits by network and browser */ }
+  // Admin key: sent with every edit. Once someone has signed up, only the admin can change or remove their signup.
+  const ADMIN_STORE = "raidcomp-admin";
+  let adminKey = "";
+  try { adminKey = localStorage.getItem(ADMIN_STORE) || ""; } catch (e) { /* no storage: no admin mode */ }
   function visitorHeaders(extra) {
-    const h = { ...extra };
-    if (deviceId) h["X-Raidcomp-Device"] = deviceId;
-    if (adminKey) h["X-Raidcomp-Admin"] = adminKey;
-    return h;
+    return adminKey ? { ...extra, "X-Raidcomp-Admin": adminKey } : { ...extra };
   }
-  // From the server: side switches this visitor has left (null while unknown, or with a valid admin key: no limit),
-  // and whether the admin key is valid (only then the page shows the buttons that remove signups).
-  let changesLeft = null, adminOk = false;
-  function loadBudget() {
+  // Whether the server accepts this browser's admin key: only then the page shows the signup edit controls.
+  let adminOk = false;
+  function checkAdmin() {
     fetch(API + "?me=1", { headers: visitorHeaders() }).then(readJSON).then((j) => {
-      changesLeft = j.factionChangesLeft;
       if (adminOk !== !!j.admin) { adminOk = !!j.admin; renderSignups(); }
       if (adminKey && !j.admin) toast("Admin key not accepted. Open the page with #admin=<key> again.");
-    }, () => { changesLeft = null; /* the server still checks every switch */ });
+    }, () => { /* keep the last answer; the server checks every edit anyway */ });
   }
   // #admin=<key> turns admin mode on for this browser and #admin= turns it off, on load or in an open tab.
   function readAdminHash() {
@@ -612,7 +604,7 @@ button{cursor:pointer}
     history.replaceState(null, "", location.pathname + location.search); // keep the key out of the address bar
     renderTools();
     toast(adminKey ? "Admin mode is on for this browser." : "Admin mode is off on this browser.");
-    loadBudget();
+    checkAdmin();
   }
   window.addEventListener("hashchange", readAdminHash);
 
@@ -961,18 +953,21 @@ button{cursor:pointer}
       const tip = m ? full + ". " + who + " is in group " + g + (m.s === k ? " as this spec." : ". Click to switch to this spec.") : full + ". Click to put " + who + " in the raid, or drag onto a slot.";
       return '<span class="chip' + (m && m.s === k ? " on" : "") + '" draggable="true" data-spec="' + k + '" style="--c:' + c.color + '">' +
         '<button type="button" data-act="su-place" data-spec="' + k + '" title="' + esc(tip) + '" aria-label="' + esc(full) + '">' + img(sp.icon) + "</button>" +
-        '<button type="button" class="x" data-act="su-drop" data-spec="' + k + '" aria-label="Remove ' + esc(full) + " from " + esc(who) + '">&times;</button></span>';
+        (adminOk ? '<button type="button" class="x" data-act="su-drop" data-spec="' + k + '" aria-label="Remove ' + esc(full) + " from " + esc(who) + '">&times;</button>' : "") + "</span>";
     }).join("");
     // A new player only types a name and joins: faction and specs follow in two dialogs.
     if (!u.id) {
       return '<div class="su new" data-id=""><input class="su-name" maxlength="' + NAME_MAX + '" autocomplete="off" spellcheck="false" placeholder="Your name" aria-label="Your name">' +
         '<button type="button" class="btn primary join" data-act="join">Join the raid</button></div>';
     }
-    const opts = specOptions(u.c);
+    // Once signed up, only the admin edits the row; others can still pick a first side and their first specs.
+    const opts = adminOk ? specOptions(u.c) : "";
     const fx = FACTION[u.f];
-    const side = '<button type="button" class="fx-btn' + (fx ? " f-" + u.f : "") + '" data-act="fx-open" title="' + esc(fx ? who + " " + fx.stance + ". Click to change." : "¿Horda o Alianza? Pick a side for " + who) + '" aria-label="' + esc(fx ? "Faction: " + fx.name : "Pick Horde or Alliance") + '">' + (fx ? img(fx.icon) : "?") + "</button>";
+    const side = fx && !adminOk
+      ? '<span class="fx-btn f-' + u.f + '" title="' + esc(who + " " + fx.stance + ". Only the admin can change sides.") + '" aria-label="' + esc("Faction: " + fx.name) + '">' + img(fx.icon) + "</span>"
+      : '<button type="button" class="fx-btn' + (fx ? " f-" + u.f : "") + '" data-act="fx-open" title="' + esc(fx ? who + " " + fx.stance + ". Click to change." : "¿Horda o Alianza? Pick a side for " + who) + '" aria-label="' + esc(fx ? "Faction: " + fx.name : "Pick Horde or Alliance") + '">' + (fx ? img(fx.icon) : "?") + "</button>";
     return '<div class="su' + (m ? " placed" : "") + '" data-id="' + esc(u.id) + '">' + side +
-      '<input class="su-name" maxlength="' + NAME_MAX + '" autocomplete="off" spellcheck="false" placeholder="Name" aria-label="Name" value="' + esc(u.n) + '">' +
+      '<input class="su-name" maxlength="' + NAME_MAX + '" autocomplete="off" spellcheck="false" placeholder="Name" aria-label="Name" value="' + esc(u.n) + '"' + (adminOk ? "" : ' readonly title="Only the admin can change a name."') + ">" +
       '<span class="su-specs">' + chips + (u.c.length ? "" : '<button type="button" class="btn pick-specs" data-act="sp-open">Pick specs</button>') + (opts && u.c.length ? '<select class="su-add" title="Add a spec" aria-label="Add a spec for ' + esc(who) + '"><option value="">+</option>' + opts + "</select>" : "") + "</span>" +
       (m ? '<span class="where" title="In group ' + g + '">G' + g + "</span>" : "") +
       (adminOk ? '<button type="button" class="mini" data-act="su-del" aria-label="Remove ' + esc(who) + ' from signups">&times;</button>' : "") + "</div>";
@@ -986,7 +981,7 @@ button{cursor:pointer}
     const placed = new Map();
     state.slots.forEach((m, i) => { if (m && m.n) placed.set(m.n.toLowerCase(), i); });
     signups.innerHTML = '<div class="phead"><h2 class="ttl">Signups <span class="count">' + state.signups.length + "</span></h2></div>" +
-      '<p class="hint">Join with your name, pick a side, then your specs (best first, up to ' + MAX_CLASSES + " classes). Drag specs to reorder them; click or drag one onto a slot to place the player.</p>" +
+      '<p class="hint">Join with your name, pick a side, then your specs (best first, up to ' + MAX_CLASSES + " classes). After that, only the admin can change a signup. Click a spec, or drag it onto a slot, to place the player.</p>" +
       signupRow({ id: "", n: "", c: [] }, placed) + newestFirst().map((u) => signupRow(u, placed)).join("");
     applyFilter();
   }
@@ -1162,7 +1157,7 @@ button{cursor:pointer}
       .then((s) => {
         inFlight = false; failures = 0; net = "ok";
         // The server refused a side switch the page thought was allowed; the reply already has the old side.
-        if (s.warning) { if (s.factionBlocked) changesLeft = 0; toast(s.warning); playBlocked(); }
+        if (s.warning) { toast(s.warning); playBlocked(); }
         if (pending) flush(); else accept(s, true);
         renderTools(); renderBanner();
       }, (err) => {
@@ -1248,9 +1243,21 @@ button{cursor:pointer}
     const c = (cur ? cur.c : []).concat(add && !(cur && cur.c.includes(add)) ? [add] : []);
     updateSignup(id, n || c.length ? { ...cur, id, n, c } : null);
   }
+  // Once someone has signed up, only the admin can change or remove their signup. Others can only fill in what
+  // is still missing: a first side, the first specs. The server checks the same.
+  function lockedChange(cur, u) {
+    if (!cur) return false; // a new signup
+    if (!u) return true;
+    return u.n !== cur.n || (cur.c.length > 0 && u.c.join() !== cur.c.join()) || (!!cur.f && u.f !== cur.f);
+  }
   function updateSignup(id, u) {
-    // Only the admin can remove a signup (the server checks too): keep it and redraw the row as it was.
-    if (!u && !adminOk) { toast("Only the admin can remove a signup."); playBlocked(); signupsDirty = true; renderSignups(); return; }
+    const cur = state.signups.find((x) => x.id === id);
+    if (!adminOk && lockedChange(cur, u)) {
+      toast(u ? "Only the admin can change a signup." : "Only the admin can remove a signup.");
+      playBlocked();
+      signupsDirty = true; renderSignups(); // put the row back as it was
+      return;
+    }
     change((s) => {
       const rest = s.signups.filter((x) => x.id !== id);
       s.signups = u ? rest.concat(u).sort((a, b) => (a.id < b.id ? -1 : 1)) : rest;
@@ -1426,14 +1433,8 @@ button{cursor:pointer}
     const u = state.signups.find((x) => x.id === id);
     if (!u) return;
     if (u.f === f) { celebrate(f, u.n); return; }
-    // Celebrate only a switch that passes the count check; without a switch left, only the "blocked" sound plays.
-    if (changesLeft !== null && changesLeft <= 0) {
-      closeDialog();
-      toast("Side not changed: you have no side changes left. Ask the raid leader to change it.");
-      playBlocked();
-      return;
-    }
-    if (changesLeft !== null) changesLeft--;
+    // A first side is free; after that only the admin can switch it, and a refused switch plays only the "blocked" sound.
+    if (u.f && !adminOk) { closeDialog(); toast("Only the admin can change sides."); playBlocked(); return; }
     updateSignup(id, { ...u, f });
     celebrate(f, u.n);
   }
@@ -1480,7 +1481,7 @@ button{cursor:pointer}
       if (a === "fx-open") { showFactionPicker(act.closest(".su").dataset.id); return; }
       if (a === "fx-pick") { pickFaction(act.dataset.id, act.dataset.f); return; }
       if (a === "fx-replay") { cheer(act.dataset.f); return; }
-      if (a === "admin-off") { adminKey = ""; try { localStorage.removeItem(ADMIN_STORE); } catch (err) {} renderTools(); toast("Admin mode is off on this browser."); loadBudget(); return; }
+      if (a === "admin-off") { adminKey = ""; try { localStorage.removeItem(ADMIN_STORE); } catch (err) {} renderTools(); toast("Admin mode is off on this browser."); checkAdmin(); return; }
       if (a === "remove") { removeSlot(+act.closest(".cell").dataset.i); return; }
       if (a === "main-spec") {
         const i = +act.closest(".cell").dataset.i, m = state.slots[i], k = act.dataset.spec;
@@ -1586,7 +1587,7 @@ button{cursor:pointer}
   // players off the raid to remove them.
   // Where a dragged spec would land among its own row's specs: {chip, after} or null.
   function reorderTarget(e) {
-    if (!drag || drag.type !== "spec") return null;
+    if (!drag || drag.type !== "spec" || !adminOk) return null; // reordering specs changes the signup: admin only
     const chip = e.target.closest(".chip");
     if (!chip || chip.closest(".su").dataset.id !== drag.id || chip.dataset.spec === drag.key) return null;
     const r = chip.getBoundingClientRect();
@@ -1658,7 +1659,7 @@ button{cursor:pointer}
 
   renderAll();
   readAdminHash();
-  loadBudget();
+  checkAdmin();
   poll();
 })();
 </script>
