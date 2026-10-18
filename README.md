@@ -35,6 +35,8 @@ vercel dev
 
 Without a database you can run `RAIDCOMP_MEMORY=1 vercel dev` to use a throwaway in-memory store (not shared between function instances, so don't use it in production).
 
+Or, without Vercel: `npm run dev` serves the page and the API on http://localhost:3000 with the in-memory store, and `npm run dev:prod` starts from a read-only copy of the live raid (pending approvals included). Locally the admin key is `dev`: open `http://localhost:3000/#admin=dev` to get the admin controls.
+
 ## API
 
 `GET /api/comp` → `{ v, size, slots, signups }`:
