@@ -58,7 +58,7 @@ Set `RAIDCOMP_PREFIX` to keep several independent raids in one database.
 
 ### Signup approval and lock
 
-Anyone can sign up, one signup per person. The server knows a person by keyed hashes of IP + browser and of a random device id from the page (header `X-Raidcomp-Device`). It stores only the hashes, in `raidcomp:signers`. While a person's signup exists, a second signup from them is refused. If the admin removes it, that person can sign up again.
+Anyone can sign up, one signup per person. The server knows a person by keyed hashes of IP + browser and of a random device id from the page (header `X-Raidcomp-Device`). It stores only the hashes, in `raidcomp:signers`. After a person signs up once, a second signup from them is refused, also when the admin removed the first one. The admin can still add that person's signup.
 
 A new signup gets `p: 1` and shows under **Waiting for approval**, for everyone. The admin approves it (✓), which moves it to the signups list. The admin can also move an approved signup back to waiting (↩). Signups that the admin makes are approved at once.
 
@@ -71,4 +71,4 @@ To fix data, use the admin key from the `RAIDCOMP_ADMIN_KEY` environment variabl
 - In the browser: open the site once with `#admin=<key>` at the end of the URL. The page shows an **Admin** badge and all the signup edit controls on that browser. Click the badge, or open `#admin=`, to turn it off.
 - With curl: send the header `X-Raidcomp-Admin: <key>`.
 
-`GET /api/comp?me=1` answers `{ "admin": true | false, "signedUp": true | false }` for the key and the visitor that send the request. `signedUp` is true when this visitor already has a signup. It is never cached.
+`GET /api/comp?me=1` answers `{ "admin": true | false, "signedUp": true | false }` for the key and the visitor that send the request. `signedUp` is true when this visitor has signed up before. It is never cached.
