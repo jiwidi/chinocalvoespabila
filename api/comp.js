@@ -5,8 +5,8 @@
 // Storage: Upstash Redis (Vercel Marketplace). Each slot is its own hash field,
 // so two people editing different slots at the same time never overwrite each other.
 //
-// Signups (see guardSignups): a new signup waits for the admin's approval (p: 1), each visitor can have one signup
-// at a time, and once someone has signed up only the admin can change, approve or remove that signup.
+// Signups (see guardSignups): a new signup waits for the admin's approval (p: 1), each visitor can sign up once
+// (a removed signup still counts), and once someone has signed up only the admin can change, approve or remove it.
 // The admin sends the header x-raidcomp-admin: <RAIDCOMP_ADMIN_KEY>.
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { Redis } from "@upstash/redis";
@@ -158,10 +158,10 @@ function visitorKeys(req) {
   return keys;
 }
 
-// One signup per visitor at a time: true while a signup made with any of these keys still exists.
+// One signup per visitor, for good: true once any of these keys has made a signup, even if the admin removed it.
+// ponytail: IP + browser can match two people (same house, mobile carrier NAT); the admin adds the second one.
 async function hasSignup(store, keys) {
-  const ids = (await store.signers(keys)).filter(Boolean);
-  return ids.length > 0 && (await store.signups(ids)).some(Boolean);
+  return (await store.signers(keys)).some(Boolean);
 }
 
 function isAdmin(req) {
