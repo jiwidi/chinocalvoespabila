@@ -1,11 +1,14 @@
 // Local dev server: serves index.html and runs api/comp.js with the in-memory store.
 // Usage: npm run dev  (then open http://localhost:3000)
 // npm run dev:prod starts from a copy of the live comp (or RAIDCOMP_SEED_URL). Edits stay local.
+// Admin controls: add #admin=dev to the URL (or set RAIDCOMP_ADMIN_KEY).
 import http from "node:http";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
 process.env.RAIDCOMP_MEMORY ??= "1";
+// Admin key for local testing only: open http://localhost:3000/#admin=dev. The live key stays in Vercel.
+process.env.RAIDCOMP_ADMIN_KEY ??= "dev";
 
 // Copy a live comp into the in-memory store that api/comp.js reads (globalThis.__raidcompMemory).
 async function seedFrom(url) {
@@ -14,7 +17,7 @@ async function seedFrom(url) {
   const { v, size, slots, signups } = await res.json();
   const mem = { v: Number(v) || 0, slots: {}, meta: { size: String(size) }, signups: {} };
   slots.forEach((slot, i) => { if (slot) mem.slots[i] = JSON.stringify(slot); });
-  for (const { id, n, c, f } of signups) mem.signups[id] = JSON.stringify({ n, c, f });
+  for (const { id, n, c, f, p } of signups) mem.signups[id] = JSON.stringify({ n, c, f, p }); // p: waiting for approval
   globalThis.__raidcompMemory = mem;
   console.log(`Seeded ${Object.keys(mem.slots).length} slots and ${signups.length} signups from ${url}`);
 }
