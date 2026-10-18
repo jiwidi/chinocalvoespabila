@@ -55,3 +55,14 @@ Without a database you can run `RAIDCOMP_MEMORY=1 vercel dev` to use a throwaway
 A signup id is 6–24 lowercase letters or digits. The page makes ids that start with a base-36 timestamp, so the list stays in signup order. `null` removes a slot or a signup. Returns the full updated comp. Names are trimmed to 20 characters.
 
 Set `RAIDCOMP_PREFIX` to keep several independent raids in one database.
+
+### Faction change limit
+
+Each visitor can switch a signup's side at most 2 times. A player's first pick is free. The server knows a visitor by two keyed hashes: IP address + browser, and the random device id that the page sends in `X-Raidcomp-Device`. It stores only the hashes. Over the limit, the stored side stays, the other changes in the request still save, and the reply has a `warning`. The page shows it and plays `sounds/blocked.m4a`.
+
+To fix data, use the admin key from the `RAIDCOMP_ADMIN_KEY` environment variable in Vercel:
+
+- In the browser: open the site once with `#admin=<key>` at the end of the URL. The page shows an **Admin** badge and skips the limit on that browser. Click the badge, or open `#admin=`, to turn it off.
+- With curl: send the header `X-Raidcomp-Admin: <key>`.
+
+A request with the admin key does not use up anyone's changes.

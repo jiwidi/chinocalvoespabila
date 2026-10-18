@@ -68,6 +68,7 @@ button{cursor:pointer}
 .btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
 .btn.primary:hover{background:#ffc65e;color:var(--accent-ink)}
 .btn.armed{border-color:var(--bad);background:#2a1513;color:#ffb4ab}
+.btn.admin{border-color:var(--warn);color:var(--warn)}
 .seg{display:inline-flex;align-items:center;gap:2px;padding:2px;border:1px solid var(--line-2);border-radius:6px;background:var(--panel-2);height:32px}
 .seg span{padding:0 6px 0 8px;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
 .seg button{height:26px;padding:0 10px;border:0;border-radius:4px;background:none;font-weight:700;font-size:12px;color:var(--muted)}
@@ -575,6 +576,43 @@ button{cursor:pointer}
   let useArmed = 0;
   let pets = true;
   try { pets = localStorage.getItem(PETS_KEY) !== "off"; } catch (e) {}
+  // Sent with every edit so the server can limit faction changes per visitor: a random id for this browser,
+  // and the admin key, which skips that limit.
+  const DEVICE_STORE = "raidcomp-device", ADMIN_STORE = "raidcomp-admin";
+  let deviceId = "", adminKey = "";
+  try {
+    deviceId = localStorage.getItem(DEVICE_STORE) || "";
+    if (!deviceId) { deviceId = crypto.randomUUID().replace(/-/g, ""); localStorage.setItem(DEVICE_STORE, deviceId); }
+    adminKey = localStorage.getItem(ADMIN_STORE) || "";
+  } catch (e) { /* no storage: the server still limits by network and browser */ }
+  function visitorHeaders(extra) {
+    const h = { ...extra };
+    if (deviceId) h["X-Raidcomp-Device"] = deviceId;
+    if (adminKey) h["X-Raidcomp-Admin"] = adminKey;
+    return h;
+  }
+  // Side switches this visitor has left, from the server: null while unknown, or with a valid admin key (no limit).
+  let changesLeft = null;
+  function loadBudget() {
+    fetch(API + "?me=1", { headers: visitorHeaders() }).then(readJSON).then((j) => {
+      changesLeft = j.factionChangesLeft;
+      if (adminKey && !j.admin) toast("Admin key not accepted. Open the page with #admin=<key> again.");
+    }, () => { changesLeft = null; /* the server still checks every switch */ });
+  }
+  // #admin=<key> turns admin mode on for this browser and #admin= turns it off, on load or in an open tab.
+  function readAdminHash() {
+    const m = location.hash.match(/^#admin=(.*)$/);
+    if (!m) return;
+    let key = "";
+    try { key = decodeURIComponent(m[1]); } catch (e) { /* malformed: treat as off */ }
+    adminKey = /^[\x21-\x7e]{1,200}$/.test(key) ? key : "";
+    try { if (adminKey) localStorage.setItem(ADMIN_STORE, adminKey); else localStorage.removeItem(ADMIN_STORE); } catch (e) {}
+    history.replaceState(null, "", location.pathname + location.search); // keep the key out of the address bar
+    renderTools();
+    toast(adminKey ? "Admin mode is on for this browser." : "Admin mode is off on this browser.");
+    loadBudget();
+  }
+  window.addEventListener("hashchange", readAdminHash);
 
   function specTags(sp) { return pets ? sp.tags.concat(sp.pet) : sp.tags; }
   function firstEmpty() {
@@ -812,6 +850,7 @@ button{cursor:pointer}
       '<button type="button" class="btn" data-act="pets" aria-pressed="' + pets + '">Hunter pets: ' + (pets ? "On" : "Off") + "</button>" +
       '<button type="button" class="btn" data-act="copy">Copy roster</button>' +
       '<button type="button" class="btn' + (clearArmed ? " armed" : "") + '" data-act="clear">' + (clearArmed ? "Click again to clear" : "Clear groups") + "</button>" +
+      (adminKey ? '<button type="button" class="btn admin" data-act="admin-off" title="Admin mode: the faction change limit is off on this browser. Click to turn admin mode off.">Admin</button>' : "") +
       '<span class="live ' + status[0] + '" role="status"><i></i>' + status[1] + "</span>";
   }
 
@@ -1116,10 +1155,12 @@ button{cursor:pointer}
     pending = null;
     inFlight = true;
     renderTools();
-    fetch(API, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
+    fetch(API, { method: "POST", headers: visitorHeaders({ "Content-Type": "application/json" }), body: JSON.stringify(body) })
       .then(readJSON)
       .then((s) => {
         inFlight = false; failures = 0; net = "ok";
+        // The server refused a side switch the page thought was allowed; the reply already has the old side.
+        if (s.warning) { changesLeft = 0; toast(s.warning); playBlocked(); }
         if (pending) flush(); else accept(s, true);
         renderTools(); renderBanner();
       }, (err) => {
@@ -1352,6 +1393,18 @@ button{cursor:pointer}
       cheerAudio.play().then(() => { done = true; }, speak);
     } catch (err) { speak(); }
   }
+  // A blocked faction change: stop a cheer that already started (only if the server disagreed), play the "no" sound.
+  function playBlocked() {
+    if (cheerAudio) cheerAudio.pause();
+    try { speechSynthesis.cancel(); } catch (err) { /* no speech support */ }
+    if (dialogRoot.querySelector(".fx-cheer")) closeDialog();
+    try { cheerAudio = new Audio("sounds/blocked.m4a"); cheerAudio.play().catch(() => {}); } catch (err) { /* no audio: the toast says it */ }
+  }
+  function celebrate(f, n) {
+    const fx = FACTION[f];
+    if (fx.photo) showFactionCheer(f, n);
+    else { closeDialog(); toast(n + " " + fx.stance + "."); cheer(f); }
+  }
   function pickFaction(id, f) {
     const fx = FACTION[f];
     if (!fx) return;
@@ -1368,9 +1421,17 @@ button{cursor:pointer}
     }
     const u = state.signups.find((x) => x.id === id);
     if (!u) return;
-    if (u.f !== f) updateSignup(id, { ...u, f });
-    if (fx.photo) showFactionCheer(f, u.n);
-    else { closeDialog(); toast(u.n + " " + fx.stance + "."); cheer(f); }
+    if (u.f === f) { celebrate(f, u.n); return; }
+    // Celebrate only a switch that passes the count check; without a switch left, only the "blocked" sound plays.
+    if (changesLeft !== null && changesLeft <= 0) {
+      closeDialog();
+      toast("Side not changed: you have no side changes left. Ask the raid leader to change it.");
+      playBlocked();
+      return;
+    }
+    if (changesLeft !== null) changesLeft--;
+    updateSignup(id, { ...u, f });
+    celebrate(f, u.n);
   }
   // Horde vs Alliance share among signups that picked a side.
   function renderFactions() {
@@ -1415,6 +1476,7 @@ button{cursor:pointer}
       if (a === "fx-open") { showFactionPicker(act.closest(".su").dataset.id); return; }
       if (a === "fx-pick") { pickFaction(act.dataset.id, act.dataset.f); return; }
       if (a === "fx-replay") { cheer(act.dataset.f); return; }
+      if (a === "admin-off") { adminKey = ""; try { localStorage.removeItem(ADMIN_STORE); } catch (err) {} renderTools(); toast("Admin mode is off on this browser."); loadBudget(); return; }
       if (a === "remove") { removeSlot(+act.closest(".cell").dataset.i); return; }
       if (a === "main-spec") {
         const i = +act.closest(".cell").dataset.i, m = state.slots[i], k = act.dataset.spec;
@@ -1591,6 +1653,8 @@ button{cursor:pointer}
   });
 
   renderAll();
+  readAdminHash();
+  loadBudget();
   poll();
 })();
 </script>
