@@ -6,7 +6,8 @@
 // so two people editing different slots at the same time never overwrite each other.
 //
 // Faction changes: each visitor can switch a signup's side at most FACTION_CHANGES times (a first pick is free).
-// A request with the header x-raidcomp-admin: <RAIDCOMP_ADMIN_KEY> skips that limit, to fix data.
+// Only the admin can remove a signup. A request with the header x-raidcomp-admin: <RAIDCOMP_ADMIN_KEY>
+// skips both rules, to fix data.
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { Redis } from "@upstash/redis";
 
@@ -160,6 +161,14 @@ function isAdmin(req) {
   return timingSafeEqual(digest(given), digest(ADMIN_KEY));
 }
 
+// Only the admin key removes signups; without it they stay and the rest of the request still saves.
+function guardDeletes(req, changes) {
+  const ids = Object.keys(changes.signups).filter((id) => changes.signups[id] === null);
+  if (!ids.length || isAdmin(req)) return null;
+  for (const id of ids) delete changes.signups[id];
+  return "Only the admin can remove a signup.";
+}
+
 // Switching a signup's side counts against the visitor; over the limit the stored side stays and the rest still saves.
 // ponytail: read-then-write, so two requests at the same instant can each use the last change; a Lua script would fix that.
 async function guardFactions(store, req, changes) {
@@ -297,9 +306,11 @@ export default async function handler(req, res) {
     }
     if (req.method === "POST") {
       const changes = parseChanges(req.body);
+      const deleteWarning = guardDeletes(req, changes);
       const { bumps, warning } = await guardFactions(store, req, changes);
       const state = await store.write(changes, bumps);
-      return res.status(200).json(warning ? { ...state, warning } : state);
+      const warnings = [deleteWarning, warning].filter(Boolean);
+      return res.status(200).json(warnings.length ? { ...state, warning: warnings.join(" "), factionBlocked: !!warning } : state);
     }
     res.setHeader("Allow", "GET, POST");
     return res.status(405).json({ error: "method_not_allowed" });
