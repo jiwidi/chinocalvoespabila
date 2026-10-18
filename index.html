@@ -195,6 +195,12 @@ button{cursor:pointer}
 .su .mini{flex:none;width:24px;height:24px;padding:0;border:0;border-radius:4px;background:none;color:var(--faint);font-weight:700;font-size:14px;opacity:0}
 .su:hover .mini,.su .mini:focus-visible{opacity:1}
 .su .mini:hover{color:#fff;background:var(--bad)}
+.su .mini.ok{color:var(--ok);opacity:1}
+.su .mini.ok:hover{background:var(--ok);color:var(--accent-ink)}
+.su-wait{margin:0 0 10px;padding:6px 4px 4px;border:1px dashed var(--warn);border-radius:6px}
+.su-wait .ttl{margin:0 0 4px 6px;font-size:12px;color:var(--warn)}
+.su.pending .chip{cursor:default}
+.su.pending .fx-btn,.su.pending .su-name,.su.pending .su-specs,.su.pending .where{filter:grayscale(1);opacity:.45}
 @media (hover:none){.su .mini{opacity:1}}
 
 /* Coverage */
@@ -348,7 +354,7 @@ span.fx-btn:hover{transform:none}
   .brand h1{font-size:20px}
 }
 @media (max-width:520px){
-  .su:not(.new){display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;row-gap:6px}
+  .su:not(.new){display:grid;grid-template-columns:auto minmax(0,1fr) repeat(3,auto);row-gap:6px}
   .su:not(.new) .su-name{width:auto}
   .su:not(.new) .su-specs{grid-column:1 / -1;order:5;padding-left:36px}
   .su.new{flex-wrap:wrap}
@@ -550,6 +556,7 @@ span.fx-btn:hover{transform:none}
       .map((u) => {
         const o = { id: u.id, n: cleanName(u.n), c: (Array.isArray(u.c) ? u.c : []).filter((k) => SPEC[k]) };
         if (FACTION[u.f]) o.f = u.f;
+        if (u.p) o.p = 1; // waiting for the admin's approval
         return o;
       });
     return { v: Number(d.v) || 0, size: SIZES.includes(d.size) ? d.size : 20, slots, signups };
@@ -578,17 +585,27 @@ span.fx-btn:hover{transform:none}
   let useArmed = 0;
   let pets = true;
   try { pets = localStorage.getItem(PETS_KEY) !== "off"; } catch (e) {}
-  // Admin key: sent with every edit. Once someone has signed up, only the admin can change or remove their signup.
-  const ADMIN_STORE = "raidcomp-admin";
-  let adminKey = "";
-  try { adminKey = localStorage.getItem(ADMIN_STORE) || ""; } catch (e) { /* no storage: no admin mode */ }
+  // Admin key: sent with every edit. Once someone has signed up, only the admin can change, approve or remove their signup.
+  // Device id: a random id for this browser, so the server allows one signup per person.
+  const ADMIN_STORE = "raidcomp-admin", DEVICE_STORE = "raidcomp-device";
+  let adminKey = "", deviceId = "";
+  try {
+    adminKey = localStorage.getItem(ADMIN_STORE) || "";
+    deviceId = localStorage.getItem(DEVICE_STORE) || "";
+    if (!deviceId) { deviceId = crypto.randomUUID().replace(/-/g, ""); localStorage.setItem(DEVICE_STORE, deviceId); }
+  } catch (e) { /* no storage: no admin mode; the server still knows the network and browser */ }
   function visitorHeaders(extra) {
-    return adminKey ? { ...extra, "X-Raidcomp-Admin": adminKey } : { ...extra };
+    const h = { ...extra };
+    if (adminKey) h["X-Raidcomp-Admin"] = adminKey;
+    if (deviceId) h["X-Raidcomp-Device"] = deviceId;
+    return h;
   }
-  // Whether the server accepts this browser's admin key: only then the page shows the signup edit controls.
-  let adminOk = false;
+  // Whether the server accepts this browser's admin key (only then the page shows the signup edit controls),
+  // and whether this visitor already has a signup (then the page does not let them join again).
+  let adminOk = false, signedUp = false;
   function checkAdmin() {
     fetch(API + "?me=1", { headers: visitorHeaders() }).then(readJSON).then((j) => {
+      signedUp = !!j.signedUp;
       if (adminOk !== !!j.admin) { adminOk = !!j.admin; renderSignups(); }
       if (adminKey && !j.admin) toast("Admin key not accepted. Open the page with #admin=<key> again.");
     }, () => { /* keep the last answer; the server checks every edit anyway */ });
@@ -650,11 +667,12 @@ span.fx-btn:hover{transform:none}
 
   /* ---------- Suggested comp ---------- */
   // One signup per player: a later signup with the same name (any case) replaces an earlier one, as in the groups.
+  // Signups waiting for the admin's approval do not count.
   let byNameMemo = { list: null, map: null };
   function signupsByName() {
     if (byNameMemo.list !== state.signups) {
       const map = new Map();
-      state.signups.forEach((u) => { if (u.n && u.c.length) map.set(u.n.toLowerCase(), u); });
+      state.signups.forEach((u) => { if (u.n && u.c.length && !u.p) map.set(u.n.toLowerCase(), u); });
       byNameMemo = { list: state.signups, map };
     }
     return byNameMemo.map;
@@ -886,10 +904,10 @@ span.fx-btn:hover{transform:none}
   // state.signups is in signup order; the page shows the newest first.
   const newestFirst = () => state.signups.slice().reverse();
 
-  // For the selected empty slot: every spec of every signup that is not in the raid yet.
+  // For the selected empty slot: every spec of every approved signup that is not in the raid yet.
   function pickHTML(i) {
     const placed = new Set(state.slots.filter(Boolean).map((m) => m.n.toLowerCase()));
-    const opts = newestFirst().filter((u) => u.n && u.c.length && !placed.has(u.n.toLowerCase())).map((u) =>
+    const opts = newestFirst().filter((u) => u.n && u.c.length && !u.p && !placed.has(u.n.toLowerCase())).map((u) =>
       '<optgroup label="' + esc(u.n) + '">' + u.c.map((k) => '<option value="' + esc(u.id) + "|" + k + '">' + esc(specName(SPEC[k])) + "</option>").join("") + "</optgroup>").join("");
     return opts ? '<select class="pick" data-i="' + i + '" aria-label="Pick a signup for this slot"><option value="">Pick a signup…</option>' + opts + "</select>"
       : '<span class="nm anon">Every signup is in the raid</span>';
@@ -950,9 +968,9 @@ span.fx-btn:hover{transform:none}
     const m = i != null ? state.slots[i] : null, g = Math.floor(i / 5) + 1;
     const chips = u.c.map((k) => {
       const sp = SPEC[k], c = CLASS[sp.cls], full = specName(sp);
-      const tip = m ? full + ". " + who + " is in group " + g + (m.s === k ? " as this spec." : ". Click to switch to this spec.") : full + ". Click to put " + who + " in the raid, or drag onto a slot.";
-      return '<span class="chip' + (m && m.s === k ? " on" : "") + '" draggable="true" data-spec="' + k + '" style="--c:' + c.color + '">' +
-        '<button type="button" data-act="su-place" data-spec="' + k + '" title="' + esc(tip) + '" aria-label="' + esc(full) + '">' + img(sp.icon) + "</button>" +
+      const tip = u.p ? full + ". " + who + " is waiting for the admin's approval." : m ? full + ". " + who + " is in group " + g + (m.s === k ? " as this spec." : ". Click to switch to this spec.") : full + ". Click to put " + who + " in the raid, or drag onto a slot.";
+      return '<span class="chip' + (m && m.s === k ? " on" : "") + '" draggable="' + !u.p + '" data-spec="' + k + '" style="--c:' + c.color + '">' +
+        '<button type="button"' + (u.p ? "" : ' data-act="su-place"') + ' data-spec="' + k + '" title="' + esc(tip) + '" aria-label="' + esc(full) + '">' + img(sp.icon) + "</button>" +
         (adminOk ? '<button type="button" class="x" data-act="su-drop" data-spec="' + k + '" aria-label="Remove ' + esc(full) + " from " + esc(who) + '">&times;</button>' : "") + "</span>";
     }).join("");
     // A new player only types a name and joins: faction and specs follow in two dialogs.
@@ -966,10 +984,13 @@ span.fx-btn:hover{transform:none}
     const side = fx && !adminOk
       ? '<span class="fx-btn f-' + u.f + '" title="' + esc(who + " " + fx.stance + ". Only the admin can change sides.") + '" aria-label="' + esc("Faction: " + fx.name) + '">' + img(fx.icon) + "</span>"
       : '<button type="button" class="fx-btn' + (fx ? " f-" + u.f : "") + '" data-act="fx-open" title="' + esc(fx ? who + " " + fx.stance + ". Click to change." : "¿Horda o Alianza? Pick a side for " + who) + '" aria-label="' + esc(fx ? "Faction: " + fx.name : "Pick Horde or Alliance") + '">' + (fx ? img(fx.icon) : "?") + "</button>";
-    return '<div class="su' + (m ? " placed" : "") + '" data-id="' + esc(u.id) + '">' + side +
+    const approve = !adminOk ? "" : u.p
+      ? '<button type="button" class="mini ok" data-act="su-approve" title="Approve: move ' + esc(who) + ' to the signups" aria-label="Approve ' + esc(who) + '">&#10003;</button>'
+      : '<button type="button" class="mini" data-act="su-wait" title="Move ' + esc(who) + ' back to waiting for approval" aria-label="Move ' + esc(who) + ' back to waiting for approval">&#8617;</button>';
+    return '<div class="su' + (m ? " placed" : "") + (u.p ? " pending" : "") + '" data-id="' + esc(u.id) + '">' + side +
       '<input class="su-name" maxlength="' + NAME_MAX + '" autocomplete="off" spellcheck="false" placeholder="Name" aria-label="Name" value="' + esc(u.n) + '"' + (adminOk ? "" : ' readonly title="Only the admin can change a name."') + ">" +
       '<span class="su-specs">' + chips + (u.c.length ? "" : '<button type="button" class="btn pick-specs" data-act="sp-open">Pick specs</button>') + (opts && u.c.length ? '<select class="su-add" title="Add a spec" aria-label="Add a spec for ' + esc(who) + '"><option value="">+</option>' + opts + "</select>" : "") + "</span>" +
-      (m ? '<span class="where" title="In group ' + g + '">G' + g + "</span>" : "") +
+      (m ? '<span class="where" title="In group ' + g + '">G' + g + "</span>" : "") + approve +
       (adminOk ? '<button type="button" class="mini" data-act="su-del" aria-label="Remove ' + esc(who) + ' from signups">&times;</button>' : "") + "</div>";
   }
   let signupsDirty = false, holdSignups = false;
@@ -980,9 +1001,12 @@ span.fx-btn:hover{transform:none}
     signupsDirty = false;
     const placed = new Map();
     state.slots.forEach((m, i) => { if (m && m.n) placed.set(m.n.toLowerCase(), i); });
-    signups.innerHTML = '<div class="phead"><h2 class="ttl">Signups <span class="count">' + state.signups.length + "</span></h2></div>" +
-      '<p class="hint">Join with your name, pick a side, then your specs (best first, up to ' + MAX_CLASSES + " classes). After that, only the admin can change a signup. Click a spec, or drag it onto a slot, to place the player.</p>" +
-      signupRow({ id: "", n: "", c: [] }, placed) + newestFirst().map((u) => signupRow(u, placed)).join("");
+    const all = newestFirst(), waiting = all.filter((u) => u.p), listed = all.filter((u) => !u.p);
+    signups.innerHTML = '<div class="phead"><h2 class="ttl">Signups <span class="count">' + listed.length + "</span></h2></div>" +
+      '<p class="hint">Join with your name, pick a side, then your specs (best first, up to ' + MAX_CLASSES + " classes). One signup per person. The admin approves new signups, and after that only the admin can change them. Click a spec, or drag it onto a slot, to place the player.</p>" +
+      signupRow({ id: "", n: "", c: [] }, placed) +
+      (waiting.length ? '<section class="su-wait" aria-label="Waiting for approval"><h3 class="ttl">Waiting for approval <span class="count">' + waiting.length + "</span></h3>" + waiting.map((u) => signupRow(u, placed)).join("") + "</section>" : "") +
+      listed.map((u) => signupRow(u, placed)).join("");
     applyFilter();
   }
 
@@ -1121,7 +1145,7 @@ span.fx-btn:hover{transform:none}
     const su = {};
     new Set(before.signups.concat(after.signups).map((u) => u.id)).forEach((id) => {
       const b = before.signups.find((u) => u.id === id), a = after.signups.find((u) => u.id === id);
-      if (JSON.stringify(b) !== JSON.stringify(a)) su[id] = a ? { n: a.n, c: a.c, f: a.f } : null;
+      if (JSON.stringify(b) !== JSON.stringify(a)) su[id] = a ? { n: a.n, c: a.c, f: a.f, p: a.p } : null;
     });
     if (Object.keys(su).length) { ch.signups = su; any = true; }
     return any ? ch : null;
@@ -1267,6 +1291,8 @@ span.fx-btn:hover{transform:none}
     const u = state.signups.find((x) => x.id === id);
     if (!u) return;
     if (act === "su-del") updateSignup(id, null);
+    else if (act === "su-approve") { const { p, ...ok } = u; updateSignup(id, ok); toast(u.n + " is in the signups."); }
+    else if (act === "su-wait") { updateSignup(id, { ...u, p: 1 }); toast(u.n + " is waiting for approval again."); }
     else if (act === "su-drop") updateSignup(id, u.n || u.c.length > 1 ? { ...u, c: u.c.filter((k) => k !== key) } : null);
     else if (act === "su-place") placePlayer(key, u.n);
   }
@@ -1293,6 +1319,7 @@ span.fx-btn:hover{transform:none}
     if (!n) { toast("Write your name first"); if (input) input.focus(); return; }
     const taken = state.signups.some((u) => u.n.toLowerCase() === n.toLowerCase());
     if (taken) { toast(n + " is already signed up. Pick another name or edit that row."); return; }
+    if (signedUp && !adminOk) { toast("You already signed up. Only one signup per person."); playBlocked(); return; }
     joining = { n };
     if (input) input.blur();
     showFactionPicker(null);
@@ -1381,7 +1408,7 @@ span.fx-btn:hover{transform:none}
     closeDialog();
     if (!u || !d.c.length) return;
     updateSignup(u.id, { ...u, c: d.c });
-    toast(u.n + " is signed up with " + plural(d.c.length, "spec"));
+    toast(u.n + " is signed up with " + plural(d.c.length, "spec") + (u.p ? ". The admin approves new signups." : ""));
   }
   // Plays the faction's sound file, or has the browser shout it when there is no file.
   let cheerAudio = null;
@@ -1423,7 +1450,9 @@ span.fx-btn:hover{transform:none}
       // A new player: create their signup now that they have a side, then go on to their specs.
       if (!joining) return;
       const nid = newId(), n = joining.n;
-      updateSignup(nid, { id: nid, n, c: [], f });
+      // The admin's own signups skip the approval; everyone else waits for it, with one signup per person.
+      updateSignup(nid, adminOk ? { id: nid, n, c: [], f } : { id: nid, n, c: [], f, p: 1 });
+      if (!adminOk) signedUp = true;
       const input = signups.querySelector(".su.new .su-name");
       if (input) input.value = "";
       if (fx.photo) showFactionCheer(f, n, nid);
@@ -1440,8 +1469,8 @@ span.fx-btn:hover{transform:none}
   }
   // Horde vs Alliance share among signups that picked a side.
   function renderFactions() {
-    // Everyone signed up counts, with or without specs; a later signup with the same name replaces an earlier one.
-    const players = [...new Map(state.signups.filter((u) => u.n).map((u) => [u.n.toLowerCase(), u])).values()];
+    // Every approved signup counts, with or without specs; a later signup with the same name replaces an earlier one.
+    const players = [...new Map(state.signups.filter((u) => u.n && !u.p).map((u) => [u.n.toLowerCase(), u])).values()];
     // "Don't mind" players are counted apart: the Alliance/Horde share is only among those who chose a side.
     const count = (f) => players.filter((u) => u.f === f).length;
     const a = count("a"), h = count("h"), d = count("d"), total = a + h, none = players.length - total - d;
