@@ -239,7 +239,19 @@ button{cursor:pointer}
 .rk.r1{color:var(--ok);background:rgba(76,196,107,.12)}
 .rk.r2{color:var(--warn);background:rgba(242,184,75,.12)}
 .rk.r3{color:#f08a4b;background:rgba(240,138,75,.12)}
-.bench{margin:12px 2px 0;font-size:12px;color:var(--muted)}
+.bench{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:14px 2px 0;padding:10px;border:1px dashed var(--line-2);border-radius:6px;font-size:12px;color:var(--muted)}
+.bench > span:first-child{font-weight:700;color:var(--soft);margin-right:2px}
+.bench-chip{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 9px 0 3px;border-radius:5px;background:var(--slot);box-shadow:inset 3px 0 0 var(--c,var(--line-2));font-weight:700;color:var(--cn,var(--soft))}
+.bench-chip .ic{width:20px;height:20px}
+/* Comp options when more players signed up than the raid holds */
+.sg-tabs{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 6px}
+.sg-tab{display:flex;flex-direction:column;align-items:flex-start;gap:1px;max-width:260px;padding:6px 12px;border:1px solid var(--line-2);border-radius:6px;background:var(--panel-2);text-align:left;color:var(--soft)}
+.sg-tab b{font-size:12.5px;color:#fff}
+.sg-tab small{max-width:100%;font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sg-tab:hover{border-color:var(--muted)}
+.sg-tab.on{border-color:var(--accent);box-shadow:inset 0 -2px 0 var(--accent)}
+.sg-tab.on b{color:var(--accent)}
+.sg-note{margin:0 0 10px;font-size:11.5px;color:var(--muted)}
 
 /* Preferences */
 .plist{display:grid}
@@ -809,14 +821,43 @@ span.fx-btn:hover{transform:none}
     return s;
   }
 
+  // When more players signed up than the raid holds, one comp leaves people out. So the panel offers options:
+  // option 1 is the best comp; each next option must take everyone no earlier option had room for, until
+  // everyone plays in at least one.
+  const MAX_OPTIONS = 5;
   let suggestMemo = { key: "", out: null };
-  function suggest() {
+  let suggestIdx = 0; // the option shown (and used by "Use this comp")
+  function suggestOptions() {
     const key = state.size + "|" + pets + "|" + JSON.stringify(state.signups);
     if (suggestMemo.key === key) return suggestMemo.out;
-    const players = [...signupsByName().values()];
-    const n = players.length, cap = Math.min(n, state.size), t = targets(state.size);
-    // pick[i] is an index into players[i].c, or -1 when benched. Earlier signups are kept over later ones on ties.
-    const pick = players.map((u, i) => (i < cap ? 0 : -1));
+    const players = [...signupsByName().values()], t = targets(state.size);
+    const options = [solveComp(players, state.size, t, new Set())];
+    const covered = new Set(options[0].raid.map((m) => m.i));
+    while (covered.size < players.length && options.length < MAX_OPTIONS) {
+      const forced = new Set(players.map((u, i) => i).filter((i) => !covered.has(i)).slice(0, state.size));
+      const opt = solveComp(players, state.size, t, forced);
+      opt.adds = players.filter((u, i) => forced.has(i));
+      opt.raid.forEach((m) => covered.add(m.i));
+      options.push(opt);
+    }
+    const out = { options, t };
+    suggestMemo = { key, out };
+    return out;
+  }
+  // The option on screen, shaped as before: { raid, bench, slots, t } plus the full list.
+  function suggest() {
+    const { options, t } = suggestOptions();
+    suggestIdx = Math.min(suggestIdx, options.length - 1);
+    return { ...options[suggestIdx], t, options };
+  }
+
+  // Best comp for these players. forced: indexes of players who must be in the raid.
+  function solveComp(players, size, t, forced) {
+    const n = players.length, cap = Math.min(n, size);
+    // pick[i] is an index into players[i].c, or -1 when benched. Forced players first, then earlier signups.
+    const order = players.map((u, i) => i).sort((a, b) => (forced.has(b) - forced.has(a)) || a - b);
+    const pick = players.map(() => -1);
+    order.slice(0, cap).forEach((i) => { pick[i] = 0; });
     const value = (p) => {
       let s = 0;
       const entries = [];
@@ -842,7 +883,7 @@ span.fx-btn:hover{transform:none}
             if (tryMove(p)) improved = p;
           } else {
             for (let j = 0; j < n; j++) {
-              if (pick[j] < 0) continue;
+              if (pick[j] < 0 || forced.has(j)) continue;
               const p = pick.slice(); p[i] = r; p[j] = -1;
               if (tryMove(p)) improved = p;
             }
@@ -863,10 +904,8 @@ span.fx-btn:hover{transform:none}
       improved.forEach((r, i) => { pick[i] = r; });
     }
     const raid = [], bench = [];
-    players.forEach((u, i) => { if (pick[i] < 0) bench.push(u); else raid.push({ u, n: u.n, s: u.c[pick[i]], rank: pick[i] }); });
-    const out = { raid, bench, t, slots: arrange(raid, state.size) };
-    suggestMemo = { key, out };
-    return out;
+    players.forEach((u, i) => { if (pick[i] < 0) bench.push(u); else raid.push({ u, i, n: u.n, s: u.c[pick[i]], rank: pick[i] }); });
+    return { raid, bench, slots: arrange(raid, size), adds: [] };
   }
 
   // Spread players over groups of five: tanks and melee with shamans and paladins, casters together,
@@ -1130,12 +1169,21 @@ span.fx-btn:hover{transform:none}
       }
       groupsH += '<section class="group"><h3>Group ' + (g + 1) + "<span>" + sg.slots.slice(g * 5, g * 5 + 5).filter(Boolean).length + "/5</span></h3>" + '<div class="cells">' + cells + "</div></section>";
     }
+    // More players than seats: one tab per option, so nobody is missing from every comp.
+    const opts = sg.options;
+    const tabs = opts.length < 2 ? "" :
+      '<div class="sg-tabs" role="tablist" aria-label="Comp options">' + opts.map((o, i) =>
+        '<button type="button" role="tab" class="sg-tab' + (i === suggestIdx ? " on" : "") + '" data-act="sg-opt" data-i="' + i + '" aria-selected="' + (i === suggestIdx) + '">' +
+        "<b>Option " + (i + 1) + "</b><small>" + (i ? "+ " + esc(o.adds.map((u) => u.n).join(", ")) : "best fit") + "</small></button>").join("") + "</div>" +
+      '<p class="sg-note">' + plural([...signupsByName().values()].length, "player") + " for " + state.size + " seats. Each option after the first brings in the players the earlier ones left out, so everyone plays in at least one.</p>";
+    const bench = sg.bench.length ? '<div class="bench"><span>Bench in this option (' + sg.bench.length + "):</span>" +
+      sg.bench.map((u) => { const k = u.c[0], c = k ? CLASS[SPEC[k].cls] : null; return '<span class="bench-chip"' + (c ? ' style="--c:' + c.color + ";--cn:" + (c.text || c.color) + '"' : "") + ">" + (k ? img(SPEC[k].icon) : "") + esc(u.n) + "</span>"; }).join("") + "</div>" : "";
     suggestEl.innerHTML = '<div class="phead"><h2 class="ttl">Suggested comp <small>best fit for the signups, updates as they change</small></h2>' +
-      '<button type="button" class="btn ' + (useArmed ? "armed" : "primary") + '" data-act="use-suggest">' + (useArmed ? "Click again to replace the groups" : "Use this comp") + "</button></div>" +
+      '<button type="button" class="btn ' + (useArmed ? "armed" : "primary") + '" data-act="use-suggest">' + (useArmed ? "Click again to replace the groups" : opts.length > 1 ? "Use option " + (suggestIdx + 1) : "Use this comp") + "</button></div>" +
+      tabs +
       '<p class="sg-sum"><b>' + raid.length + "</b> players: " + rankSum + ".</p>" +
       '<ul class="needs">' + needs + "</ul>" +
-      '<div class="grid">' + groupsH + "</div>" +
-      (sg.bench.length ? '<p class="bench">Bench (raid is full): ' + sg.bench.map((u) => esc(u.n)).join(", ") + "</p>" : "");
+      '<div class="grid">' + groupsH + "</div>" + bench;
   }
   function renderPrefs() {
     const players = [...signupsByName().values()];
@@ -1599,6 +1647,7 @@ span.fx-btn:hover{transform:none}
         change((s) => { for (let i = 0; i < MAX; i++) s.slots[i] = null; });
         return;
       }
+      if (a === "sg-opt") { suggestIdx = +act.dataset.i || 0; useArmed = 0; renderSuggest(); renderPrefs(); return; }
       if (a === "use-suggest") {
         if (!useArmed) { useArmed = setTimeout(() => { useArmed = 0; renderSuggest(); }, 4000); renderSuggest(); return; }
         clearTimeout(useArmed); useArmed = 0; sel = null; editing = null;
