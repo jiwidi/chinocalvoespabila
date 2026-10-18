@@ -264,9 +264,10 @@ button{cursor:pointer}
 /* Horde or Alliance (easter egg) */
 .f-a{--fc:#3a7bff}
 .f-h{--fc:#e5413a}
+.f-d{--fc:#d4a73a}
 .fx-btn{flex:none;display:grid;place-items:center;width:28px;height:28px;padding:0;border:1px dashed var(--line-2);border-radius:50%;background:none;color:var(--muted);font-weight:700;font-size:13px;overflow:hidden;transition:transform .12s,border-color .12s}
 .fx-btn:hover{border-color:var(--accent);color:var(--accent);transform:scale(1.1)}
-.fx-btn.f-a,.fx-btn.f-h{border:0;box-shadow:0 0 0 2px var(--fc)}
+.fx-btn.f-a,.fx-btn.f-h,.fx-btn.f-d{border:0;box-shadow:0 0 0 2px var(--fc)}
 .fx-btn .ic{width:28px;height:28px;border-radius:50%}
 .fx-btn.ghost{visibility:hidden}
 .fx-dialog{text-align:center}
@@ -280,6 +281,10 @@ button{cursor:pointer}
 .fx-choice span{font-family:var(--display);font-size:22px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#fff}
 .fx-choice:hover,.fx-choice:focus-visible{transform:translateY(-3px);border-color:var(--fc);box-shadow:0 10px 30px color-mix(in srgb,var(--fc) 35%,transparent)}
 .fx-choice.on{border-color:var(--fc)}
+.fx-any{display:inline-flex;align-items:center;gap:8px;margin:12px auto 2px;padding:6px 14px 6px 6px;border:1px dashed var(--line-2);border-radius:999px;background:var(--panel-2);color:var(--text);font-weight:700;transition:border-color .15s,box-shadow .15s}
+.fx-any .ic{width:28px;height:28px;border-radius:50%;box-shadow:0 0 0 2px var(--fc)}
+.fx-any small{font-weight:400;color:var(--muted)}
+.fx-any:hover,.fx-any:focus-visible,.fx-any.on{border-style:solid;border-color:var(--fc);box-shadow:0 0 18px color-mix(in srgb,var(--fc) 30%,transparent)}
 .fx-cheer{border-color:var(--fc);box-shadow:0 0 60px color-mix(in srgb,var(--fc) 35%,transparent)}
 .fx-cheer h3{color:var(--fc)}
 .fx-photo{display:block;max-width:100%;max-height:60vh;margin:8px auto 10px;border-radius:8px;box-shadow:0 0 0 2px var(--fc)}
@@ -294,6 +299,7 @@ button{cursor:pointer}
 .fx-bar i{display:block;height:100%;background:var(--fc);transition:width .4s}
 .fx-bar.empty i{opacity:.25}
 .fx-none{margin:10px 0 0}
+.fx-none .fx-mini{display:inline-block;margin-right:6px;vertical-align:-4px;box-shadow:0 0 0 1px var(--fc,#d4a73a)}
 
 /* Joining: name + button, then faction and spec dialogs */
 .su.new{gap:8px}
@@ -507,9 +513,12 @@ button{cursor:pointer}
       ["dpoison", "Poison", "spell_nature_nullifypoison", "Cleanse (Paladin), Abolish Poison (Druid), Cure Poison (Shaman)"]]]
   ];
   // Easter egg: each signup can pick a side. The cheer plays sounds/<file>.mp3 if it exists, else the browser says it.
+  // "d" is for players who don't mind which side: no photo dialog, just the goblin "Time is money, friend!"
+  // (sounds/goblin.mp3; if it cannot play, the browser says the line high and fast).
   const FACTION = {
-    a: { name: "Alliance", es: "Alianza", cheer: "¡Por la Alianza!", icon: "ui_allianceicon", photo: "img/alianza.webp", sound: "sounds/alianza.mp3", color: "#3a7bff", pitch: 1, rate: 1 },
-    h: { name: "Horde", es: "Horda", cheer: "¡Mi vida por la Horda!", icon: "ui_hordeicon", photo: "img/horda.webp", sound: "sounds/horda.mp3", color: "#e5413a", pitch: 0.4, rate: 0.85 }
+    a: { name: "Alliance", es: "Alianza", stance: "fights for the Alliance", cheer: "¡Por la Alianza!", icon: "ui_allianceicon", photo: "img/alianza.webp", sound: "sounds/alianza.mp3", color: "#3a7bff", pitch: 1, rate: 1 },
+    h: { name: "Horde", es: "Horda", stance: "fights for the Horde", cheer: "¡Mi vida por la Horda!", icon: "ui_hordeicon", photo: "img/horda.webp", sound: "sounds/horda.mp3", color: "#e5413a", pitch: 0.4, rate: 0.85 },
+    d: { name: "Don't mind", es: "Don't mind", stance: "doesn't mind which side", cheer: "¡El tiempo es oro, amigo!", icon: "inv_misc_coin_01", sound: "sounds/goblin.mp3", color: "#d4a73a", pitch: 2, rate: 1.4 }
   };
   const BUFF = {};
   const PARTY_TAGS = new Set();
@@ -920,7 +929,7 @@ button{cursor:pointer}
     }
     const opts = specOptions(u.c);
     const fx = FACTION[u.f];
-    const side = '<button type="button" class="fx-btn' + (fx ? " f-" + u.f : "") + '" data-act="fx-open" title="' + esc(fx ? who + " fights for the " + fx.name + ". Click to change." : "¿Horda o Alianza? Pick a side for " + who) + '" aria-label="' + esc(fx ? "Faction: " + fx.name : "Pick Horde or Alliance") + '">' + (fx ? img(fx.icon) : "?") + "</button>";
+    const side = '<button type="button" class="fx-btn' + (fx ? " f-" + u.f : "") + '" data-act="fx-open" title="' + esc(fx ? who + " " + fx.stance + ". Click to change." : "¿Horda o Alianza? Pick a side for " + who) + '" aria-label="' + esc(fx ? "Faction: " + fx.name : "Pick Horde or Alliance") + '">' + (fx ? img(fx.icon) : "?") + "</button>";
     return '<div class="su' + (m ? " placed" : "") + '" data-id="' + esc(u.id) + '">' + side +
       '<input class="su-name" maxlength="' + NAME_MAX + '" autocomplete="off" spellcheck="false" placeholder="Name" aria-label="Name" value="' + esc(u.n) + '">' +
       '<span class="su-specs">' + chips + (u.c.length ? "" : '<button type="button" class="btn pick-specs" data-act="sp-open">Pick specs</button>') + (opts && u.c.length ? '<select class="su-add" title="Add a spec" aria-label="Add a spec for ' + esc(who) + '"><option value="">+</option>' + opts + "</select>" : "") + "</span>" +
@@ -1247,6 +1256,8 @@ button{cursor:pointer}
       (locked ? '<p class="step">Step 1 of 2</p>' : "") +
       '<h3 id="fx-title">¿Horda o Alianza?</h3><p class="fx-who">' + esc(u.n || "This player") + (locked ? ", pick your side to join the raid." : ", pick your side.") + "</p>" +
       '<div class="fx-choices">' + choice("a") + '<span class="fx-vs">VS</span>' + choice("h") + "</div>" +
+      '<button type="button" class="fx-any f-d' + (u.f === "d" ? " on" : "") + '" data-act="fx-pick" data-f="d" data-id="' + esc(id || "") + '">' +
+      img(FACTION.d.icon) + "<span>Don't mind</span><small>either side is fine</small></button>" +
       '<div class="row">' + (locked ? '<button type="button" class="btn" data-act="join-cancel">Cancel, don\'t join</button>' : '<button type="button" class="btn" data-act="close-dialog">Close</button>') + "</div></div></div>";
     const first = dialogRoot.querySelector(".fx-choice");
     if (first) first.focus();
@@ -1342,7 +1353,8 @@ button{cursor:pointer}
     } catch (err) { speak(); }
   }
   function pickFaction(id, f) {
-    if (!FACTION[f]) return;
+    const fx = FACTION[f];
+    if (!fx) return;
     if (!id) {
       // A new player: create their signup now that they have a side, then go on to their specs.
       if (!joining) return;
@@ -1350,25 +1362,30 @@ button{cursor:pointer}
       updateSignup(nid, { id: nid, n, c: [], f });
       const input = signups.querySelector(".su.new .su-name");
       if (input) input.value = "";
-      showFactionCheer(f, n, nid);
+      if (fx.photo) showFactionCheer(f, n, nid);
+      else { cheer(f); showSpecPicker(nid); } // "don't mind": the goblin line, then straight to step 2
       return;
     }
     const u = state.signups.find((x) => x.id === id);
     if (!u) return;
     if (u.f !== f) updateSignup(id, { ...u, f });
-    showFactionCheer(f, u.n);
+    if (fx.photo) showFactionCheer(f, u.n);
+    else { closeDialog(); toast(u.n + " " + fx.stance + "."); cheer(f); }
   }
   // Horde vs Alliance share among signups that picked a side.
   function renderFactions() {
     // Everyone signed up counts, with or without specs; a later signup with the same name replaces an earlier one.
     const players = [...new Map(state.signups.filter((u) => u.n).map((u) => [u.n.toLowerCase(), u])).values()];
-    const a = players.filter((u) => u.f === "a").length, h = players.filter((u) => u.f === "h").length, total = a + h, none = players.length - total;
+    // "Don't mind" players are counted apart: the Alliance/Horde share is only among those who chose a side.
+    const count = (f) => players.filter((u) => u.f === f).length;
+    const a = count("a"), h = count("h"), d = count("d"), total = a + h, none = players.length - total - d;
     const pa = total ? Math.round((100 * a) / total) : 50, ph = total ? 100 - pa : 50;
     const lead = !total ? "Nobody has picked a side yet." : a === h ? "It's a tie." : (a > h ? "The Alliance" : "The Horde") + " leads.";
     factionsEl.innerHTML = '<div class="phead"><h2 class="ttl">Horde vs Alliance <small>' + esc(lead) + "</small></h2></div>" +
       '<div class="fx-score"><div class="fx-side f-a">' + img(FACTION.a.icon) + "<div><b>" + (total ? pa + "%" : "–") + "</b><span>Alianza · " + a + "</span></div></div>" +
       '<div class="fx-side f-h"><div><b>' + (total ? ph + "%" : "–") + "</b><span>Horda · " + h + "</span></div>" + img(FACTION.h.icon) + "</div></div>" +
       '<div class="fx-bar' + (total ? "" : " empty") + '"><i class="f-a" style="width:' + pa + '%"></i><i class="f-h" style="width:' + ph + '%"></i></div>' +
+      (d ? '<p class="hint fx-none">' + img(FACTION.d.icon, "fx-mini") + plural(d, "player doesn't", "players don't") + " mind which side.</p>" : "") +
       (none ? '<p class="hint fx-none">' + plural(none, "player has", "players have") + " not picked a side. Click the ? next to your name.</p>" : "");
   }
 
