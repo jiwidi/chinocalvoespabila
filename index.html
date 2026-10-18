@@ -594,10 +594,64 @@ span.fx-btn:hover{transform:none}
     deviceId = localStorage.getItem(DEVICE_STORE) || "";
     if (!deviceId) { deviceId = crypto.randomUUID().replace(/-/g, ""); localStorage.setItem(DEVICE_STORE, deviceId); }
   } catch (e) { /* no storage: no admin mode; the server still knows the network and browser */ }
+  // Browser fingerprint: signals that stay the same on one device in a normal or private window and on any network.
+  // Left out on purpose because they change on the same device: zoom, window and screen size, dark mode.
+  const FP_FONTS = ["Arial Black", "Bahnschrift", "Calibri", "Cambria", "Candara", "Cascadia Code", "Comic Sans MS", "Consolas", "Constantia",
+    "Corbel", "Courier New", "Franklin Gothic Medium", "Gabriola", "Georgia", "Impact", "Lucida Console", "Segoe Print", "Segoe UI", "Tahoma",
+    "Trebuchet MS", "Verdana", "Wingdings", "MS Gothic", "SimSun", "Malgun Gothic", "Helvetica Neue", "Menlo", "Monaco", "Avenir", "Futura",
+    "Gill Sans", "Optima", "Ubuntu", "DejaVu Sans", "Liberation Sans", "Noto Sans", "Roboto", "Source Code Pro", "Fira Code"]; // not the page's web fonts: they load late
+  function audioPrint() {
+    try {
+      const ctx = new (window.OfflineAudioContext || window.webkitOfflineAudioContext)(1, 5000, 44100);
+      const osc = ctx.createOscillator(), comp = ctx.createDynamicsCompressor();
+      osc.type = "triangle"; osc.frequency.value = 10000;
+      comp.threshold.value = -50; comp.knee.value = 40; comp.ratio.value = 12; comp.attack.value = 0; comp.release.value = 0.25;
+      osc.connect(comp); comp.connect(ctx.destination); osc.start(0);
+      const sum = ctx.startRendering().then((buf) => { const d = buf.getChannelData(0); let s = 0; for (let i = 4500; i < 5000; i++) s += Math.abs(d[i]); return String(s); });
+      return Promise.race([sum, new Promise((r) => setTimeout(() => r("slow"), 1500))]).catch(() => "x");
+    } catch (e) { return Promise.resolve("x"); }
+  }
+  async function browserFingerprint() {
+    const parts = [];
+    const add = (name, fn) => { try { parts.push(name + "=" + fn()); } catch (e) { parts.push(name + "=x"); } };
+    const nav = navigator;
+    add("nav", () => [nav.platform, nav.hardwareConcurrency, nav.deviceMemory, nav.maxTouchPoints, nav.vendor, (nav.languages || [nav.language]).join(","), nav.pdfViewerEnabled].join("|"));
+    add("intl", () => { const o = Intl.DateTimeFormat().resolvedOptions(); return [o.timeZone, o.locale, o.calendar, o.numberingSystem, new Date(2026, 0, 1).getTimezoneOffset(), new Date(2026, 6, 1).getTimezoneOffset()].join("|"); });
+    add("screen", () => [screen.colorDepth, screen.pixelDepth].join("|"));
+    add("media", () => ["(color-gamut:p3)", "(color-gamut:rec2020)", "(dynamic-range:high)", "(pointer:fine)", "(hover:hover)", "(any-pointer:coarse)", "(inverted-colors:inverted)"].map((q) => +matchMedia(q).matches).join(""));
+    add("canvas", () => {
+      const c = document.createElement("canvas"), x = c.getContext("2d");
+      c.width = 300; c.height = 70;
+      x.textBaseline = "alphabetic"; x.fillStyle = "#f60"; x.fillRect(120, 5, 70, 22);
+      x.fillStyle = "#069"; x.font = "16px Arial"; x.fillText("Supreme Forever ¿Horda o Alianza? 😃🐉", 2, 20);
+      x.fillStyle = "rgba(102,204,0,.7)"; x.font = "italic 19px serif"; x.fillText("Supreme Forever ¿Horda o Alianza? 😃🐉", 4, 48);
+      x.globalCompositeOperation = "multiply";
+      [["#f2f", 40], ["#2ff", 70], ["#ff2", 55]].forEach(([col, cx]) => { x.fillStyle = col; x.beginPath(); x.arc(cx, 40, 28, 0, Math.PI * 2); x.fill(); });
+      return c.toDataURL();
+    });
+    add("webgl", () => {
+      const g = document.createElement("canvas").getContext("webgl"), d = g.getExtension("WEBGL_debug_renderer_info");
+      return [d ? g.getParameter(d.UNMASKED_VENDOR_WEBGL) + "|" + g.getParameter(d.UNMASKED_RENDERER_WEBGL) : g.getParameter(g.RENDERER),
+        g.getParameter(g.MAX_TEXTURE_SIZE), g.getParameter(g.MAX_RENDERBUFFER_SIZE), g.getParameter(g.MAX_VERTEX_UNIFORM_VECTORS),
+        (g.getSupportedExtensions() || []).join(",")].join("|");
+    });
+    add("fonts", () => {
+      const x = document.createElement("canvas").getContext("2d"), bases = ["monospace", "serif", "sans-serif"];
+      const width = (font) => { x.font = "72px " + font; return x.measureText("mmmmmmmmmmlli10OQ@#&ÑÆ").width; };
+      const base = bases.map(width);
+      return FP_FONTS.filter((f) => bases.some((b, i) => width("'" + f + "'," + b) !== base[i])).join(",");
+    });
+    parts.push("audio=" + (await audioPrint()));
+    const bytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(parts.join(";")));
+    return [...new Uint8Array(bytes)].map((b) => b.toString(16).padStart(2, "0")).join("");
+  }
+  let fingerprint = "";
+  const fingerprintReady = browserFingerprint().then((h) => { fingerprint = h; }, () => { /* no crypto.subtle (plain http): the other signals still count */ });
   function visitorHeaders(extra) {
     const h = { ...extra };
     if (adminKey) h["X-Raidcomp-Admin"] = adminKey;
     if (deviceId) h["X-Raidcomp-Device"] = deviceId;
+    if (fingerprint) h["X-Raidcomp-Fp"] = fingerprint;
     return h;
   }
   // Whether the server accepts this browser's admin key (only then the page shows the signup edit controls),
@@ -1699,7 +1753,7 @@ span.fx-btn:hover{transform:none}
 
   renderAll();
   readAdminHash();
-  checkAdmin();
+  fingerprintReady.then(checkAdmin); // so "already signed up" also counts the fingerprint
   poll();
 })();
 </script>

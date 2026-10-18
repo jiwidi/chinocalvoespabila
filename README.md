@@ -60,7 +60,13 @@ Set `RAIDCOMP_PREFIX` to keep several independent raids in one database.
 
 ### Signup approval and lock
 
-Anyone can sign up, one signup per person. The server knows a person by keyed hashes of IP + browser and of a random device id from the page (header `X-Raidcomp-Device`). It stores only the hashes, in `raidcomp:signers`. After a person signs up once, a second signup from them is refused, also when the admin removed the first one. The admin can still add that person's signup.
+Anyone can sign up, one signup per person. The server knows a person by keyed hashes of three signals, and any one of them is enough:
+
+- IP + browser string. An IPv6 address counts by its first 4 groups (its /64), because IPv6 privacy addresses change often.
+- A random device id that the page keeps in the browser (header `X-Raidcomp-Device`).
+- A browser fingerprint (header `X-Raidcomp-Fp`): a SHA-256 of canvas and WebGL drawing, audio processing, installed fonts, CPU and memory, timezone and language. It is the same in a private window and on another network. It leaves out what changes on one device (zoom, window and screen size, dark mode).
+
+The server stores only the keyed hashes, in `raidcomp:signers`. Two people with the same device model and browser version can look the same; the admin can add the second one. After a person signs up once, a second signup from them is refused, also when the admin removed the first one. The admin can still add that person's signup.
 
 A new signup gets `p: 1` and shows under **Waiting for approval**, for everyone. The admin approves it (✓), which moves it to the signups list. The admin can also move an approved signup back to waiting (↩). Signups that the admin makes are approved at once.
 
