@@ -28,7 +28,7 @@ const PORT = Number(process.env.PORT) || 3000;
 const INDEX = fileURLToPath(new URL("../index.html", import.meta.url));
 // Static files the page loads from the repo (Vercel serves these on its own).
 const STATIC = { "/img/": "../img/", "/sounds/": "../sounds/" };
-const TYPES = { ".webp": "image/webp", ".png": "image/png", ".jpg": "image/jpeg", ".mp3": "audio/mpeg", ".ogg": "audio/ogg" };
+const TYPES = { ".webp": "image/webp", ".png": "image/png", ".jpg": "image/jpeg", ".mp3": "audio/mpeg", ".m4a": "audio/mp4", ".ogg": "audio/ogg" };
 
 function wrapRes(res) {
   res.status = (code) => { res.statusCode = code; return res; };
