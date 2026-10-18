@@ -1211,6 +1211,16 @@ span.fx-btn:hover{transform:none}
   function applyDeferred() {
     if (deferred && editing === null && !drag && !picking()) { const d = deferred; deferred = null; accept(d, true); }
   }
+  // A new deploy means new code: reload this tab, but only when nobody is typing, dragging or saving in it.
+  // A hidden tab does not poll, so it reloads when it comes back.
+  let build = "";
+  function checkBuild(s) {
+    if (!s.build) return;
+    if (!build) { build = s.build; return; }
+    const a = document.activeElement, busy = pending || inFlight || editing !== null || drag || picking() || dialogRoot.innerHTML ||
+      (a && (a.tagName === "INPUT" || a.tagName === "SELECT" || a.tagName === "TEXTAREA"));
+    if (s.build !== build && !busy) location.reload();
+  }
   function poll() {
     clearTimeout(pollTimer);
     if (document.hidden) return;
@@ -1218,6 +1228,7 @@ span.fx-btn:hover{transform:none}
       failures = 0;
       if (net !== "ok") { net = "ok"; renderBanner(); }
       accept(s, false);
+      checkBuild(s);
       renderTools();
       pollTimer = setTimeout(poll, POLL_MS);
     }, (err) => {

@@ -31,6 +31,8 @@ const SIGNUP_ID = /^[a-z0-9]{6,24}$/;
 const DEVICE_ID = /^[a-z0-9]{16,40}$/;
 const ADMIN_KEY = process.env.RAIDCOMP_ADMIN_KEY || "";
 const PREFIX = process.env.RAIDCOMP_PREFIX || "raidcomp";
+// The deploy this code came with. Open pages reload when it changes, so everyone runs the latest version.
+const BUILD = process.env.VERCEL_DEPLOYMENT_ID || process.env.VERCEL_GIT_COMMIT_SHA || "";
 const KEYS = {
   version: `${PREFIX}:v`, slots: `${PREFIX}:slots`, meta: `${PREFIX}:meta`, signups: `${PREFIX}:signups`,
   signers: `${PREFIX}:signers`, // visitor key -> id of the last signup made with it
@@ -316,7 +318,7 @@ export default async function handler(req, res) {
       const state = await store.read();
       // Let Vercel's CDN answer repeat polls for one second, so 20 open tabs cost about one database read per second.
       res.setHeader("Vercel-CDN-Cache-Control", "max-age=1");
-      return res.status(200).json(state);
+      return res.status(200).json(BUILD ? { ...state, build: BUILD } : state);
     }
     if (req.method === "POST") {
       const changes = parseChanges(req.body);
