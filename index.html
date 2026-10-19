@@ -80,6 +80,17 @@ button{cursor:pointer}
 .btn.primary:hover{background:#ffc65e;color:var(--accent-ink)}
 .btn.armed{border-color:var(--bad);background:#2a1513;color:#ffb4ab}
 .btn.admin{border-color:var(--warn);color:var(--warn)}
+.btn.discord{background:#5865f2;border-color:#5865f2;color:#fff}
+.btn.discord:hover{background:#4752c4;border-color:#4752c4;color:#fff}
+.btn.sm{height:24px;padding:0 9px;font-size:11.5px}
+/* Audit view (admin): every signup with its Discord claim, and the changelog, in place of the roster */
+.audit{display:grid;gap:16px;align-items:start;max-width:1520px;margin:0 auto;padding:16px max(16px,env(safe-area-inset-right)) 32px max(16px,env(safe-area-inset-left))}
+.audit .phead{margin-bottom:6px}
+.ck-acts{display:flex;gap:6px}
+.ck-none{font-size:11.5px;font-style:italic;color:var(--faint)}
+.au-stats{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 8px}
+.au-table .c-specs{width:150px}.au-table .c-status{width:96px}.au-table .c-when{width:96px}.au-table .c-dc{width:150px}.au-table .c-act{width:92px}
+.au-table td:last-child{text-align:right}
 .seg{display:inline-flex;align-items:center;gap:2px;padding:2px;border:1px solid var(--line-2);border-radius:6px;background:var(--panel-2);height:32px}
 .seg span{padding:0 6px 0 8px;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
 .seg button{height:26px;padding:0 10px;border:0;border-radius:4px;background:none;font-weight:700;font-size:12px;color:var(--muted)}
@@ -422,37 +433,13 @@ span.fx-btn:hover{transform:none}
 .crest-a{filter:drop-shadow(0 0 28px rgba(58,123,255,.35))}
 @media (min-width:1200px){
   :root{--crest:clamp(88px,7vw,190px);--gutter:calc(var(--crest) + 36px)}
-  .layout{position:relative;z-index:1;max-width:calc(1520px + 2 * var(--gutter));padding-left:var(--gutter);padding-right:var(--gutter)}
+  .layout,.audit{position:relative;z-index:1;max-width:calc(1520px + 2 * var(--gutter));padding-left:var(--gutter);padding-right:var(--gutter)}
   .crest{display:block;width:var(--crest)}
   /* each crest sits in the middle of its side band (window edge to content edge) */
   :root{--band:calc(max(0px, (100vw - 1520px - 2 * var(--gutter)) / 2) + var(--gutter))}
   .crest-h{width:calc(var(--crest) * .72);left:calc((var(--band) - var(--crest) * .72) / 2)}
   .crest-a{right:calc((var(--band) - var(--crest)) / 2)}
 }
-
-/* Change requests */
-.su .st-req{color:var(--accent);background:rgba(242,184,75,.14)}
-.btn.ask-btn{flex:none;height:26px;padding:0 10px;font-size:11.5px;border-color:var(--accent);color:var(--accent)}
-.btn.ask-btn:hover{background:rgba(242,184,75,.12)}
-.su-req{margin:0 0 12px;padding:10px;border:1px solid rgba(242,184,75,.45);border-radius:8px;background:rgba(242,184,75,.05)}
-.su-req h3{margin:0 0 8px;font-size:13px;color:var(--accent)}
-.rq{display:flex;align-items:center;gap:10px;padding:6px 4px;border-top:1px solid var(--line)}
-.rq > b{flex:0 0 120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#fff}
-.rq > b small{display:block;overflow:hidden;text-overflow:ellipsis;font-size:10.5px;font-weight:600;color:var(--muted)}
-.rq-diff{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
-.rq-line{display:flex;flex-wrap:wrap;align-items:center;gap:4px}
-.rq-line i{margin:0 4px;font-style:normal;font-weight:700;color:var(--faint)}
-.rq-specs{display:inline-flex;flex-wrap:wrap;gap:3px}
-.rq-specs .ic,.rq-fx{width:22px;height:22px;border-radius:4px}
-.rq-fx{border-radius:50%}
-.rq-none{font-size:11px;font-style:italic;color:var(--faint)}
-.rq-acts{display:flex;gap:4px;flex:none}
-.rq-acts .mini{opacity:1}
-.rq-sides{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px}
-.rq-side{display:inline-flex;align-items:center;gap:8px;height:38px;padding:0 14px 0 6px;border:1px solid var(--line-2);border-radius:19px;background:var(--panel-2);font-weight:700;color:var(--soft)}
-.rq-side .ic{width:26px;height:26px;border-radius:50%}
-.rq-side:hover{border-color:var(--muted)}
-.rq-side.on{border-color:var(--fc,var(--accent));box-shadow:0 0 0 1px var(--fc,var(--accent));color:#fff}
 
 /* Changelog dialog */
 .dialog.cl-dialog{width:min(900px,100%)}
@@ -528,7 +515,7 @@ span.fx-btn:hover{transform:none}
 <!-- The two crests stay on the page sides while it scrolls: the Horde on the left, the Alliance on the right. -->
 <img class="crest crest-h" src="img/crest-horde.webp" alt="" aria-hidden="true">
 <img class="crest crest-a" src="img/crest-alliance.webp" alt="" aria-hidden="true">
-<main class="layout">
+<main class="layout" id="roster">
   <div class="banner" id="banner" hidden></div>
   <div class="side">
     <section class="panel signups" id="signups" aria-label="Signups"></section>
@@ -541,6 +528,7 @@ span.fx-btn:hover{transform:none}
     <section class="panel buffs" id="buffs" aria-label="Raid coverage"></section>
   </div>
 </main>
+<main class="audit" id="audit" aria-label="Audit" hidden></main>
 <div id="dialog-root"></div>
 <div class="toast" id="toast" role="status" hidden></div>
 <script>
@@ -716,19 +704,8 @@ span.fx-btn:hover{transform:none}
         else if (u.r) o.r = 1; // locked in: the admin put them in every option of the suggested comp
         return o;
       });
-    // Change requests: anyone asks for other specs and/or side on a signup, one per browser session and signup; the
-    // admin applies or drops them.
-    const requests = (Array.isArray(d.requests) ? d.requests : []).filter((q) => q && typeof q.id === "string").map((q) => {
-      const o = { key: String(q.key || q.id), id: q.id, s: String(q.s || ""), t: Number(q.t) || 0 };
-      if (q.by && typeof q.by === "object") o.by = { k: q.by.k, n: cleanName(q.by.n), tag: String(q.by.tag || "").slice(0, 4) };
-      if (Array.isArray(q.c)) o.c = q.c.filter((k) => SPEC[k]);
-      if (FACTION[q.f]) o.f = q.f;
-      return o;
-    });
-    return { v: Number(d.v) || 0, size: SIZES.includes(d.size) ? d.size : 20, slots, signups, requests };
+    return { v: Number(d.v) || 0, size: SIZES.includes(d.size) ? d.size : 20, slots, signups };
   }
-  const requestsOf = (id) => (state.requests || []).filter((q) => q.id === id);
-  const myRequestOf = (id) => requestsOf(id).find((q) => mySession && q.s === mySession);
   const same = (a, b) => (a ? a.s + "|" + a.n : "") === (b ? b.s + "|" + b.n : "");
   // Starts with a timestamp, so sorting by id keeps signup order. The random tail avoids clashes.
   const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
@@ -815,8 +792,15 @@ span.fx-btn:hover{transform:none}
   }
   let fingerprint = "";
   const fingerprintReady = browserFingerprint().then((h) => { fingerprint = h; }, () => { /* no crypto.subtle (plain http): the other signals still count */ });
+  // Discord sign-in: when the server has a Discord app (?me gives its client id), changes need a signed-in Discord
+  // account; the admin key works without one. After Discord, the server sends a session token in the URL fragment;
+  // the page keeps it and sends it with every request.
+  const SESSION_STORE = "raidcomp-session", OAUTH_STATE = "raidcomp-oauth", CLAIM_STORE = "raidcomp-claim";
+  let session = "", discordId = "", meUser = null; // meUser: { name } of the signed-in account
+  try { session = localStorage.getItem(SESSION_STORE) || ""; } catch (e) { /* no storage: no sign-in */ }
   function visitorHeaders(extra) {
     const h = { ...extra };
+    if (session) h["X-Raidcomp-Session"] = session;
     if (adminKey) h["X-Raidcomp-Admin"] = adminKey;
     if (deviceId) h["X-Raidcomp-Device"] = deviceId;
     if (fingerprint) h["X-Raidcomp-Fp"] = fingerprint;
@@ -824,13 +808,24 @@ span.fx-btn:hover{transform:none}
   }
   // Whether the server accepts this browser's admin key (only then the page shows the signup edit controls),
   // and whether this visitor already has a signup (then the page does not let them join again).
-  let adminOk = false, signedUp = false, myId = null, mySession = ""; // mySession: whose change requests are this browser's
+  let adminOk = false, signedUp = false, myId = null; // myId: this visitor's own signup (the only one they may fill in)
   function checkAdmin() {
+    const sent = adminKey;
     fetch(API + "?me=1", { headers: visitorHeaders() }).then(readJSON).then((j) => {
       signedUp = !!j.signedUp;
-      if (myId !== (j.mine || null) || mySession !== (j.session || "")) { myId = j.mine || null; mySession = j.session || ""; renderSignups(); }
-      if (adminOk !== !!j.admin) { adminOk = !!j.admin; renderSignups(); }
-      if (adminKey && !j.admin) toast("Admin key not accepted. Open the page with #admin=<key> again.");
+      if (myId !== (j.mine || null)) { myId = j.mine || null; renderSignups(); }
+      if (adminOk !== !!j.admin) { adminOk = !!j.admin; renderSignups(); renderView(); }
+      // A refused key is forgotten: sent again, each request counts as one more wrong try for this network.
+      if (sent && sent === adminKey && !j.admin) {
+        adminKey = "";
+        try { localStorage.removeItem(ADMIN_STORE); } catch (e) {}
+        toast("Admin key not accepted. After 10 wrong keys this network waits 15 minutes. Then open the page with #admin=<key> again.");
+      }
+      discordId = j.discord || "";
+      meUser = j.user || null;
+      if (session && !meUser) { session = ""; try { localStorage.removeItem(SESSION_STORE); } catch (e) {} } // expired or bad
+      renderTools();
+      sendClaim();
     }, () => { /* keep the last answer; the server checks every edit anyway */ });
   }
   // #admin=<key> turns admin mode on for this browser and #admin= turns it off, on load or in an open tab.
@@ -847,6 +842,128 @@ span.fx-btn:hover{transform:none}
     checkAdmin();
   }
   window.addEventListener("hashchange", readAdminHash);
+
+  // Back from Discord (#session=…&state=…, or #signin=failed|cancelled), or a claim link (#claim=…). The session counts
+  // only when its state is the one this tab sent, so another site cannot sign this browser in to its own account.
+  function readAuthHash() {
+    const h = new URLSearchParams(location.hash.slice(1));
+    if (!h.has("session") && !h.has("signin") && !h.has("claim")) return;
+    history.replaceState(null, "", location.pathname + location.search); // keep tokens out of the address bar
+    if (h.has("claim")) { try { sessionStorage.setItem(CLAIM_STORE, h.get("claim")); } catch (e) {} }
+    if (!h.has("session") && !h.has("signin")) return;
+    let want = "";
+    try { want = sessionStorage.getItem(OAUTH_STATE) || ""; sessionStorage.removeItem(OAUTH_STATE); } catch (e) {}
+    if (h.has("session") && want && h.get("state") === want) {
+      session = h.get("session");
+      try { localStorage.setItem(SESSION_STORE, session); } catch (e) {}
+      toast("Signed in with Discord.");
+    } else if (h.get("signin") === "cancelled") toast("Discord sign-in cancelled.");
+    else toast("Discord sign-in did not work. Try again.");
+  }
+  function signIn() {
+    if (!discordId) return;
+    const state = [...crypto.getRandomValues(new Uint8Array(18))].map((b) => b.toString(16).padStart(2, "0")).join("");
+    try { sessionStorage.setItem(OAUTH_STATE, state); } catch (e) { toast("This browser blocks site storage, so Discord sign-in cannot work here."); return; }
+    location.href = "https://discord.com/oauth2/authorize?" + new URLSearchParams({ client_id: discordId, response_type: "code", scope: "identify",
+      redirect_uri: location.origin + "/api/discord", state, prompt: "none" });
+  }
+  function signOut() {
+    session = ""; meUser = null;
+    try { localStorage.removeItem(SESSION_STORE); } catch (e) {}
+    renderTools(); checkAdmin(); toast("Signed out.");
+  }
+  function askSignIn(why) {
+    dialogRoot.innerHTML = '<div class="overlay" data-act="close-dialog"><div class="dialog si-dialog" role="dialog" aria-modal="true" aria-labelledby="si-title"><h3 id="si-title">Sign in with Discord</h3>' +
+      '<p class="fx-who">' + esc(why || "Sign in with your Discord account to sign up, make a change or ask for one.") + "</p>" +
+      '<div class="row"><button type="button" class="btn" data-act="close-dialog">Not now</button><button type="button" class="btn discord" data-act="sign-in">Sign in with Discord</button></div></div></div>';
+    const b = dialogRoot.querySelector(".btn.discord");
+    if (b) b.focus();
+  }
+  // True (and asks to sign in) when sign-in is on and this visitor has no Discord session; the admin key skips it.
+  function signInFirst(why) {
+    if (!discordId || session || adminOk) return false;
+    askSignIn(why);
+    return true;
+  }
+  // A claim link waits in this tab (through the Discord round trip) until the player is signed in, then claims.
+  function sendClaim() {
+    let token = "";
+    try { token = sessionStorage.getItem(CLAIM_STORE) || ""; } catch (e) {}
+    if (!token) return;
+    if (!discordId) { try { sessionStorage.removeItem(CLAIM_STORE); } catch (e) {} toast("Claim links work once Discord sign-in is on. Ask the admin."); return; }
+    if (!session) { askSignIn("Sign in with Discord to claim your signup. The link stays ready in this tab."); return; }
+    try { sessionStorage.removeItem(CLAIM_STORE); } catch (e) {}
+    postNow({ claim: token }, "Your signup is now linked to your Discord account.", checkAdmin);
+  }
+
+  // Admin: the Audit view (#audit) takes the roster's place. It shows every signup with its status and who claimed it
+  // (Discord username) or its claim link to send, and the changelog. The links come from the server (they are signed).
+  // Its data reloads when the signups change (at most every 30 s), on Refresh and after an Undo.
+  let view = location.hash === "#audit" ? "audit" : "roster";
+  let claimList = null, auLog = null, auPage = 0, auditKey = "", auditAt = 0;
+  function readView() {
+    view = location.hash === "#audit" ? "audit" : "roster";
+    renderTools(); renderView();
+  }
+  window.addEventListener("hashchange", readView);
+  function renderView() {
+    const audit = adminOk && view === "audit";
+    $("#roster").hidden = audit;
+    $("#audit").hidden = !audit;
+    renderAudit(); loadAudit();
+  }
+  function loadAudit(force) {
+    const key = JSON.stringify(state.signups);
+    if (!adminOk || view !== "audit" || (!force && key === auditKey && Date.now() - auditAt < 30000)) return;
+    auditKey = key; auditAt = Date.now();
+    fetch(API + "?claims=1", { headers: visitorHeaders() }).then(readJSON).then((d) => { claimList = d.claims || []; renderAudit(); }, () => {});
+    loadAuditLog(auPage);
+  }
+  function loadAuditLog(page) {
+    fetch(API + "?log=1&page=" + Math.max(0, page)).then(readJSON).then((d) => { auLog = d; auPage = d.page; renderAudit(); },
+      () => { if (!auLog) { auLog = false; renderAudit(); } else toast("Could not load the changelog. Try again."); });
+  }
+  // Signup ids start with Date.now() in base 36, so they tell when the player signed up (not for imported ids).
+  const joinedAt = (id) => { const t = parseInt(String(id).slice(0, 8), 36); return t > 1.7e12 && t <= Date.now() ? t : 0; };
+  function renderAudit() {
+    const el = $("#audit");
+    if (el.hidden) return;
+    const claim = {};
+    (claimList || []).forEach((c) => { claim[c.id] = c; });
+    const open = (claimList || []).filter((c) => !c.by);
+    const count = (f) => state.signups.filter(f).length;
+    const stats = [
+      [count((u) => !u.p), "approved", "ok"], [count((u) => u.p), "waiting", ""], [count((u) => u.r), "locked in", "ok"], [count((u) => u.b), "on the bench", ""],
+      [claimList ? claimList.length - open.length + "/" + claimList.length : "…", "claimed with Discord", "ok"]
+    ].filter(([n], i) => n || !i).map(([n, label, cls]) => '<span class="cl-tag ' + cls + '">' + n + " " + label + "</span>").join("");
+    const status = (u) => u.p ? '<span class="cl-tag">Waiting</span>' : u.r ? '<span class="cl-tag ok">Locked in</span>' : u.b ? '<span class="cl-tag">Bench</span>' : "Approved";
+    const discord = (c) => !claimList ? '<span class="ck-none">…</span>' : !c ? "" : c.by ? '<span class="cl-tag ok" title="Claimed by this Discord account">@' + esc(c.by) + "</span>" : '<span class="ck-none">not claimed</span>';
+    const action = (c) => !c ? "" : c.by ? '<button type="button" class="btn sm" data-act="unclaim" data-id="' + esc(c.id) + '" title="Free this signup, so its link works again">Undo</button>'
+      : '<button type="button" class="btn sm" data-act="claim-copy" data-id="' + esc(c.id) + '">Copy link</button>';
+    const row = (u) => {
+      const t = joinedAt(u.id), c = claim[u.id];
+      return '<tr><td class="cl-name">' + (FACTION[u.f] ? clSide(u.f) : "") + esc(u.n) + "</td><td>" + clSpecs(u.c) + "</td><td>" + status(u) + "</td>" +
+        '<td class="cl-when"' + (t ? ' title="' + esc(clWhen(t)) + '">' + esc(clAgo(t)) : ">") + "</td><td>" + discord(c) + "</td><td>" + action(c) + "</td></tr>";
+    };
+    const list = state.signups.slice().reverse(); // newest first, like the signups panel
+    el.innerHTML =
+      '<section class="panel" aria-labelledby="au-su"><div class="phead"><h2 class="ttl" id="au-su">Signups <span class="count">' + list.length + "</span></h2>" +
+      '<span class="ck-acts">' + (open.length ? '<button type="button" class="btn sm" data-act="claim-copy-all">Copy all ' + open.length + " links</button>" : "") +
+      '<button type="button" class="btn sm" data-act="audit-refresh" title="Reload claims and the changelog">Refresh</button></span></div>' +
+      '<div class="au-stats">' + stats + "</div>" +
+      '<p class="hint">Send each player their own claim link in a private Discord message. Opening it while signed in with Discord makes that signup theirs. ' +
+      "One Discord account per signup; <b>Undo</b> frees it again." + (discordId ? "" : " <b>Discord sign-in is off</b>, so the links do nothing yet.") + "</p>" +
+      (list.length ? '<div class="cl-wrap"><table class="cl-table au-table"><colgroup><col><col class="c-specs"><col class="c-status"><col class="c-when"><col class="c-dc"><col class="c-act"></colgroup>' +
+        "<thead><tr><th>Player</th><th>Specs</th><th>Status</th><th>Joined</th><th>Discord</th><th></th></tr></thead><tbody>" + list.map(row).join("") + "</tbody></table></div>"
+        : '<p class="cl-empty">No signups yet.</p>') + "</section>" +
+      '<section class="panel" aria-labelledby="au-log"><div class="phead"><h2 class="ttl" id="au-log">Changelog</h2></div>' +
+      '<p class="hint">Every change by everyone, newest first.</p>' +
+      (auLog === null ? '<p class="cl-empty">Loading…</p>' : auLog === false ? '<p class="cl-empty">Could not load the changelog. Press Refresh.</p>' : clTable(auLog, "au-page")) + "</section>";
+  }
+  const claimUrl = (c) => location.origin + "/#claim=" + c.token;
+  function copyText(text, done) {
+    try { navigator.clipboard.writeText(text).then(() => toast(done), () => showCopyDialog(text)); } catch (err) { showCopyDialog(text); }
+  }
 
   function specTags(sp) { return pets ? sp.tags.concat(sp.pet) : sp.tags; }
   function firstEmpty() {
@@ -1173,11 +1290,15 @@ span.fx-btn:hover{transform:none}
       : inFlight || pending ? ["busy", "Saving…"]
       : ["ok", "Live"];
     tools.innerHTML =
+      (adminOk ? '<div class="seg" role="group" aria-label="View">' + [["roster", "Roster"], ["audit", "Audit"]].map(([v, label]) =>
+        '<button type="button" data-act="view" data-v="' + v + '" aria-pressed="' + (view === v) + '">' + label + "</button>").join("") + "</div>" : "") +
       '<div class="seg" role="group" aria-label="Raid size"><span>Size</span>' +
-      SIZES.map((s) => '<button type="button" data-size="' + s + '" aria-pressed="' + (state.size === s) + '">' + s + "</button>").join("") + "</div>" +
+      SIZES.map((s) => '<button type="button" data-size="' + s + '" aria-pressed="' + (state.size === s) + '"' + (adminOk ? "" : ' disabled title="Only the admin changes the raid size"') + ">" + s + "</button>").join("") + "</div>" +
       '<button type="button" class="btn" data-act="pets" aria-pressed="' + pets + '">Hunter pets: ' + (pets ? "On" : "Off") + "</button>" +
       '<button type="button" class="btn" data-act="copy">Copy roster</button>' +
-      '<button type="button" class="btn" data-act="changelog" title="Who changed what, newest first">Changelog</button>' +
+      (adminOk ? "" : '<button type="button" class="btn" data-act="changelog" title="Who changed what, newest first">Changelog</button>') +
+      (discordId ? (session ? '<button type="button" class="btn" data-act="sign-out" title="Signed in with Discord. Click to sign out.">' + esc(meUser ? meUser.name : "Signed in") + " · Sign out</button>"
+        : '<button type="button" class="btn discord" data-act="sign-in">Sign in with Discord</button>') : "") +
       (adminKey ? '<button type="button" class="btn admin" data-act="admin-off" title="Admin mode: the faction change limit is off on this browser. Click to turn admin mode off.">Admin</button>' : "") +
       '<span class="live ' + status[0] + '" role="status"><i></i>' + status[1] + "</span>";
   }
@@ -1286,22 +1407,18 @@ span.fx-btn:hover{transform:none}
       return '<div class="su new" data-id=""><input class="su-name" maxlength="' + NAME_MAX + '" autocomplete="off" spellcheck="false" placeholder="Your name" aria-label="Your name">' +
         '<button type="button" class="btn primary join" data-act="join">Join the raid</button></div>';
     }
-    // Once signed up, only the admin edits the row; others can still pick a first side and their first specs.
+    // Once signed up, only the admin edits the row; the player can still pick a first side and their first specs on
+    // their own signup (nobody else's).
     const opts = adminOk ? specOptions(u.c) : "";
-    const fx = FACTION[u.f];
-    const side = fx && !adminOk
-      ? '<span class="fx-btn f-' + u.f + '" title="' + esc(who + " " + fx.stance + ". Only the admin can change sides.") + '" aria-label="' + esc("Faction: " + fx.name) + '">' + img(fx.icon) + "</span>"
+    const fx = FACTION[u.f], own = adminOk || u.id === myId;
+    const side = (fx && !adminOk) || !own
+      ? '<span class="fx-btn' + (fx ? " f-" + u.f : "") + '" title="' + esc(fx ? who + " " + fx.stance + ". Only the admin can change sides." : who + " has not picked a side yet.") + '" aria-label="' + esc(fx ? "Faction: " + fx.name : "No side yet") + '">' + (fx ? img(fx.icon) : "?") + "</span>"
       : '<button type="button" class="fx-btn' + (fx ? " f-" + u.f : "") + '" data-act="fx-open" title="' + esc(fx ? who + " " + fx.stance + ". Click to change." : "¿Horda o Alianza? Pick a side for " + who) + '" aria-label="' + esc(fx ? "Faction: " + fx.name : "Pick Horde or Alliance") + '">' + (fx ? img(fx.icon) : "?") + "</button>";
     // Bench or lock-in shows as a small tag. The admin's actions float over the end of the row on hover,
     // so they take no room from the specs.
     const benchTip = u.b ? who + " is on the bench: left out of the suggested comp." : "Bench " + who + ": leave them out of the suggested comp.";
     const lockTip = u.r ? who + " is locked into the suggested comp: in every option." : "Lock " + who + " into the suggested comp: in every option.";
-    const rqs = requestsOf(u.id), rq = myRequestOf(u.id);
-    const rqTip = rqs.length ? plural(rqs.length, "change request") + " for " + who + " waiting for the admin" + (rq ? ", one of them yours." : ".") : "";
-    const status = (u.r ? '<span class="where st-locked" title="' + esc(lockTip) + '">Locked</span>' : u.b ? '<span class="where st-bench" title="' + esc(benchTip) + '">Bench</span>' : "") +
-      (rqs.length ? '<span class="where st-req" title="' + esc(rqTip) + '">Change asked' + (rqs.length > 1 ? " ×" + rqs.length : "") + "</span>" : "");
-    // Anyone can ask the admin to change a signup's specs or side (or open the request this browser already made).
-    const ask = !adminOk && !u.p && u.c.length ? '<button type="button" class="btn ask-btn" data-act="rq-open" title="' + esc("Ask the admin to change " + who + "'s specs or side") + '">' + (rq ? "Your request" : "Request change") + "</button>" : "";
+    const status = u.r ? '<span class="where st-locked" title="' + esc(lockTip) + '">Locked</span>' : u.b ? '<span class="where st-bench" title="' + esc(benchTip) + '">Bench</span>' : "";
     const tool = (act, cls, on, label, title) => '<button type="button" class="tool ' + cls + (on ? " on" : "") + '" data-act="' + act + '" aria-pressed="' + on + '" title="' + esc(title) + '">' + label + "</button>";
     const del = '<button type="button" class="mini" data-act="su-del" title="Remove ' + esc(who) + ' from signups" aria-label="Remove ' + esc(who) + ' from signups">&times;</button>';
     const approve = adminOk && u.p ? '<button type="button" class="mini ok" data-act="su-approve" title="Approve: move ' + esc(who) + ' to the signups" aria-label="Approve ' + esc(who) + '">&#10003;</button>' : "";
@@ -1312,44 +1429,18 @@ span.fx-btn:hover{transform:none}
       '<button type="button" class="mini" data-act="su-wait" title="Move ' + esc(who) + ' back to waiting for approval" aria-label="Move ' + esc(who) + ' back to waiting for approval">&#8617;</button>') + del + "</span>";
     return '<div class="su' + (m ? " placed" : "") + (u.p ? " pending" : "") + (u.b ? " benched" : "") + '" data-id="' + esc(u.id) + '">' + side +
       '<input class="su-name" maxlength="' + NAME_MAX + '" autocomplete="off" spellcheck="false" placeholder="Name" aria-label="Name" value="' + esc(u.n) + '"' + (adminOk ? "" : ' readonly title="Only the admin can change a name."') + ">" +
-      '<span class="su-specs">' + chips + (u.c.length ? "" : '<button type="button" class="btn pick-specs" data-act="sp-open">Pick specs</button>') + (opts && u.c.length ? '<select class="su-add" title="Add a spec" aria-label="Add a spec for ' + esc(who) + '"><option value="">+</option>' + opts + "</select>" : "") + "</span>" +
-      (m ? '<span class="where" title="Group ' + g + ' in the suggested comp">G' + g + "</span>" : "") + status + ask + tools + "</div>";
+      '<span class="su-specs">' + chips + (u.c.length || !own ? "" : '<button type="button" class="btn pick-specs" data-act="sp-open">Pick specs</button>') + (opts && u.c.length ? '<select class="su-add" title="Add a spec" aria-label="Add a spec for ' + esc(who) + '"><option value="">+</option>' + opts + "</select>" : "") + "</span>" +
+      (m ? '<span class="where" title="Group ' + g + ' in the suggested comp">G' + g + "</span>" : "") + status + tools + "</div>";
   }
-  // The admin's list of change requests: what the player has now, what they ask for, approve or reject.
-  function requestsHTML() {
-    const open = (state.requests || []).map((q) => ({ q, u: state.signups.find((x) => x.id === q.id) })).filter((x) => x.u);
-    const asker = (by) => !by ? "" : by.k === "admin" ? "Admin" : by.k === "player" ? by.n : "Visitor #" + by.tag;
-    if (!adminOk || !open.length) return "";
-    const specs = (list) => '<span class="rq-specs">' + list.map((k) => img(SPEC[k].icon, "", specName(SPEC[k]))).join("") + "</span>";
-    const side = (f) => (FACTION[f] ? img(FACTION[f].icon, "rq-fx", FACTION[f].name) : '<span class="rq-none">no side</span>');
-    return '<section class="su-req" aria-label="Change requests"><h3 class="ttl">Change requests <span class="count">' + open.length + "</span></h3>" + open.map(({ q, u }) =>
-      '<div class="rq" data-key="' + esc(q.key) + '"><b>' + esc(u.n) + (q.by ? '<small>asked by ' + esc(asker(q.by)) + "</small>" : "") + '</b><div class="rq-diff">' +
-        (q.f ? '<span class="rq-line">' + side(u.f) + "<i>→</i>" + side(q.f) + "</span>" : "") +
-        (q.c ? '<span class="rq-line">' + specs(u.c) + "<i>→</i>" + specs(q.c) + "</span>" : "") + "</div>" +
-        '<span class="rq-acts"><button type="button" class="mini ok" data-act="rq-approve" title="Apply this change" aria-label="Approve the change for ' + esc(u.n) + '">&#10003;</button>' +
-        '<button type="button" class="mini" data-act="rq-reject" title="Reject it" aria-label="Reject the change for ' + esc(u.n) + '">&times;</button></span></div>').join("") + "</section>";
-  }
-  // Change requests go straight to the server (they are not signup edits): send, show the warning or a note, take the reply.
-  function sendRequestPost(body, done) {
+  // Claims go straight to the server (they are not signup edits): send, show the warning or a note, take the reply.
+  // after: called once the server accepted it (no warning).
+  function postNow(body, done, after) {
+    if (signInFirst()) return;
     fetch(API, { method: "POST", headers: visitorHeaders({ "Content-Type": "application/json" }), body: JSON.stringify(body) })
       .then(readJSON).then((s) => {
-        if (s.warning) { toast(s.warning); playBlocked(); } else if (done) toast(done);
+        if (s.warning) { toast(s.warning); playBlocked(); } else { if (done) toast(done); if (after) after(); }
         accept(s, true);
-      }, (err) => toast(err.status === 400 ? "The server rejected that: " + err.message : "Could not reach the server. Try again."));
-  }
-  // The admin applies (approve) or drops (reject) a request; approving also writes the signup, in the same POST.
-  function answerRequest(key, approve) {
-    const q = (state.requests || []).find((x) => x.key === key), u = q && state.signups.find((x) => x.id === q.id);
-    if (!q || !u) return;
-    const id = u.id, body = { requests: { [key]: null } };
-    if (approve) {
-      const next = { n: u.n, c: q.c || u.c };
-      if (q.f || u.f) next.f = q.f || u.f;
-      if (u.p) next.p = 1;
-      if (u.b) next.b = 1; else if (u.r) next.r = 1;
-      body.signups = { [id]: next };
-    }
-    sendRequestPost(body, approve ? "Change applied for " + u.n : "Request from " + u.n + " rejected");
+      }, (err) => err.status === 401 ? askSignIn(err.message) : toast(err.status === 400 ? "The server rejected that: " + err.message : "Could not reach the server. Try again."));
   }
   let signupsDirty = false, holdSignups = false;
   function renderSignups() {
@@ -1362,7 +1453,7 @@ span.fx-btn:hover{transform:none}
     const all = newestFirst(), waiting = all.filter((u) => u.p), listed = all.filter((u) => !u.p);
     signups.innerHTML = '<div class="phead"><h2 class="ttl">Signups <span class="count">' + listed.length + "</span></h2></div>" +
       '<p class="hint">Join with your name, pick a side, then your specs (best first, up to ' + MAX_CLASSES + " classes). One signup per person. The admin approves new signups, and after that only the admin can change them. G1–G4 is the player's group in the suggested comp.</p>" +
-      signupRow({ id: "", n: "", c: [] }, placed) + requestsHTML() +
+      signupRow({ id: "", n: "", c: [] }, placed) +
       (waiting.length ? '<section class="su-wait" aria-label="Waiting for approval"><h3 class="ttl">Waiting for approval <span class="count">' + waiting.length + "</span></h3>" + waiting.map((u) => signupRow(u, placed)).join("") + "</section>" : "") +
       listed.map((u) => signupRow(u, placed)).join("");
     applyFilter();
@@ -1607,7 +1698,7 @@ span.fx-btn:hover{transform:none}
 
   function renderAll() {
     const a = analyze();
-    renderTools(); renderBanner(); renderGrid(a); renderSignups(); renderFactions(); renderSuggest(); renderPrefs(); renderBuffs(a); applyFilter();
+    renderTools(); renderBanner(); renderGrid(a); renderSignups(); renderView(); renderFactions(); renderSuggest(); renderPrefs(); renderBuffs(a); applyFilter();
   }
 
   /* ---------- Sync ---------- */
@@ -1634,6 +1725,7 @@ span.fx-btn:hover{transform:none}
   }
   function change(fn) {
     if (!loaded) { toast("Still connecting to the raid…"); return; }
+    if (signInFirst()) return;
     const before = { size: state.size, slots: state.slots.slice(), signups: state.signups };
     fn(state);
     const ch = diff(before, state);
@@ -1663,6 +1755,7 @@ span.fx-btn:hover{transform:none}
       }, (err) => {
         inFlight = false;
         if (err.status === 400) { toast("The server rejected that change: " + err.message); poll(); return; }
+        if (err.status === 401) { askSignIn(err.message); poll(); return; } // not signed in: drop the change
         pending = pending ? merge(body, pending) : body;
         failures++;
         net = err.status === 503 ? "nostore" : "offline";
@@ -1872,8 +1965,21 @@ span.fx-btn:hover{transform:none}
       case "request-approved": return '<span class="cl-tag ok">Change approved</span> ' + (x.f ? clSide(x.f) : "") + (x.c ? clSpecs(x.c) : "");
       case "request-rejected": return '<span class="cl-tag">Change rejected</span>';
       case "request-withdrawn": return "Withdrew their change request";
+      case "claim": return '<span class="cl-tag ok">Claimed with Discord</span>';
+      case "unclaim": return "Claim undone";
       default: return esc(e.a);
     }
+  }
+  // One page of the changelog as a table, with a pager whose buttons have data-act=act.
+  function clTable(d, act) {
+    const rows = (d.entries || []).map((e) =>
+      '<tr><td class="cl-when" title="' + esc(clWhen(e.t)) + '">' + esc(clAgo(e.t)) + "</td><td>" + clWho(e.w) + '</td><td class="cl-name">' + esc(e.n || "") + '</td><td class="cl-what">' + clWhat(e) + "</td></tr>").join("");
+    const body = rows ? '<div class="cl-wrap"><table class="cl-table"><colgroup><col class="c-when"><col class="c-who"><col class="c-name"><col></colgroup><thead><tr><th>When</th><th>Who</th><th>Player</th><th>Change</th></tr></thead><tbody>' + rows + "</tbody></table></div>"
+      : '<p class="cl-empty">No changes logged yet.</p>';
+    const foot = d.pages > 1 ? '<div class="cl-pager"><button type="button" class="btn" data-act="' + act + '" data-p="' + (d.page - 1) + '"' + (d.page <= 0 ? " disabled" : "") + ">← Newer</button>" +
+      "<span>Page " + (d.page + 1) + " of " + d.pages + " · " + plural(d.total, "change") + "</span>" +
+      '<button type="button" class="btn" data-act="' + act + '" data-p="' + (d.page + 1) + '"' + (d.page >= d.pages - 1 ? " disabled" : "") + ">Older →</button></div>" : "";
+    return body + foot;
   }
   let clPage = 0;
   function showChangelog(page) {
@@ -1883,14 +1989,7 @@ span.fx-btn:hover{transform:none}
     dialogRoot.innerHTML = frame('<p class="cl-empty">Loading…</p>');
     fetch(API + "?log=1&page=" + clPage).then(readJSON).then((d) => {
       if (!dialogRoot.querySelector(".cl-dialog")) return; // closed meanwhile
-      const rows = (d.entries || []).map((e) =>
-        '<tr><td class="cl-when" title="' + esc(clWhen(e.t)) + '">' + esc(clAgo(e.t)) + "</td><td>" + clWho(e.w) + '</td><td class="cl-name">' + esc(e.n || "") + '</td><td class="cl-what">' + clWhat(e) + "</td></tr>").join("");
-      const body = rows ? '<div class="cl-wrap"><table class="cl-table"><colgroup><col class="c-when"><col class="c-who"><col class="c-name"><col></colgroup><thead><tr><th>When</th><th>Who</th><th>Player</th><th>Change</th></tr></thead><tbody>' + rows + "</tbody></table></div>"
-        : '<p class="cl-empty">No changes logged yet.</p>';
-      const foot = d.pages > 1 ? '<div class="cl-pager"><button type="button" class="btn" data-act="cl-page" data-p="' + (d.page - 1) + '"' + (d.page <= 0 ? " disabled" : "") + ">← Newer</button>" +
-        "<span>Page " + (d.page + 1) + " of " + d.pages + " · " + plural(d.total, "change") + "</span>" +
-        '<button type="button" class="btn" data-act="cl-page" data-p="' + (d.page + 1) + '"' + (d.page >= d.pages - 1 ? " disabled" : "") + ">Older →</button></div>" : "";
-      dialogRoot.innerHTML = frame(body, foot);
+      dialogRoot.innerHTML = frame(clTable(d, "cl-page"));
     }, () => {
       if (dialogRoot.querySelector(".cl-dialog")) dialogRoot.innerHTML = frame('<p class="cl-empty">Could not load the changelog. Try again.</p>');
     });
@@ -1906,6 +2005,7 @@ span.fx-btn:hover{transform:none}
   function startJoin() {
     const input = signups.querySelector(".su.new .su-name");
     const n = cleanName(input ? input.value : "");
+    if (signInFirst("Sign in with Discord to join the raid.")) return;
     if (!n) { toast("Write your name first"); if (input) input.focus(); return; }
     const taken = state.signups.some((u) => u.n.toLowerCase() === n.toLowerCase());
     if (taken) { toast(n + " is already signed up. Pick another name or edit that row."); return; }
@@ -1972,14 +2072,7 @@ span.fx-btn:hover{transform:none}
   }
 
   // Quick spec picker: click specs in order of preference; the order of clicks is the priority.
-  let specDraft = null; // { id, c } or, to ask the admin for a change, { id, c, f, request: true }
-  function showRequestPicker(id) {
-    const u = state.signups.find((x) => x.id === id);
-    if (!u) return;
-    const q = myRequestOf(id);
-    specDraft = { id, c: (q && q.c ? q.c : u.c).slice(), f: (q && q.f) || u.f || "", request: true };
-    renderSpecPicker();
-  }
+  let specDraft = null; // { id, c }
   function showSpecPicker(id) {
     const u = state.signups.find((x) => x.id === id);
     if (!u) { dialogRoot.innerHTML = ""; return; }
@@ -2003,19 +2096,12 @@ span.fx-btn:hover{transform:none}
       const sp = SPEC[k], c = CLASS[sp.cls];
       return '<span class="sp-pick" style="--c:' + c.color + ";--cn:" + (c.text || c.color) + '"><b>' + (i + 1) + "</b>" + img(sp.icon) + esc(specName(sp)) + "</span>";
     }).join("") : '<span class="sp-empty">Nothing yet. Click your best spec first, then the next ones.</span>';
-    // Asking for a change: also the side, and the button sends a request instead of saving.
-    const rq = d.request, open = rq && myRequestOf(d.id);
-    const changed = rq && (d.c.join() !== u.c.join() || (d.f || "") !== (u.f || ""));
-    const sides = !rq ? "" : '<div class="rq-sides" role="group" aria-label="Side">' + ["h", "a", "d"].filter((f) => FACTION[f]).map((f) =>
-      '<button type="button" class="rq-side f-' + f + (d.f === f ? " on" : "") + '" data-act="rq-side" data-f="' + f + '" aria-pressed="' + (d.f === f) + '">' + img(FACTION[f].icon) + "<span>" + esc(FACTION[f].es || FACTION[f].name) + "</span></button>").join("") + "</div>";
     dialogRoot.innerHTML = '<div class="overlay" data-act="close-dialog"><div class="dialog sp-dialog" role="dialog" aria-modal="true" aria-labelledby="sp-title">' +
-      '<p class="step">' + (rq ? "Change request" : joining === null ? "" : "Step 2 of 2") + '</p><h3 id="sp-title">' + (rq ? "Ask for a change" : "Pick your specs") + "</h3>" +
-      (rq ? '<p class="fx-who">Ask for a change to <b>' + esc(u.n) + "</b>: pick the side and the specs. The admin approves or rejects it." + (open ? " You already asked: sending again replaces your request." : "") + "</p>" + sides : "") +
-      '<p class="fx-who">' + (rq ? "Specs: c" : esc(u.n) + ", c") + "lick what you can play, best first. Up to " + MAX_CLASSES + " classes (" + own.size + "/" + MAX_CLASSES + ").</p>" +
+      '<p class="step">' + (joining === null ? "" : "Step 2 of 2") + '</p><h3 id="sp-title">Pick your specs</h3>' +
+      '<p class="fx-who">' + esc(u.n) + ", click what you can play, best first. Up to " + MAX_CLASSES + " classes (" + own.size + "/" + MAX_CLASSES + ").</p>" +
       '<div class="sp-order">' + order + "</div>" +
       '<div class="sp-grid">' + classes + "</div>" +
-      (rq ? '<div class="row">' + (open ? '<button type="button" class="btn" data-act="rq-withdraw">Withdraw request</button>' : "") + '<button type="button" class="btn" data-act="sp-later">Cancel</button><button type="button" class="btn primary" data-act="rq-send"' + (changed && d.c.length ? "" : " disabled") + ">Send request</button></div></div></div>"
-        : '<div class="row"><button type="button" class="btn" data-act="sp-later">Later</button><button type="button" class="btn primary" data-act="sp-save"' + (d.c.length ? "" : " disabled") + ">Save " + (d.c.length ? plural(d.c.length, "spec") : "") + "</button></div></div></div>");
+      '<div class="row"><button type="button" class="btn" data-act="sp-later">Later</button><button type="button" class="btn primary" data-act="sp-save"' + (d.c.length ? "" : " disabled") + ">Save " + (d.c.length ? plural(d.c.length, "spec") : "") + "</button></div></div></div>";
   }
   function toggleSpec(k) {
     const d = specDraft;
@@ -2028,16 +2114,6 @@ span.fx-btn:hover{transform:none}
       d.c.push(k);
     }
     renderSpecPicker();
-  }
-  function sendRequest() {
-    const d = specDraft, u = d && state.signups.find((x) => x.id === d.id);
-    closeDialog();
-    if (!u) return;
-    const body = { request: { id: u.id } };
-    if (d.c.join() !== u.c.join()) body.request.c = d.c;
-    if (d.f && d.f !== (u.f || "")) body.request.f = d.f;
-    if (!body.request.c && !body.request.f) return;
-    sendRequestPost(body, "Request sent. The admin will approve or reject it.");
   }
   function saveSpecs() {
     const d = specDraft, u = d && state.signups.find((x) => x.id === d.id);
@@ -2088,7 +2164,7 @@ span.fx-btn:hover{transform:none}
       const nid = newId(), n = joining.n;
       // The admin's own signups skip the approval; everyone else waits for it, with one signup per person.
       updateSignup(nid, adminOk ? { id: nid, n, c: [], f } : { id: nid, n, c: [], f, p: 1 });
-      if (!adminOk) signedUp = true;
+      if (!adminOk) { signedUp = true; myId = nid; }
       const input = signups.querySelector(".su.new .su-name");
       if (input) input.value = "";
       if (fx.photo) showFactionCheer(f, n, nid);
@@ -2132,7 +2208,7 @@ span.fx-btn:hover{transform:none}
     const ov = t.closest && t.closest(".overlay");
     if (ov && (t.classList.contains("overlay") || t.dataset.act === "close-dialog")) { if (!ov.classList.contains("locked")) closeDialog(); return; }
     const sizeBtn = t.closest("[data-size]");
-    if (sizeBtn) { const z = +sizeBtn.dataset.size; if (z !== state.size) { sel = null; change((s) => { s.size = z; }); } return; }
+    if (sizeBtn) { const z = +sizeBtn.dataset.size; if (z !== state.size && adminOk) { sel = null; change((s) => { s.size = z; }); } return; }
     const act = t.closest("[data-act]");
     if (act) {
       const a = act.dataset.act;
@@ -2142,11 +2218,18 @@ span.fx-btn:hover{transform:none}
       if (a === "sp-open") { showSpecPicker(act.dataset.id || act.closest(".su").dataset.id); return; }
       if (a === "sp-toggle") { toggleSpec(act.dataset.spec); return; }
       if (a === "sp-save") { saveSpecs(); return; }
-      if (a === "rq-open") { showRequestPicker(act.closest(".su").dataset.id); return; }
-      if (a === "rq-side") { if (specDraft) { specDraft.f = act.dataset.f; renderSpecPicker(); } return; }
-      if (a === "rq-send") { sendRequest(); return; }
-      if (a === "rq-withdraw") { const q = specDraft && myRequestOf(specDraft.id); closeDialog(); if (q) sendRequestPost({ requests: { [q.key]: null } }, "Request withdrawn"); return; }
-      if (a === "rq-approve" || a === "rq-reject") { answerRequest(act.closest(".rq").dataset.key, a === "rq-approve"); return; }
+      if (a === "sign-in") { signIn(); return; }
+      if (a === "sign-out") { signOut(); return; }
+      if (a === "view") {
+        if (act.dataset.v === "audit") location.hash = "audit";
+        else { history.pushState(null, "", location.pathname + location.search); readView(); }
+        window.scrollTo(0, 0); return;
+      }
+      if (a === "audit-refresh") { loadAudit(true); return; }
+      if (a === "au-page") { loadAuditLog(+act.dataset.p); return; }
+      if (a === "claim-copy") { const c = claimList.find((x) => x.id === act.dataset.id); if (c) copyText(claimUrl(c), "Claim link for " + c.n + " copied"); return; }
+      if (a === "claim-copy-all") { copyText(claimList.filter((c) => !c.by).map((c) => c.n + ": " + claimUrl(c)).join("\n"), "All unclaimed links copied"); return; }
+      if (a === "unclaim") { postNow({ unclaim: act.dataset.id }, "Claim undone: the link works again", () => loadAudit(true)); return; }
       if (a === "sp-later") { closeDialog(); return; }
       if (a === "fx-open") { showFactionPicker(act.closest(".su").dataset.id); return; }
       if (a === "fx-pick") { pickFaction(act.dataset.id, act.dataset.f); return; }
@@ -2334,6 +2417,7 @@ span.fx-btn:hover{transform:none}
   renderLaunch();
   setInterval(renderLaunch, 60 * 1000);
   showChangesNotice();
+  readAuthHash();
   readAdminHash();
   fingerprintReady.then(checkAdmin); // so "already signed up" also counts the fingerprint
   poll();

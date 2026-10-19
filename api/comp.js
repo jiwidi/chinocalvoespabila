@@ -1,7 +1,8 @@
 // Shared raid comp API.
 // GET  /api/comp           -> current comp { v, size, slots[40], signups[] }
-// POST /api/comp {request: {id, c, f}} -> anyone asks to change a signup; {requests: {key: null}} answers or withdraws it
 // GET  /api/comp?log=1&page=N -> changelog, newest first: { entries, page, pages, total }
+// GET  /api/comp?claims=1  -> (admin) a claim link token for every signup, and which Discord user claimed it
+// POST /api/comp {claim: token} -> the signed-in Discord user claims that signup; {unclaim: id} (admin) undoes a claim
 // POST /api/comp {slots, size, signups} -> applies changes, returns the new comp
 //
 // Storage: Upstash Redis (Vercel Marketplace). Each slot is its own hash field,
@@ -9,13 +10,19 @@
 //
 // Signups (see guardSignups): a new signup waits for the admin's approval (p: 1), each visitor can sign up once
 // (a removed signup still counts), and once someone has signed up only the admin can change, approve or remove it.
+// A visitor can only fill in what is still missing on their own signup. The raid itself (slots, size) is the admin's.
 // The admin sends the header x-raidcomp-admin: <RAIDCOMP_ADMIN_KEY>.
+//
+// Discord sign-in (lib/auth.js, api/discord.js): once the Discord app is set in the env, every POST needs a signed-in
+// Discord account (header x-raidcomp-session) or the admin key. The account is the strongest visitor key, so one signup
+// per person becomes one per Discord account. Players who signed up before claim their signup with a link from the admin.
 //
 // Abuse limits: the free plans count every request and every database command, and the URL is public. So a GET reads
 // the database at most once a second per instance, a POST must come from this site, and the counts below cap
 // requests, new signups and admin key guesses per network.
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { Redis } from "@upstash/redis";
+import { CLAIM, DISCORD_ID, SIGN_IN, claimToken, claimedId, sessionUser } from "../lib/auth.js";
 
 const SPECS = new Set([
   "druid_balance", "druid_feral", "druid_guardian", "druid_restoration",
@@ -43,8 +50,6 @@ const MAX_PENDING = 25; // signups that wait for approval at once
 const NEW_SIGNUPS_PER_DAY = 3; // per network: an IPv4 address or an IPv6 /64
 const LOG_MAX = 1000; // changelog entries kept
 const LOG_PAGE = 20; // changelog entries per page
-const MAX_OPEN_REQUESTS = 60; // change requests open at once, from everyone
-const REQUEST_KEY = /^([a-z0-9]{6,24}):([a-f0-9]{12})$/; // signup id, then the session that asked
 const ADMIN_TRIES = 10; // wrong admin keys per network (an IPv4 address or an IPv6 /48) in 15 minutes
 const ADMIN_KEY = process.env.RAIDCOMP_ADMIN_KEY || "";
 // Key for the visitor hashes. It is the admin key unless set, so the stored hashes keep matching. Before you change
@@ -58,7 +63,7 @@ const KEYS = {
   signers: `${PREFIX}:signers`, // visitor key -> id of the last signup made with it
   limit: `${PREFIX}:limit:`, // + "signup:<network>" or "admin:<network>": counters that expire
   log: `${PREFIX}:log`, // changelog: JSON entries, newest first, at most LOG_MAX
-  requests: `${PREFIX}:requests`, // "<signup id>:<session>" -> { c, f, t, by }: a change someone asked for, waiting for the admin
+  owners: `${PREFIX}:owners`, // signup id -> { k: the Discord account's visitor key, u: Discord username }: who owns it
 };
 
 class BadRequest extends Error {}
@@ -104,29 +109,7 @@ function hashToObject(hash) {
   return out;
 }
 
-// A change request: the specs (c) and/or side (f) a player asks for, and when (t). Only for a signup that exists.
-function cleanRequest(v) {
-  if (!v || typeof v !== "object") return null;
-  const out = {};
-  if (v.c !== undefined) {
-    const u = cleanSignup({ n: "x", c: v.c });
-    if (!u || !u.c.length) return null;
-    out.c = u.c;
-  }
-  if (v.f !== undefined) {
-    if (!FACTIONS.has(v.f)) return null;
-    out.f = v.f;
-  }
-  if (!out.c && !out.f) return null;
-  out.t = Number(v.t) || Date.now();
-  const by = v.by;
-  if (by && by.k === "admin") out.by = { k: "admin" };
-  else if (by && by.k === "player" && by.n) out.by = { k: "player", n: cleanName(by.n) };
-  else if (by && by.k === "visitor" && /^[a-f0-9]{4}$/.test(by.tag)) out.by = { k: "visitor", tag: by.tag };
-  return out;
-}
-
-function toState(version, slotsHash, metaHash, signupsHash, requestsHash) {
+function toState(version, slotsHash, metaHash, signupsHash) {
   const slots = Array(MAX_SLOTS).fill(null);
   metaHash = hashToObject(metaHash);
   for (const [field, raw] of Object.entries(hashToObject(slotsHash))) {
@@ -151,19 +134,7 @@ function toState(version, slotsHash, metaHash, signupsHash, requestsHash) {
   }
   signups.sort((a, b) => (a.id < b.id ? -1 : 1)); // ids start with a timestamp, so this is signup order
   const size = Number(metaHash && metaHash.size);
-  const ids = new Set(signups.map((u) => u.id)), requests = [];
-  for (const [key, raw] of Object.entries(hashToObject(requestsHash))) {
-    const m = key.match(REQUEST_KEY), id = m ? m[1] : key, s = m ? m[2] : ""; // a key without a session is from before
-    if (!ids.has(id)) continue; // the signup is gone
-    try {
-      const q = cleanRequest(typeof raw === "string" ? JSON.parse(raw) : raw);
-      if (q) requests.push({ key, id, s, ...q });
-    } catch {
-      /* ignore a corrupt field */
-    }
-  }
-  requests.sort((a, b) => a.t - b.t);
-  return { v: Number(version) || 0, size: SIZES.has(size) ? size : 20, slots, signups, requests };
+  return { v: Number(version) || 0, size: SIZES.has(size) ? size : 20, slots, signups };
 }
 
 // Vercel parses a JSON body when the code first reads req.body, and throws when it cannot.
@@ -176,7 +147,7 @@ function parseChanges(body) {
     try { body = JSON.parse(body); } catch { throw new BadRequest("Body must be JSON"); }
   }
   if (!body || typeof body !== "object") throw new BadRequest("Body must be an object");
-  const out = { slots: {}, signups: {}, requests: {} };
+  const out = { slots: {}, signups: {}, owners: {} };
   if (body.slots !== undefined) {
     if (!body.slots || typeof body.slots !== "object") throw new BadRequest("slots must be an object");
     const entries = Object.entries(body.slots);
@@ -208,29 +179,17 @@ function parseChanges(body) {
     if (!SIZES.has(body.size)) throw new BadRequest("size must be 10, 20 or 40");
     out.size = body.size;
   }
-  // request: the visitor asks to change their own signup (the server finds which one). requests: id -> null answers
-  // (the admin) or cancels (the player, their own) a request.
-  if (body.request !== undefined) {
-    const rc = body.request && body.request.c;
-    if (rc !== undefined && !(Array.isArray(rc) && rc.length <= SPECS.size && rc.every((k) => SPECS.has(k)) && new Set(rc.map(classOf)).size <= MAX_CLASSES)) {
-      throw new BadRequest("A change request takes known specs from up to " + MAX_CLASSES + " classes");
-    }
-    const q = cleanRequest({ c: body.request && body.request.c, f: body.request && body.request.f });
-    if (!q) throw new BadRequest("A change request needs specs (up to " + MAX_CLASSES + " classes) or a side");
-    if (typeof body.request.id !== "string" || !SIGNUP_ID.test(body.request.id)) throw new BadRequest("A change request names the signup (id)");
-    if (body.request.c === undefined) delete q.c;
-    out.request = { id: body.request.id, ...q };
+  if (body.claim !== undefined) {
+    if (!CLAIM.test(String(body.claim))) throw new BadRequest("That is not a claim link");
+    out.claim = String(body.claim);
   }
-  if (body.requests !== undefined) {
-    if (!body.requests || typeof body.requests !== "object") throw new BadRequest("requests must be an object");
-    const entries = Object.entries(body.requests);
-    if (entries.length > MAX_SIGNUPS) throw new BadRequest("Too many requests");
-    for (const [key, value] of entries) {
-      if (!(REQUEST_KEY.test(key) || SIGNUP_ID.test(key)) || value !== null) throw new BadRequest("Bad value for request " + key);
-      out.requests[key] = null;
-    }
+  if (body.unclaim !== undefined) {
+    if (typeof body.unclaim !== "string" || !SIGNUP_ID.test(body.unclaim)) throw new BadRequest("unclaim takes a signup id");
+    out.unclaim = body.unclaim;
   }
-  if (!Object.keys(out.slots).length && !Object.keys(out.signups).length && out.size === undefined && !out.request && !Object.keys(out.requests).length) throw new BadRequest("Nothing to change");
+  if (!Object.keys(out.slots).length && !Object.keys(out.signups).length && out.size === undefined && !out.claim && !out.unclaim) {
+    throw new BadRequest("Nothing to change");
+  }
   return out;
 }
 
@@ -253,17 +212,21 @@ function netOf(ip, groups = 4) {
 // Keyed hash, so the database never holds an address, a device id or a fingerprint.
 const keyed = (s) => createHmac("sha256", VISITOR_SECRET).update(s).digest("hex").slice(0, 24);
 
-// Who is asking, without storing who they are: keyed hashes of IP + browser, of the page's random device id, and of
-// the page's browser fingerprint (the same in a private window and on another network). Any one of them is enough.
+// Who is asking, without storing who they are: keyed hashes of the signed-in Discord account (first, when there is
+// one), of IP + browser, of the page's random device id, and of the page's browser fingerprint (the same in a private
+// window and on another network). Any one of them is enough.
 // ponytail: a different device on a different network is a new person; enough to stop a guildmate, not an attacker.
 function visitorKeys(req) {
-  const h = req.headers || {};
+  const h = req.headers || {}, user = sessionUser(req);
   const keys = ["net:" + keyed(netOf(clientIp(req)) + "|" + (h["user-agent"] || ""))];
   const device = String(h["x-raidcomp-device"] || ""), fp = String(h["x-raidcomp-fp"] || "");
   if (DEVICE_ID.test(device)) keys.push("dev:" + keyed(device));
   if (FINGERPRINT.test(fp)) keys.push("fp:" + keyed(fp));
+  if (user) keys.unshift("dc:" + keyed("discord|" + user.id));
   return keys;
 }
+// The key that names this visitor best: the Discord account, then the fingerprint, the device id, the network.
+const bestKey = (keys) => ["dc:", "fp:", "dev:"].map((p) => keys.find((k) => k.startsWith(p))).find(Boolean) || keys[0];
 
 // One signup per visitor, for good: true once any of these keys has made a signup, even if the admin removed it.
 // ponytail: IP + browser can match two people (same house, mobile carrier NAT); the admin adds the second one.
@@ -325,14 +288,15 @@ async function refuseNew(store, req, keys, madeOne) {
 }
 
 // Without the admin key: a new signup waits for the admin's approval, and a visitor who already has a signup cannot
-// make another (see refuseNew). Once someone has signed up, a request can only fill in what is still missing (a first
-// side, the first specs); the rest of the signup keeps its stored values, approval included. Other changes in the
+// make another (see refuseNew). Once someone has signed up, only that visitor can fill in what is still missing on it
+// (a first side, the first specs); the rest of the signup keeps its stored values, approval included. Other changes in the
 // request still save, and the reply gets a warning. signers: the visitor keys to record for a new signup.
 // ponytail: read-then-write, so two requests at the same instant can each make a signup; a Lua script would fix that.
 // stored: the signups as they are now, in the order of Object.keys(changes.signups).
 async function guardSignups(store, req, changes, stored) {
   const ids = Object.keys(changes.signups);
   const keys = visitorKeys(req);
+  const mine = stored.some(Boolean) ? await ownSignupId(store, req) : null; // the one signup this visitor may fill in
   let warning = null, signers = null;
   for (const [i, id] of ids.entries()) {
     const old = stored[i], u = changes.signups[id];
@@ -347,6 +311,8 @@ async function guardSignups(store, req, changes, stored) {
       const { b, r, ...fresh } = u; // only the admin benches or locks in
       changes.signups[id] = { ...fresh, p: 1 };
       signers = Object.fromEntries(keys.map((k) => [k, id]));
+      const user = sessionUser(req);
+      if (user) changes.owners[id] = { k: keys[0], u: user.username }; // keys[0] is the Discord account
       continue;
     }
     if (u === null) {
@@ -354,8 +320,9 @@ async function guardSignups(store, req, changes, stored) {
       warning = "Only the admin can remove a signup.";
       continue;
     }
-    const c = old.c.length ? old.c : u.c;
-    const f = old.f || u.f;
+    const own = id === mine; // only your own signup: the first specs and the first side
+    const c = old.c.length || !own ? old.c : u.c;
+    const f = old.f || (own ? u.f : undefined);
     const locked = u.n !== old.n || c.join() !== u.c.join() || (u.f !== undefined && u.f !== f);
     if (locked) warning = warning || "Only the admin can change a signup.";
     const keep = { n: old.n, c };
@@ -381,14 +348,6 @@ async function ownSignupId(store, req) {
   return (await store.signers(own.length ? own : keys)).find(Boolean) || null;
 }
 
-// The session a change request belongs to: 12 characters of the visitor's keyed hash, fingerprint or device id first
-// (the network + browser key only when the request has neither). The changelog's visitor tag is its first 4.
-function sessionOf(req) {
-  const keys = visitorKeys(req);
-  const best = keys.find((k) => k.startsWith("fp:")) || keys.find((k) => k.startsWith("dev:")) || keys[0];
-  return best.split(":")[1].slice(0, 12);
-}
-
 async function actorOf(store, req, admin, changes, signers, before) {
   if (admin) return { k: "admin" };
   if (signers) { // signed up in this very request
@@ -400,8 +359,7 @@ async function actorOf(store, req, admin, changes, signers, before) {
     const u = id in before ? before[id] : (await store.signups([id]))[0];
     if (u && u.n) return { k: "player", n: u.n };
   }
-  const best = keys.find((k) => k.startsWith("fp:")) || keys.find((k) => k.startsWith("dev:")) || keys[0];
-  return { k: "visitor", tag: best.split(":")[1].slice(0, 4) };
+  return { k: "visitor", tag: bestKey(keys).split(":")[1].slice(0, 4) };
 }
 
 // What changed, as changelog entries { t, w: actor, a: action, n: player name, x: details }, oldest first.
@@ -427,42 +385,34 @@ function describe(changes, before, w, sizeBefore) {
   return out;
 }
 
-// Change requests, by session. Anyone can ask to change any signup's specs and/or side; each session (browser) has at
-// most one open request per signup, and a new one replaces it. The admin answers by removing a request, with or
-// without applying it in the same POST; a session can withdraw its own. Removing a signup drops its requests.
-// Logs request, approved, rejected, withdrawn. Returns a warning for the reply, or null.
-async function handleRequests(store, req, admin, changes, before, actor, entries) {
-  let warning = null;
-  const dropped = Object.entries(changes.signups).filter(([, u]) => u === null).map(([id]) => id);
-  if (!changes.request && !Object.keys(changes.requests).length && !dropped.length) return null;
-  const now = await readState(store), sess = sessionOf(req);
-  for (const q of now.requests) if (dropped.includes(q.id)) changes.requests[q.key] = null;
-  const signupOf = (id) => now.signups.find((u) => u.id === id), open = new Map(now.requests.map((q) => [q.key, q]));
-  const t = Date.now(), add = (a, n, x) => entries.push(x ? { t, w: actor, a, n, x } : { t, w: actor, a, n });
-  for (const key of Object.keys(changes.requests)) {
-    const q = open.get(key), u = q && signupOf(q.id);
-    if (!admin && !dropped.includes(q ? q.id : "") && !key.endsWith(":" + sess)) {
-      delete changes.requests[key];
-      warning = "Only the admin can answer a change request; you can withdraw your own.";
-      continue;
+// Claim links. A player who signed up before Discord sign-in opens the admin's link while signed in: their Discord
+// account then owns that signup (the page shows it as theirs, and the account counts as signed up). Each signup has at
+// most one owner and each account owns one signup. The admin can undo a claim, so the link works again.
+// Returns { warning, signers }: signers to add for the claim.
+async function handleClaims(store, req, admin, user, changes, actor, entries) {
+  const t = Date.now();
+  if (changes.unclaim) {
+    if (!admin) return { warning: "Only the admin can undo a claim." };
+    const id = changes.unclaim, [[owner], [u]] = await Promise.all([store.owners([id]), store.signups([id])]);
+    if (owner) {
+      changes.owners[id] = null;
+      changes.unsign = [owner.k]; // the account no longer counts as signed up
+      entries.push({ t, w: actor, a: "unclaim", n: u ? u.n : "" }); // the changelog is public: no Discord username
     }
-    if (!q || !u || changes.signups[q.id] === null) continue; // nothing open, or the signup goes away with it
-    if (!admin) { add("request-withdrawn", u.n); continue; }
-    const v = changes.signups[q.id], applied = v && ((q.c && v.c.join() === q.c.join()) || (q.f && v.f === q.f));
-    add(applied ? "request-approved" : "request-rejected", u.n, { ...(q.c ? { c: q.c } : {}), ...(q.f ? { f: q.f } : {}), ...(q.by ? { by: q.by } : {}) });
   }
-  if (changes.request) {
-    const { id, ...q } = changes.request, u = signupOf(id);
-    if (!u) return warning || "That signup is gone.";
-    if (q.c && q.c.join() === u.c.join()) delete q.c;
-    if (q.f && q.f === u.f) delete q.f;
-    if (!q.c && !q.f) return warning || "That is what the signup already has.";
-    const key = id + ":" + sess;
-    if (!open.has(key) && now.requests.length >= MAX_OPEN_REQUESTS) return warning || "Too many change requests wait for the admin. Try again later.";
-    changes.requests[key] = { ...q, t, by: actor };
-    add("request", u.n, { ...(q.c ? { from: u.c, c: q.c } : {}), ...(q.f ? { fromF: u.f || "", f: q.f } : {}) });
-  }
-  return warning;
+  if (!changes.claim) return {};
+  if (!user) return { warning: "Sign in with Discord to claim your signup." };
+  const id = claimedId(changes.claim);
+  if (!id) return { warning: "This claim link is not valid. Ask the admin for a new one." };
+  const key = visitorKeys(req)[0]; // the Discord account
+  const [[u], [owner], [has]] = await Promise.all([store.signups([id]), store.owners([id]), store.signers([key])]);
+  if (!u) return { warning: "That signup is gone. Ask the admin." };
+  if (owner && owner.k !== key) return { warning: "Another Discord account already claimed " + u.n + ". Ask the admin." };
+  if (owner) return {}; // already yours
+  if (has && has !== id && (await store.signups([has]))[0]) return { warning: "Your Discord account already has a signup. Ask the admin." };
+  changes.owners[id] = { k: key, u: user.username };
+  entries.push({ t, w: { k: "player", n: u.n }, a: "claim", n: u.n });
+  return { signers: { [key]: id } };
 }
 
 // HMGET without automatic deserialization gives an array in field order; accept an object too.
@@ -495,14 +445,17 @@ function redisStore() {
   const redis = new Redis({ url, token, automaticDeserialization: false });
   return {
     async read() {
-      const [v, slots, meta, signups, requests] = await redis.pipeline().get(KEYS.version).hgetall(KEYS.slots).hgetall(KEYS.meta).hgetall(KEYS.signups).hgetall(KEYS.requests).exec();
-      return toState(v, slots, meta, signups, requests);
+      const [v, slots, meta, signups] = await redis.pipeline().get(KEYS.version).hgetall(KEYS.slots).hgetall(KEYS.meta).hgetall(KEYS.signups).exec();
+      return toState(v, slots, meta, signups);
     },
     async signups(ids) {
       return inOrder(await redis.hmget(KEYS.signups, ...ids), ids).map(parseSignup);
     },
     async signers(keys) {
       return inOrder(await redis.hmget(KEYS.signers, ...keys), keys);
+    },
+    async owners(ids) {
+      return inOrder(await redis.hmget(KEYS.owners, ...ids), ids).map(parseEntry);
     },
     async pending() {
       return ((await redis.hvals(KEYS.signups)) || []).map(parseSignup).filter((u) => u && u.p).length;
@@ -526,7 +479,8 @@ function redisStore() {
       const tx = redis.multi();
       stageHash(tx, KEYS.slots, changes.slots);
       stageHash(tx, KEYS.signups, changes.signups);
-      stageHash(tx, KEYS.requests, changes.requests);
+      stageHash(tx, KEYS.owners, changes.owners || {});
+      if (changes.unsign) tx.hdel(KEYS.signers, ...changes.unsign);
       if (signers) tx.hset(KEYS.signers, signers);
       if (log.length) { tx.lpush(KEYS.log, ...log.map((e) => JSON.stringify(e))); tx.ltrim(KEYS.log, 0, LOG_MAX - 1); }
       if (changes.size !== undefined) tx.hset(KEYS.meta, { size: String(changes.size) });
@@ -534,10 +488,9 @@ function redisStore() {
       tx.hgetall(KEYS.slots);
       tx.hgetall(KEYS.meta);
       tx.hgetall(KEYS.signups);
-      tx.hgetall(KEYS.requests);
       const out = await tx.exec();
       const n = out.length;
-      return toState(out[n - 5], out[n - 4], out[n - 3], out[n - 2], out[n - 1]);
+      return toState(out[n - 4], out[n - 3], out[n - 2], out[n - 1]);
     },
   };
 }
@@ -546,16 +499,20 @@ function redisStore() {
 function memoryStore() {
   const mem = (globalThis.__raidcompMemory ||= { v: 0, slots: {}, meta: {}, signups: {} });
   mem.signers ||= {};
+  mem.owners ||= {};
   mem.limits ||= {}; // name -> { n, until }
   return {
     async read() {
-      return toState(mem.v, { ...mem.slots }, { ...mem.meta }, { ...mem.signups }, { ...(mem.requests || {}) });
+      return toState(mem.v, { ...mem.slots }, { ...mem.meta }, { ...mem.signups });
     },
     async signups(ids) {
       return ids.map((id) => parseSignup(mem.signups[id]));
     },
     async signers(keys) {
       return keys.map((k) => mem.signers[k] || null);
+    },
+    async owners(ids) {
+      return ids.map((id) => parseEntry(mem.owners[id] || null));
     },
     async pending() {
       return Object.values(mem.signups).map(parseSignup).filter((u) => u && u.p).length;
@@ -575,9 +532,9 @@ function memoryStore() {
     },
     async write(changes, signers, log = []) {
       Object.assign(mem.signers, signers);
+      for (const k of changes.unsign || []) delete mem.signers[k];
       if (log.length) mem.log = log.slice().reverse().map((e) => JSON.stringify(e)).concat(mem.log || []).slice(0, LOG_MAX);
-      mem.requests ||= {};
-      for (const hash of ["slots", "signups", "requests"]) {
+      for (const hash of ["slots", "signups", "owners"]) {
         for (const [field, value] of Object.entries(changes[hash])) {
           if (value) mem[hash][field] = JSON.stringify(value);
           else delete mem[hash][field];
@@ -606,7 +563,8 @@ export default async function handler(req, res) {
   try {
     const query = new URL(req.url || "/", "http://local").searchParams;
     const me = req.method === "GET" && query.has("me"), log = req.method === "GET" && query.has("log");
-    if (req.method === "GET" && !me && !log) {
+    const claims = req.method === "GET" && query.has("claims");
+    if (req.method === "GET" && !me && !log && !claims) {
       const state = await readState(store);
       // Let Vercel's CDN answer repeat polls for one second, so 20 open tabs cost about one database read per second.
       res.setHeader("Vercel-CDN-Cache-Control", "max-age=1");
@@ -626,7 +584,17 @@ export default async function handler(req, res) {
       const admin = await isAdmin(store, req);
       // mine: the id of this visitor's own signup, so the page can offer "Request change" on that row.
       const mine = admin ? null : await ownSignupId(store, req);
-      return res.status(200).json({ admin, signedUp: !admin && (!!mine || (await hasSignup(store, visitorKeys(req)))), mine, session: sessionOf(req) });
+      // discord: the Discord app's client id when sign-in is on (the page needs it for the authorize URL).
+      // user: the signed-in Discord account, or null (an expired or bad session token).
+      const user = sessionUser(req);
+      return res.status(200).json({ admin, signedUp: !admin && (!!mine || (await hasSignup(store, visitorKeys(req)))), mine,
+        discord: SIGN_IN ? DISCORD_ID : "", user: user ? { name: user.name } : null });
+    }
+    // GET ?claims=1 (admin): a claim link token for every signup, and the Discord username that claimed it (or null).
+    if (claims) {
+      if (!(await isAdmin(store, req))) return res.status(403).json({ error: "forbidden", message: "Only the admin can see claim links." });
+      const { signups } = await readState(store), owners = signups.length ? await store.owners(signups.map((u) => u.id)) : [];
+      return res.status(200).json({ claims: signups.map((u, i) => ({ id: u.id, n: u.n, p: u.p ? 1 : 0, token: claimToken(u.id), by: owners[i] ? owners[i].u || "?" : null })) });
     }
     // GET ?log=1&page=N: one page of the changelog (page 0 is the newest). Counted by the flood limit above.
     if (log) {
@@ -641,6 +609,15 @@ export default async function handler(req, res) {
     const changes = parseChanges(bodyOf(req));
     const ids = Object.keys(changes.signups);
     const admin = await isAdmin(store, req); // costs a database command only when the request sends a key
+    const user = sessionUser(req);
+    if (SIGN_IN && !admin && !user) return res.status(401).json({ error: "sign_in", message: "Sign in with Discord to make changes or ask for one." });
+    // The raid itself (slots, size) is the admin's: a visitor's edits to it are dropped, with a warning.
+    let raidNote = null;
+    if (!admin && (Object.keys(changes.slots).length || changes.size !== undefined)) {
+      changes.slots = {};
+      delete changes.size;
+      raidNote = "Only the admin can change the raid.";
+    }
     const stored = ids.length ? await store.signups(ids) : [];
     const { warning, signers } = ids.length && !admin ? await guardSignups(store, req, changes, stored) : {};
     // Changelog: who, and what changed after the signup rules. Nothing that the rules blocked shows up.
@@ -648,9 +625,10 @@ export default async function handler(req, res) {
     const sizeBefore = changes.size !== undefined ? (await readState(store)).size : undefined;
     const actor = await actorOf(store, req, admin, changes, signers, before);
     const entries = describe(changes, before, actor, sizeBefore);
-    const asked = await handleRequests(store, req, admin, changes, before, actor, entries);
-    const note = warning || asked;
-    const state = await store.write(changes, signers, entries);
+    for (const [id, u] of Object.entries(changes.signups)) if (u === null) changes.owners[id] = null; // a removed signup has no owner
+    const claim = await handleClaims(store, req, admin, user, changes, actor, entries);
+    const note = warning || raidNote || claim.warning;
+    const state = await store.write(changes, signers || claim.signers ? { ...signers, ...claim.signers } : null, entries);
     lastRead = { at: Date.now(), state: Promise.resolve(state) }; // this instance's next GETs show the write at once
     return res.status(200).json(note ? { ...state, warning: note } : state);
   } catch (err) {

@@ -40,7 +40,7 @@ await new Promise((r) => setTimeout(r, 1050));
 await call("GET");
 assert.equal(reads - before, 1, "one read after a second");
 // A write puts its state there at once: the next GET shows it, without a read.
-const w = await post({ slots: { 0: { s: "mage_fire", n: "Cache" } } });
+const w = await post({ slots: { 0: { s: "mage_fire", n: "Cache" } } }, { admin: KEY }); // the raid is the admin's
 const afterWrite = reads;
 const g = await call("GET");
 assert.equal(g.out.v, w.out.v);
@@ -134,16 +134,15 @@ assert.ok(mine.made);
 let top = (await logPage()).entries[0];
 assert.deepEqual([top.a, top.n, top.w], ["join", "Logger", { k: "player", n: "Logger" }]);
 const stranger = { ip: "192.0.2.151", ua: "Other" };
-await post({ slots: { 9: { s: "mage_frost", n: "Logger" } } }, stranger);
+const total0 = (await logPage()).total;
+await post({ slots: { 9: { s: "mage_frost", n: "Logger" } } }, stranger); // the raid is the admin's: dropped
+assert.equal((await logPage()).total, total0, "a dropped edit logs nothing");
+// A housemate: same network and browser, but their own fingerprint, so not the player: cannot fill in Logger's specs.
+await post({ signups: { [mine.id]: { n: "Logger", c: ["mage_fire"] } } }, { ...player, headers: { "x-raidcomp-fp": "b".repeat(64) } });
+assert.equal((await logPage()).total, total0, "same network, other browser fingerprint");
+await post({ signups: { [mine.id]: { n: "Logger", c: ["mage_fire"] } } }, player);
 top = (await logPage()).entries[0];
-assert.equal(top.a, "slots");
-assert.equal(top.w.k, "visitor");
-assert.match(top.w.tag, /^[a-f0-9]{4}$/);
-// A housemate: same network and browser, but their own fingerprint, so not named as the player.
-await post({ slots: { 8: { s: "mage_fire", n: "x" } } }, { ...player, headers: { "x-raidcomp-fp": "b".repeat(64) } });
-assert.equal((await logPage()).entries[0].w.k, "visitor", "same network, other browser fingerprint");
-await post({ slots: { 8: null } }, player);
-assert.deepEqual((await logPage()).entries[0].w, { k: "player", n: "Logger" }, "same fingerprint");
+assert.deepEqual([top.a, top.w], ["specs", { k: "player", n: "Logger" }], "same fingerprint: the player fills in their own");
 const stored = (await call("GET")).out.signups.find((u) => u.id === mine.id);
 await post({ signups: { [mine.id]: { ...stored, n: "Hacked" } } }, stranger); // blocked by the signup lock
 assert.notEqual((await logPage()).entries[0].a, "rename", "a blocked edit logs nothing");
@@ -156,48 +155,24 @@ assert.ok(p0.pages >= 2 && p0.total > 20);
 assert.notDeepEqual(p0.entries[0], p1.entries[0]);
 assert.equal((await logPage(99999)).page, 49, "page is clamped");
 
-// Change requests, by session: anyone can ask to change any signup; each browser has one open request per signup and
-// can withdraw only its own; only the admin answers.
-const wait = () => new Promise((r) => setTimeout(r, 1050)); // past the 1-second read cache
-const reqsOf = async (id) => (await call("GET")).out.requests.filter((q) => q.id === id);
-await wait();
-const sessP = (await me(player)).session, sessS = (await me(stranger)).session;
-assert.match(sessP, /^[a-f0-9]{12}$/);
-assert.notEqual(sessP, sessS);
-let asked = await post({ request: { id: mine.id, c: ["priest_holy", "priest_shadow"], f: "a" } }, stranger);
-assert.equal(asked.out.warning, undefined, "a stranger can ask too");
-await wait();
-let open = await reqsOf(mine.id);
-assert.equal(open.length, 1);
-assert.deepEqual([open[0].c, open[0].f, open[0].s, open[0].key], [["priest_holy", "priest_shadow"], "a", sessS, mine.id + ":" + sessS]);
-assert.equal(open[0].by.k, "visitor");
-assert.equal((await logPage()).entries[0].a, "request");
-await post({ request: { id: mine.id, f: "a" } }, player); // a second session on the same signup
-await post({ request: { id: mine.id, c: ["priest_holy"] } }, stranger); // replaces the stranger's request
-await wait();
-open = await reqsOf(mine.id);
-assert.equal(open.length, 2, "one per session");
-assert.deepEqual(open.find((q) => q.s === sessS).c, ["priest_holy"]);
-assert.equal(open.find((q) => q.s === sessP).by.n, "Logger", "named by the asker's signup");
-assert.equal((await post({ request: { id: mine.id, c: ["mage_fire", "rogue_combat", "druid_feral", "warrior_arms"] } }, player)).code, 400, "4 classes");
-assert.equal((await post({ request: { c: ["mage_fire"] } }, player)).code, 400, "names no signup");
-assert.equal((await post({ request: { id: "nosuchsignup1", c: ["mage_fire"] } }, player)).out.warning, "That signup is gone.");
-const cur = (await call("GET")).out.signups.find((u) => u.id === mine.id);
-assert.equal((await post({ request: { id: mine.id, c: cur.c } }, player)).out.warning, "That is what the signup already has.");
-// Only your own: the stranger cannot withdraw the player's request; the player can.
-assert.equal((await post({ requests: { [mine.id + ":" + sessP]: null } }, stranger)).out.warning, "Only the admin can answer a change request; you can withdraw your own.");
-await post({ requests: { [mine.id + ":" + sessP]: null } }, player);
-await wait();
-assert.deepEqual((await reqsOf(mine.id)).map((q) => q.s), [sessS], "withdrawn");
-assert.equal((await logPage()).entries[0].a, "request-withdrawn");
-// The admin approves the stranger's request: applies it and closes it in one POST.
-const q = (await reqsOf(mine.id))[0];
-await post({ signups: { [mine.id]: { ...cur, c: q.c } }, requests: { [q.key]: null } }, { ip: "192.0.2.152", admin: KEY });
-await wait();
-const after = (await call("GET")).out;
-assert.deepEqual(after.signups.find((u) => u.id === mine.id).c, ["priest_holy"]);
-assert.equal(after.requests.filter((r) => r.id === mine.id).length, 0);
-assert.ok((await logPage()).entries.some((e) => e.a === "request-approved"));
+// Change requests are gone: the admin makes changes directly. A request body has nothing the API takes.
+assert.equal((await post({ request: { id: mine.id, c: ["priest_holy"] } }, stranger)).code, 400);
+// The raid itself (slots, size) is the admin's: a visitor's edit to it is dropped, with a warning.
+const sized = await post({ size: 20 }, stranger);
+assert.equal(sized.out.warning, "Only the admin can change the raid.");
+const sizeNow = sized.out.size;
+assert.equal((await post({ size: sizeNow === 10 ? 20 : 10 }, stranger)).out.size, sizeNow, "size unchanged");
+// Only your own signup can be filled in: a stranger cannot add the first specs or side to someone else's.
+const owner = freshNet(), other = freshNet();
+const blank = await join(owner, "Blank");
+assert.ok(blank.made);
+let fill = await post({ signups: { [blank.id]: { n: "Blank", c: ["mage_fire"], f: "h" } } }, other);
+let row = fill.out.signups.find((u) => u.id === blank.id);
+assert.deepEqual([row.c, row.f], [[], undefined], "a stranger cannot fill in someone else's signup");
+assert.equal(fill.out.warning, "Only the admin can change a signup.");
+fill = await post({ signups: { [blank.id]: { n: "Blank", c: ["mage_fire"], f: "h" } } }, owner);
+row = fill.out.signups.find((u) => u.id === blank.id);
+assert.deepEqual([row.c, row.f], [["mage_fire"], "h"], "the owner fills in their own");
 
 // Security headers. The CSP allows every outside host the page loads from, and no page can frame this one.
 const vercel = JSON.parse(await readFile(new URL("../vercel.json", import.meta.url), "utf8"));
@@ -207,9 +182,11 @@ const csp = header("Content-Security-Policy");
 const page = await readFile(new URL("../index.html", import.meta.url), "utf8");
 const hosts = [...new Set([...page.matchAll(/https:\/\/([a-z0-9.-]+)/g)].map((m) => m[1]))];
 assert.ok(hosts.length >= 3, hosts.join());
-for (const h of hosts) assert.ok(csp.includes("https://" + h), h + " is not in the CSP");
+// Hosts the page only navigates to (Discord sign-in): the CSP does not cover top-level navigation, so they need no entry.
+const NAVIGATE_ONLY = new Set(["discord.com"]);
+for (const h of hosts) assert.ok(NAVIGATE_ONLY.has(h) || csp.includes("https://" + h), h + " is not in the CSP");
 for (const d of ["default-src 'self'", "connect-src 'self'", "object-src 'none'", "base-uri 'none'", "frame-ancestors 'none'"]) assert.ok(csp.includes(d), d);
 assert.equal(header("X-Content-Type-Options"), "nosniff");
 assert.equal(header("Referrer-Policy"), "strict-origin-when-cross-origin");
 
-console.log("security checks passed: cached reads, same-site POSTs, body limits, signup limits, admin key guesses, flood limit, changelog, change requests, headers");
+console.log("security checks passed: cached reads, same-site POSTs, body limits, signup limits, admin key guesses, flood limit, changelog, admin-only raid, fill-in only your own, headers");
