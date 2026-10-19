@@ -1127,6 +1127,8 @@ span.fx-btn:hover{transform:none}
   // one provider covers everyone and a second adds nothing. Windfury and Flametongue exclude each other. Windfury and
   // Grace of Air are both air totems, so having both takes 2 shamans. Salvation is no longer a blessing: any paladin
   // gives it on top of one blessing. Still per group: paladin auras and the water totems (Mana Spring, Mana Tide).
+  // The guild plays totems as group-wide (what a shaman drops reaches their group), so the comp wants one shaman per
+  // group: each one up to that is worth a lot, and arrange() seats them one per group.
   // Earlier notes: Curse of the Elements covers all magic; Expose Armor replaces Sunder stacking; Druids and Hunters
   // have no interrupt.
   // Kept modest so a player moves to a lower choice when the raid clearly gains (a missing healer, a missing buff).
@@ -1140,11 +1142,11 @@ span.fx-btn:hover{transform:none}
   const TOTEMS = [["wf", 1], ["soe", 1], ["goa", 2]];
   // Interrupts: Pummel/Shield Bash, Kick, Counterspell, Earth Shock, Spell Lock (felhunter), Silence (Shadow).
   const canKick = (k) => ["warrior", "rogue", "mage", "shaman", "warlock"].includes(SPEC[k].cls) || k === "priest_shadow";
-  // An off-healer: a Druid, Paladin, Priest or Shaman in a dps spec, who can still heal when the healers need help.
-  const HEAL_CLASSES = new Set(["druid", "paladin", "priest", "shaman"]);
+  // An off-healer: a player in a dps spec whose signup also lists a healing spec of that same class, so they can
+  // switch and heal when the healers need help (a Balance druid who also put Restoration, for example).
   // A dps player whose signup also lists a tank spec: can off-tank if a fight asks for it.
   const isOffTank = (k, c) => SPEC[k].role !== "tank" && (c || []).some((x) => SPEC[x].role === "tank");
-  const isOffHeal = (k) => (SPEC[k].role === "melee" || SPEC[k].role === "range") && HEAL_CLASSES.has(SPEC[k].cls);
+  const isOffHeal = (k, c) => (SPEC[k].role === "melee" || SPEC[k].role === "range") && (c || []).some((x) => SPEC[x].role === "heal" && SPEC[x].cls === SPEC[k].cls);
   const NEEDS = [ // [tag, points]: raid-wide, so one provider is enough and a second adds nothing
     // Main buffs and debuffs: the raid wants one of each.
     ["stam", 22], ["motw", 22], ["int", 20], ["ap", 18], ["crit", 18], ["armor1", 18], ["coe", 16], ["scrit", 14], ["rap", 12],
@@ -1157,7 +1159,7 @@ span.fx-btn:hover{transform:none}
   function targets(size) {
     return size <= 10
       ? { tank: 2, heal: 2, off: 1, shaman: 1, shamanMax: 2, paladin: 1, kick: 2 }
-      : { tank: 2, heal: 3, off: 1, shaman: 2, shamanMax: 3, paladin: 2, kick: 3 };
+      : { tank: 2, heal: 3, off: 1, shaman: 2, shamanMax: 4, paladin: 2, kick: 3 }; // up to one shaman per group of 5
   }
   // entries: [{ k: chosen spec, c: that player's signup specs }]
   function compScore(entries, t) {
@@ -1169,7 +1171,7 @@ span.fx-btn:hover{transform:none}
       seen[k] = true;
       cls[sp.cls] = (cls[sp.cls] || 0) + 1;
       role[sp.role]++;
-      if (isOffHeal(k)) off++;
+      if (isOffHeal(k, c)) off++;
       if (isOffTank(k, c)) offTank++;
       if (canKick(k)) kick++;
       specTags(sp).forEach((x) => tags.add(x));
@@ -1178,11 +1180,11 @@ span.fx-btn:hover{transform:none}
     // Exactly t.tank tanks (2): a third tank is a dps lost, so a player who listed tank first plays their dps spec.
     // One off-tank (a dps who also signed up as tank) is a small plus: how much it matters in Forever is not clear yet.
     let s = 40 * Math.min(role.tank, t.tank) - 30 * Math.max(0, role.tank - t.tank) + (offTank ? 4 : 0);
-    // Healers, then one off-healer: a hybrid in a dps spec, or else one extra healer. An extra healer that the
-    // off-healer slot does not need costs a little dps; beyond healers + off-healer it costs more.
+    // Healers, then one off-healer: a dps who can switch to healing (see isOffHeal). A 4th real healer covers that
+    // slot only half as well (it is a dps seat lost for good); beyond healers + off-healer each healer costs.
     const extraHeal = Math.max(0, role.heal - t.heal);
-    s += 30 * Math.min(role.heal, t.heal) + 12 * Math.min(t.off, off + extraHeal);
-    s -= 6 * Math.max(0, extraHeal - Math.max(0, t.off - off)) + 9 * Math.max(0, extraHeal - t.off);
+    s += 30 * Math.min(role.heal, t.heal) + 16 * Math.min(t.off, off) + 8 * Math.min(Math.max(0, t.off - off), extraHeal);
+    s -= 9 * Math.max(0, extraHeal - t.off);
     s -= HYBRID_DUP_COST * dup;
     // Melee against ranged, healers counted as ranged: lose points for every melee too many, gain a little for extra ranged.
     const ranged = role.range + role.heal;
@@ -1190,7 +1192,7 @@ span.fx-btn:hover{transform:none}
     s += 3 * Math.min(2, Math.max(0, ranged - role.melee));
     // Shamans: the first ones bring the raid totems (see TOTEMS); one more adds water totems for a group; more, no gain.
     const sham = cls.shaman || 0;
-    s += 26 * Math.min(sham, t.shaman) + 8 * Math.max(0, Math.min(sham, t.shamanMax) - t.shaman) - 12 * Math.max(0, sham - t.shamanMax);
+    s += 26 * Math.min(sham, t.shaman) + 16 * Math.max(0, Math.min(sham, t.shamanMax, groups) - t.shaman) - 12 * Math.max(0, sham - Math.min(t.shamanMax, groups));
     const pal = cls.paladin || 0;
     BLESSINGS.slice(0, pal).forEach(([, w]) => { s += w; });
     s += 10 * Math.min(pal, t.paladin);
@@ -1246,13 +1248,16 @@ span.fx-btn:hover{transform:none}
     const order = players.map((u, i) => i).sort((a, b) => (forced.has(b) - forced.has(a)) || a - b);
     const pick = players.map(() => -1);
     order.slice(0, cap).forEach((i) => { pick[i] = 0; });
+    // With more players than seats, everyone's 1st choice counts as if they played: rather than moving a seated
+    // player off their 1st choice, the comp takes someone from the bench who covers it with theirs.
+    const offFirst = n > size ? 14 : 0;
     const value = (p) => {
       let s = 0;
       const entries = [];
       p.forEach((r, i) => {
         if (r < 0) { s -= 0.1 * (n - i); return; }
         entries.push({ k: players[i].c[r], c: players[i].c });
-        s -= PREF_COST(r);
+        s -= PREF_COST(r) + (r > 0 ? offFirst : 0);
       });
       return s + compScore(entries, t);
     };
@@ -1616,9 +1621,10 @@ span.fx-btn:hover{transform:none}
     const offTanks = raid.filter((m) => isOffTank(m.s, m.u.c)).length;
     need(offTanks >= 1, false, "ability_warrior_shieldwall", "Off-tank " + Math.min(offTanks, 1) + "/1", "Optional: a dps who also signed up as tank, in case a fight needs a third", true);
     need(heals >= t.heal && heals <= t.heal + t.off, canBring((sp) => sp.role === "heal"), "spell_holy_flashheal", "Healers " + heals + "/" + t.heal, t.heal + " healers for a raid of " + state.size + ", plus one off-healer", true);
-    const offs = Math.min(t.off, raid.filter((m) => isOffHeal(m.s)).length + Math.max(0, heals - t.heal));
-    need(offs >= t.off, canBring((sp) => isOffHeal(sp.key)) || canBring((sp) => sp.role === "heal"), "spell_nature_healingtouch", "Off-healer " + offs + "/" + t.off, "A Druid, Paladin, Priest or Shaman in a dps spec who can help heal, or one extra healer", true);
-    need(shams >= t.shaman && shams <= t.shamanMax, canBring((sp) => sp.cls === "shaman"), "spell_nature_windfury", "Shamans " + shams + "/" + t.shaman + "–" + t.shamanMax, "One shaman drops Windfury and Strength of Earth for the whole raid. Grace of Air is also an air totem, so it takes a second shaman. One more adds water totems for a group", true);
+    const offs = Math.min(t.off, raid.filter((m) => isOffHeal(m.s, m.u.c)).length + Math.max(0, heals - t.heal));
+    const anyOff = compPlayers().some((u) => u.c.some((k) => isOffHeal(k, u.c)));
+    need(offs >= t.off, anyOff || canBring((sp) => sp.role === "heal"), "spell_nature_healingtouch", "Off-healer " + offs + "/" + t.off, "A dps who also signed up with a healing spec of the same class, so they can switch and heal (or one extra healer)", true);
+    need(shams >= t.shaman && shams <= t.shamanMax, canBring((sp) => sp.cls === "shaman"), "spell_nature_windfury", "Shamans " + shams + "/" + t.shaman + "–" + t.shamanMax, "Totems reach the shaman's group, so the comp wants one shaman per group of 5", true);
     const melee = count((sp) => sp.role === "melee"), ranged = count((sp) => sp.role === "range" || sp.role === "heal");
     need(ranged >= melee, true, "ability_marksmanship", "Melee " + melee + " · Ranged " + ranged, "Healers count as ranged. Ranged should match or outnumber melee", true);
     const locks = count((sp) => sp.cls === "warlock");
