@@ -127,3 +127,25 @@ Who, without storing who they are:
 After signing up, only the admin can change a signup. Anyone can **ask** for a change to any approved signup, per browser session: the **Request change** button on each row opens the spec picker with a side choice and sends `POST /api/comp {"request": {"id": "<signup id>", "c": [...], "f": "a" | "h" | "d"}}`. The server stores it in `raidcomp:requests` under `<signup id>:<session>` → `{ c, f, t, by }`. The session is 12 characters of the visitor's keyed hash (fingerprint or device id first), so each browser has at most one open request per signup and a new one replaces it; `by` is who asked, as in the changelog. It refuses a request for a signup that is gone, or for what the signup already has, and keeps at most 60 requests open. `GET /api/comp` lists open requests in `requests` (`key`, `id`, `s`, `c`, `f`, `t`, `by`), and rows with any show **Change asked** (×n when several).
 
 The admin sees **Change requests** above the signups, each with who asked: approve applies the change to the signup and closes that request in one POST (`signups` + `requests: {<key>: null}`); reject only closes it. A session can withdraw its own request (`requests: {<signup id>:<its session>: null}`); nobody else can. Removing a signup drops its requests. The changelog logs `request`, `request-approved`, `request-rejected` and `request-withdrawn`. `GET /api/comp?me=1` also answers `session` (this browser's session key) and `mine` (the visitor's own signup id).
+
+### Discord sign-in and claim links
+
+When the Discord app is set up, every change (signing up, asking for a change, any edit) needs a signed-in Discord account. Viewing stays open to everyone, and the admin key still works without Discord. Until the three variables below are set, nothing changes.
+
+How it works:
+
+- **Sign in with Discord** sends the player to Discord's authorize page (scope `identify` only: Discord id and name, no email). Discord sends them back to `/api/discord`, which trades the code for their identity and sends the page a session token in the URL fragment. The page accepts it only when the `state` matches the one it made. The token is signed with `RAIDCOMP_SESSION_SECRET` and lasts 30 days. The server stores no token.
+- The page sends the token as `X-Raidcomp-Session`. The Discord account is the strongest visitor key, so one signup per person becomes one signup per Discord account, and change requests and the changelog follow the account across browsers. The changelog never shows Discord names.
+- A POST without a session (and without the admin key) gets `401 { error: "sign_in" }`. `GET /api/comp?me=1` adds `discord` (the client id, or "") and `user` (`{ name }` or null).
+
+Claim links, for signups made before Discord sign-in:
+
+- In admin mode, **Claim links** lists one link per signup (`/#claim=<signup id>.<HMAC>`), with **Copy link**, **Copy all unclaimed links** and who claimed each one (Discord username, only the admin sees it). Send each player their own link in a private message.
+- The player opens the link. If they are not signed in, the page keeps the link in that tab, they sign in with Discord, and the claim goes through when they come back. Their Discord account then owns that signup.
+- One owner per signup and one signup per account. **Undo** frees a signup so its link works again. API: `GET ?claims=1` (admin), `POST {claim: token}`, `POST {unclaim: id}` (admin). Storage: `raidcomp:owners` (signup id → `{ k, u }`).
+
+Setup:
+
+1. On https://discord.com/developers/applications create an application. Under **OAuth2**, copy the **Client ID**, reset and copy the **Client Secret**, and add a redirect: `https://<your site>/api/discord` (and `http://localhost:3000/api/discord` for local tests).
+2. In Vercel, add `RAIDCOMP_DISCORD_CLIENT_ID`, `RAIDCOMP_DISCORD_CLIENT_SECRET` (sensitive) and `RAIDCOMP_SESSION_SECRET` (sensitive; a long random value such as `openssl rand -base64 32`, different for Production and Preview), then redeploy.
+3. A preview shares the production database unless you also set `RAIDCOMP_PREFIX` (for example `raidcomp-preview`) for Preview.

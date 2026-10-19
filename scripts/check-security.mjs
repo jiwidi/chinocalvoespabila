@@ -207,7 +207,9 @@ const csp = header("Content-Security-Policy");
 const page = await readFile(new URL("../index.html", import.meta.url), "utf8");
 const hosts = [...new Set([...page.matchAll(/https:\/\/([a-z0-9.-]+)/g)].map((m) => m[1]))];
 assert.ok(hosts.length >= 3, hosts.join());
-for (const h of hosts) assert.ok(csp.includes("https://" + h), h + " is not in the CSP");
+// Hosts the page only navigates to (Discord sign-in): the CSP does not cover top-level navigation, so they need no entry.
+const NAVIGATE_ONLY = new Set(["discord.com"]);
+for (const h of hosts) assert.ok(NAVIGATE_ONLY.has(h) || csp.includes("https://" + h), h + " is not in the CSP");
 for (const d of ["default-src 'self'", "connect-src 'self'", "object-src 'none'", "base-uri 'none'", "frame-ancestors 'none'"]) assert.ok(csp.includes(d), d);
 assert.equal(header("X-Content-Type-Options"), "nosniff");
 assert.equal(header("Referrer-Policy"), "strict-origin-when-cross-origin");

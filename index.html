@@ -80,6 +80,10 @@ button{cursor:pointer}
 .btn.primary:hover{background:#ffc65e;color:var(--accent-ink)}
 .btn.armed{border-color:var(--bad);background:#2a1513;color:#ffb4ab}
 .btn.admin{border-color:var(--warn);color:var(--warn)}
+.btn.discord{background:#5865f2;border-color:#5865f2;color:#fff}
+.btn.discord:hover{background:#4752c4;border-color:#4752c4;color:#fff}
+.btn.sm{height:24px;padding:0 9px;font-size:11.5px}
+.ck-note{margin:0 0 10px;font-size:12.5px;color:var(--soft)}
 .seg{display:inline-flex;align-items:center;gap:2px;padding:2px;border:1px solid var(--line-2);border-radius:6px;background:var(--panel-2);height:32px}
 .seg span{padding:0 6px 0 8px;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
 .seg button{height:26px;padding:0 10px;border:0;border-radius:4px;background:none;font-weight:700;font-size:12px;color:var(--muted)}
@@ -815,8 +819,15 @@ span.fx-btn:hover{transform:none}
   }
   let fingerprint = "";
   const fingerprintReady = browserFingerprint().then((h) => { fingerprint = h; }, () => { /* no crypto.subtle (plain http): the other signals still count */ });
+  // Discord sign-in: when the server has a Discord app (?me gives its client id), changes need a signed-in Discord
+  // account; the admin key works without one. After Discord, the server sends a session token in the URL fragment;
+  // the page keeps it and sends it with every request.
+  const SESSION_STORE = "raidcomp-session", OAUTH_STATE = "raidcomp-oauth", CLAIM_STORE = "raidcomp-claim";
+  let session = "", discordId = "", meUser = null; // meUser: { name } of the signed-in account
+  try { session = localStorage.getItem(SESSION_STORE) || ""; } catch (e) { /* no storage: no sign-in */ }
   function visitorHeaders(extra) {
     const h = { ...extra };
+    if (session) h["X-Raidcomp-Session"] = session;
     if (adminKey) h["X-Raidcomp-Admin"] = adminKey;
     if (deviceId) h["X-Raidcomp-Device"] = deviceId;
     if (fingerprint) h["X-Raidcomp-Fp"] = fingerprint;
@@ -831,6 +842,11 @@ span.fx-btn:hover{transform:none}
       if (myId !== (j.mine || null) || mySession !== (j.session || "")) { myId = j.mine || null; mySession = j.session || ""; renderSignups(); }
       if (adminOk !== !!j.admin) { adminOk = !!j.admin; renderSignups(); }
       if (adminKey && !j.admin) toast("Admin key not accepted. Open the page with #admin=<key> again.");
+      discordId = j.discord || "";
+      meUser = j.user || null;
+      if (session && !meUser) { session = ""; try { localStorage.removeItem(SESSION_STORE); } catch (e) {} } // expired or bad
+      renderTools();
+      sendClaim();
     }, () => { /* keep the last answer; the server checks every edit anyway */ });
   }
   // #admin=<key> turns admin mode on for this browser and #admin= turns it off, on load or in an open tab.
@@ -847,6 +863,83 @@ span.fx-btn:hover{transform:none}
     checkAdmin();
   }
   window.addEventListener("hashchange", readAdminHash);
+
+  // Back from Discord (#session=…&state=…, or #signin=failed|cancelled), or a claim link (#claim=…). The session counts
+  // only when its state is the one this tab sent, so another site cannot sign this browser in to its own account.
+  function readAuthHash() {
+    const h = new URLSearchParams(location.hash.slice(1));
+    if (!h.has("session") && !h.has("signin") && !h.has("claim")) return;
+    history.replaceState(null, "", location.pathname + location.search); // keep tokens out of the address bar
+    if (h.has("claim")) { try { sessionStorage.setItem(CLAIM_STORE, h.get("claim")); } catch (e) {} }
+    if (!h.has("session") && !h.has("signin")) return;
+    let want = "";
+    try { want = sessionStorage.getItem(OAUTH_STATE) || ""; sessionStorage.removeItem(OAUTH_STATE); } catch (e) {}
+    if (h.has("session") && want && h.get("state") === want) {
+      session = h.get("session");
+      try { localStorage.setItem(SESSION_STORE, session); } catch (e) {}
+      toast("Signed in with Discord.");
+    } else if (h.get("signin") === "cancelled") toast("Discord sign-in cancelled.");
+    else toast("Discord sign-in did not work. Try again.");
+  }
+  function signIn() {
+    if (!discordId) return;
+    const state = [...crypto.getRandomValues(new Uint8Array(18))].map((b) => b.toString(16).padStart(2, "0")).join("");
+    try { sessionStorage.setItem(OAUTH_STATE, state); } catch (e) { toast("This browser blocks site storage, so Discord sign-in cannot work here."); return; }
+    location.href = "https://discord.com/oauth2/authorize?" + new URLSearchParams({ client_id: discordId, response_type: "code", scope: "identify",
+      redirect_uri: location.origin + "/api/discord", state, prompt: "none" });
+  }
+  function signOut() {
+    session = ""; meUser = null;
+    try { localStorage.removeItem(SESSION_STORE); } catch (e) {}
+    renderTools(); checkAdmin(); toast("Signed out.");
+  }
+  function askSignIn(why) {
+    dialogRoot.innerHTML = '<div class="overlay" data-act="close-dialog"><div class="dialog si-dialog" role="dialog" aria-modal="true" aria-labelledby="si-title"><h3 id="si-title">Sign in with Discord</h3>' +
+      '<p class="fx-who">' + esc(why || "Sign in with your Discord account to sign up, make a change or ask for one.") + "</p>" +
+      '<div class="row"><button type="button" class="btn" data-act="close-dialog">Not now</button><button type="button" class="btn discord" data-act="sign-in">Sign in with Discord</button></div></div></div>';
+    const b = dialogRoot.querySelector(".btn.discord");
+    if (b) b.focus();
+  }
+  // True (and asks to sign in) when sign-in is on and this visitor has no Discord session; the admin key skips it.
+  function signInFirst(why) {
+    if (!discordId || session || adminOk) return false;
+    askSignIn(why);
+    return true;
+  }
+  // A claim link waits in this tab (through the Discord round trip) until the player is signed in, then claims.
+  function sendClaim() {
+    let token = "";
+    try { token = sessionStorage.getItem(CLAIM_STORE) || ""; } catch (e) {}
+    if (!token) return;
+    if (!discordId) { try { sessionStorage.removeItem(CLAIM_STORE); } catch (e) {} toast("Claim links work once Discord sign-in is on. Ask the admin."); return; }
+    if (!session) { askSignIn("Sign in with Discord to claim your signup. The link stays ready in this tab."); return; }
+    try { sessionStorage.removeItem(CLAIM_STORE); } catch (e) {}
+    sendRequestPost({ claim: token }, "Your signup is now linked to your Discord account.", checkAdmin);
+  }
+
+  // Admin: one claim link per signup, to send each player privately; shows who claimed which (Discord username).
+  let claimList = [];
+  function showClaims() {
+    const frame = (body) => '<div class="overlay" data-act="close-dialog"><div class="dialog cl-dialog" role="dialog" aria-modal="true" aria-labelledby="ck-title">' +
+      '<div class="cl-head"><h3 id="ck-title">Claim links</h3><button type="button" class="btn" data-act="close-dialog">Close</button></div>' + body + "</div></div>";
+    dialogRoot.innerHTML = frame('<p class="cl-empty">Loading…</p>');
+    fetch(API + "?claims=1", { headers: visitorHeaders() }).then(readJSON).then((d) => {
+      if (!dialogRoot.querySelector(".cl-dialog")) return;
+      claimList = d.claims || [];
+      const open = claimList.filter((c) => !c.by).length;
+      const rows = claimList.slice().reverse().map((c) => '<tr><td class="cl-name">' + esc(c.n) + (c.p ? ' <span class="cl-tag">waiting</span>' : "") + "</td><td>" +
+        (c.by ? '<span class="cl-tag ok">@' + esc(c.by) + '</span> <button type="button" class="btn sm" data-act="unclaim" data-id="' + esc(c.id) + '" title="Free this signup, so its link works again">Undo</button>'
+          : '<button type="button" class="btn sm" data-act="claim-copy" data-id="' + esc(c.id) + '">Copy link</button>') + "</td></tr>").join("");
+      dialogRoot.innerHTML = frame('<p class="ck-note">Send each player their own link in a private Discord message. Opening it while signed in with Discord makes that signup theirs. ' +
+        "A link works for one Discord account; <b>Undo</b> frees it again." + (discordId ? "" : " <b>Discord sign-in is off</b>, so the links do nothing yet.") + "</p>" +
+        (open ? '<div class="row"><button type="button" class="btn" data-act="claim-copy-all">Copy all ' + open + " unclaimed links</button></div>" : "") +
+        '<div class="cl-wrap"><table class="cl-table"><thead><tr><th>Player</th><th>Claimed by</th></tr></thead><tbody>' + rows + "</tbody></table></div>");
+    }, (err) => { if (dialogRoot.querySelector(".cl-dialog")) dialogRoot.innerHTML = frame('<p class="cl-empty">' + esc(err.status === 403 ? "Only the admin can see claim links." : "Could not load the claim links. Try again.") + "</p>"); });
+  }
+  const claimUrl = (c) => location.origin + "/#claim=" + c.token;
+  function copyText(text, done) {
+    try { navigator.clipboard.writeText(text).then(() => toast(done), () => showCopyDialog(text)); } catch (err) { showCopyDialog(text); }
+  }
 
   function specTags(sp) { return pets ? sp.tags.concat(sp.pet) : sp.tags; }
   function firstEmpty() {
@@ -1178,6 +1271,9 @@ span.fx-btn:hover{transform:none}
       '<button type="button" class="btn" data-act="pets" aria-pressed="' + pets + '">Hunter pets: ' + (pets ? "On" : "Off") + "</button>" +
       '<button type="button" class="btn" data-act="copy">Copy roster</button>' +
       '<button type="button" class="btn" data-act="changelog" title="Who changed what, newest first">Changelog</button>' +
+      (adminOk ? '<button type="button" class="btn" data-act="claims" title="One link per signup, to send each player privately">Claim links</button>' : "") +
+      (discordId ? (session ? '<button type="button" class="btn" data-act="sign-out" title="Signed in with Discord. Click to sign out.">' + esc(meUser ? meUser.name : "Signed in") + " · Sign out</button>"
+        : '<button type="button" class="btn discord" data-act="sign-in">Sign in with Discord</button>') : "") +
       (adminKey ? '<button type="button" class="btn admin" data-act="admin-off" title="Admin mode: the faction change limit is off on this browser. Click to turn admin mode off.">Admin</button>' : "") +
       '<span class="live ' + status[0] + '" role="status"><i></i>' + status[1] + "</span>";
   }
@@ -1330,12 +1426,14 @@ span.fx-btn:hover{transform:none}
         '<button type="button" class="mini" data-act="rq-reject" title="Reject it" aria-label="Reject the change for ' + esc(u.n) + '">&times;</button></span></div>').join("") + "</section>";
   }
   // Change requests go straight to the server (they are not signup edits): send, show the warning or a note, take the reply.
-  function sendRequestPost(body, done) {
+  // after: called once the server accepted the request (no warning).
+  function sendRequestPost(body, done, after) {
+    if (signInFirst()) return;
     fetch(API, { method: "POST", headers: visitorHeaders({ "Content-Type": "application/json" }), body: JSON.stringify(body) })
       .then(readJSON).then((s) => {
-        if (s.warning) { toast(s.warning); playBlocked(); } else if (done) toast(done);
+        if (s.warning) { toast(s.warning); playBlocked(); } else { if (done) toast(done); if (after) after(); }
         accept(s, true);
-      }, (err) => toast(err.status === 400 ? "The server rejected that: " + err.message : "Could not reach the server. Try again."));
+      }, (err) => err.status === 401 ? askSignIn(err.message) : toast(err.status === 400 ? "The server rejected that: " + err.message : "Could not reach the server. Try again."));
   }
   // The admin applies (approve) or drops (reject) a request; approving also writes the signup, in the same POST.
   function answerRequest(key, approve) {
@@ -1634,6 +1732,7 @@ span.fx-btn:hover{transform:none}
   }
   function change(fn) {
     if (!loaded) { toast("Still connecting to the raid…"); return; }
+    if (signInFirst()) return;
     const before = { size: state.size, slots: state.slots.slice(), signups: state.signups };
     fn(state);
     const ch = diff(before, state);
@@ -1663,6 +1762,7 @@ span.fx-btn:hover{transform:none}
       }, (err) => {
         inFlight = false;
         if (err.status === 400) { toast("The server rejected that change: " + err.message); poll(); return; }
+        if (err.status === 401) { askSignIn(err.message); poll(); return; } // not signed in: drop the change
         pending = pending ? merge(body, pending) : body;
         failures++;
         net = err.status === 503 ? "nostore" : "offline";
@@ -1872,6 +1972,8 @@ span.fx-btn:hover{transform:none}
       case "request-approved": return '<span class="cl-tag ok">Change approved</span> ' + (x.f ? clSide(x.f) : "") + (x.c ? clSpecs(x.c) : "");
       case "request-rejected": return '<span class="cl-tag">Change rejected</span>';
       case "request-withdrawn": return "Withdrew their change request";
+      case "claim": return '<span class="cl-tag ok">Claimed with Discord</span>';
+      case "unclaim": return "Claim undone";
       default: return esc(e.a);
     }
   }
@@ -1906,6 +2008,7 @@ span.fx-btn:hover{transform:none}
   function startJoin() {
     const input = signups.querySelector(".su.new .su-name");
     const n = cleanName(input ? input.value : "");
+    if (signInFirst("Sign in with Discord to join the raid.")) return;
     if (!n) { toast("Write your name first"); if (input) input.focus(); return; }
     const taken = state.signups.some((u) => u.n.toLowerCase() === n.toLowerCase());
     if (taken) { toast(n + " is already signed up. Pick another name or edit that row."); return; }
@@ -2142,7 +2245,13 @@ span.fx-btn:hover{transform:none}
       if (a === "sp-open") { showSpecPicker(act.dataset.id || act.closest(".su").dataset.id); return; }
       if (a === "sp-toggle") { toggleSpec(act.dataset.spec); return; }
       if (a === "sp-save") { saveSpecs(); return; }
-      if (a === "rq-open") { showRequestPicker(act.closest(".su").dataset.id); return; }
+      if (a === "rq-open") { if (!signInFirst("Sign in with Discord to ask for a change.")) showRequestPicker(act.closest(".su").dataset.id); return; }
+      if (a === "sign-in") { signIn(); return; }
+      if (a === "sign-out") { signOut(); return; }
+      if (a === "claims") { showClaims(); return; }
+      if (a === "claim-copy") { const c = claimList.find((x) => x.id === act.dataset.id); if (c) copyText(claimUrl(c), "Claim link for " + c.n + " copied"); return; }
+      if (a === "claim-copy-all") { copyText(claimList.filter((c) => !c.by).map((c) => c.n + ": " + claimUrl(c)).join("\n"), "All unclaimed links copied"); return; }
+      if (a === "unclaim") { sendRequestPost({ unclaim: act.dataset.id }, "Claim undone: the link works again", showClaims); return; }
       if (a === "rq-side") { if (specDraft) { specDraft.f = act.dataset.f; renderSpecPicker(); } return; }
       if (a === "rq-send") { sendRequest(); return; }
       if (a === "rq-withdraw") { const q = specDraft && myRequestOf(specDraft.id); closeDialog(); if (q) sendRequestPost({ requests: { [q.key]: null } }, "Request withdrawn"); return; }
@@ -2334,6 +2443,7 @@ span.fx-btn:hover{transform:none}
   renderLaunch();
   setInterval(renderLaunch, 60 * 1000);
   showChangesNotice();
+  readAuthHash();
   readAdminHash();
   fingerprintReady.then(checkAdmin); // so "already signed up" also counts the fingerprint
   poll();

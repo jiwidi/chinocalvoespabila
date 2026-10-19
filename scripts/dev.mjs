@@ -9,6 +9,8 @@ import { fileURLToPath } from "node:url";
 process.env.RAIDCOMP_MEMORY ??= "1";
 // Admin key for local testing only: open http://localhost:3000/#admin=dev. The live key stays in Vercel.
 process.env.RAIDCOMP_ADMIN_KEY ??= "dev";
+// Signs local Discord sessions and claim links. Local only: tokens made with it never work on the live site.
+process.env.RAIDCOMP_SESSION_SECRET ??= "local-dev-session-secret";
 
 // Copy a live comp into the in-memory store that api/comp.js reads (globalThis.__raidcompMemory).
 async function seedFrom(url) {
@@ -26,6 +28,7 @@ const LIVE_URL = "https://chinocalvoespabila.vercel.app/api/comp";
 const seedUrl = process.env.RAIDCOMP_SEED_URL || (process.argv.includes("--seed") ? LIVE_URL : "");
 if (seedUrl) await seedFrom(seedUrl);
 const { default: handler } = await import("../api/comp.js");
+const { default: discord } = await import("../api/discord.js"); // Discord sign-in callback (needs the Discord env vars)
 
 const PORT = Number(process.env.PORT) || 3000;
 const INDEX = fileURLToPath(new URL("../index.html", import.meta.url));
@@ -57,6 +60,7 @@ http.createServer(async (req, res) => {
   const { pathname } = new URL(req.url, "http://localhost");
   for (const { key, value } of HEADERS) res.setHeader(key, value);
   try {
+    if (pathname === "/api/discord") return await discord(req, wrapRes(res));
     if (pathname === "/api/comp") {
       req.body = await readBody(req);
       return await handler(req, wrapRes(res));
