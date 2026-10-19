@@ -1,5 +1,6 @@
 // Shared raid comp API.
 // GET  /api/comp           -> current comp { v, size, slots[40], signups[] }
+// POST /api/comp {request: {c, f}} -> a player asks to change their own signup; {requests: {id: null}} answers it
 // GET  /api/comp?log=1&page=N -> changelog, newest first: { entries, page, pages, total }
 // POST /api/comp {slots, size, signups} -> applies changes, returns the new comp
 //
@@ -55,6 +56,7 @@ const KEYS = {
   signers: `${PREFIX}:signers`, // visitor key -> id of the last signup made with it
   limit: `${PREFIX}:limit:`, // + "signup:<network>" or "admin:<network>": counters that expire
   log: `${PREFIX}:log`, // changelog: JSON entries, newest first, at most LOG_MAX
+  requests: `${PREFIX}:requests`, // signup id -> { c, f, t }: a change the player asked for, waiting for the admin
 };
 
 class BadRequest extends Error {}
@@ -100,7 +102,25 @@ function hashToObject(hash) {
   return out;
 }
 
-function toState(version, slotsHash, metaHash, signupsHash) {
+// A change request: the specs (c) and/or side (f) a player asks for, and when (t). Only for a signup that exists.
+function cleanRequest(v) {
+  if (!v || typeof v !== "object") return null;
+  const out = {};
+  if (v.c !== undefined) {
+    const u = cleanSignup({ n: "x", c: v.c });
+    if (!u || !u.c.length) return null;
+    out.c = u.c;
+  }
+  if (v.f !== undefined) {
+    if (!FACTIONS.has(v.f)) return null;
+    out.f = v.f;
+  }
+  if (!out.c && !out.f) return null;
+  out.t = Number(v.t) || Date.now();
+  return out;
+}
+
+function toState(version, slotsHash, metaHash, signupsHash, requestsHash) {
   const slots = Array(MAX_SLOTS).fill(null);
   metaHash = hashToObject(metaHash);
   for (const [field, raw] of Object.entries(hashToObject(slotsHash))) {
@@ -125,7 +145,18 @@ function toState(version, slotsHash, metaHash, signupsHash) {
   }
   signups.sort((a, b) => (a.id < b.id ? -1 : 1)); // ids start with a timestamp, so this is signup order
   const size = Number(metaHash && metaHash.size);
-  return { v: Number(version) || 0, size: SIZES.has(size) ? size : 20, slots, signups };
+  const ids = new Set(signups.map((u) => u.id)), requests = [];
+  for (const [id, raw] of Object.entries(hashToObject(requestsHash))) {
+    if (!ids.has(id)) continue; // the signup is gone
+    try {
+      const q = cleanRequest(typeof raw === "string" ? JSON.parse(raw) : raw);
+      if (q) requests.push({ id, ...q });
+    } catch {
+      /* ignore a corrupt field */
+    }
+  }
+  requests.sort((a, b) => a.t - b.t);
+  return { v: Number(version) || 0, size: SIZES.has(size) ? size : 20, slots, signups, requests };
 }
 
 // Vercel parses a JSON body when the code first reads req.body, and throws when it cannot.
@@ -138,7 +169,7 @@ function parseChanges(body) {
     try { body = JSON.parse(body); } catch { throw new BadRequest("Body must be JSON"); }
   }
   if (!body || typeof body !== "object") throw new BadRequest("Body must be an object");
-  const out = { slots: {}, signups: {} };
+  const out = { slots: {}, signups: {}, requests: {} };
   if (body.slots !== undefined) {
     if (!body.slots || typeof body.slots !== "object") throw new BadRequest("slots must be an object");
     const entries = Object.entries(body.slots);
@@ -170,7 +201,28 @@ function parseChanges(body) {
     if (!SIZES.has(body.size)) throw new BadRequest("size must be 10, 20 or 40");
     out.size = body.size;
   }
-  if (!Object.keys(out.slots).length && !Object.keys(out.signups).length && out.size === undefined) throw new BadRequest("Nothing to change");
+  // request: the visitor asks to change their own signup (the server finds which one). requests: id -> null answers
+  // (the admin) or cancels (the player, their own) a request.
+  if (body.request !== undefined) {
+    const rc = body.request && body.request.c;
+    if (rc !== undefined && !(Array.isArray(rc) && rc.length <= SPECS.size && rc.every((k) => SPECS.has(k)) && new Set(rc.map(classOf)).size <= MAX_CLASSES)) {
+      throw new BadRequest("A change request takes known specs from up to " + MAX_CLASSES + " classes");
+    }
+    const q = cleanRequest({ c: body.request && body.request.c, f: body.request && body.request.f });
+    if (!q) throw new BadRequest("A change request needs specs (up to " + MAX_CLASSES + " classes) or a side");
+    if (body.request.c === undefined) delete q.c;
+    out.request = q;
+  }
+  if (body.requests !== undefined) {
+    if (!body.requests || typeof body.requests !== "object") throw new BadRequest("requests must be an object");
+    const entries = Object.entries(body.requests);
+    if (entries.length > MAX_SIGNUPS) throw new BadRequest("Too many requests");
+    for (const [id, value] of entries) {
+      if (!SIGNUP_ID.test(id) || value !== null) throw new BadRequest("Bad value for request " + id);
+      out.requests[id] = null;
+    }
+  }
+  if (!Object.keys(out.slots).length && !Object.keys(out.signups).length && out.size === undefined && !out.request && !Object.keys(out.requests).length) throw new BadRequest("Nothing to change");
   return out;
 }
 
@@ -314,17 +366,20 @@ async function guardSignups(store, req, changes, stored) {
 // - else "visitor" with a 4-character tag cut from the visitor's keyed hash: stable for that browser, not reversible.
 // ponytail: the page always sends its device id and fingerprint, so the shared "net:" key only names requests without
 // them (scripts, curl); a player who cleared storage on a new device shows as a visitor.
+// The signup this visitor made, by the browser's own keys (fingerprint, device id). The network + browser key, which a
+// housemate can share, only counts when the request has neither. null when this visitor has not signed up.
+async function ownSignupId(store, req) {
+  const keys = visitorKeys(req), own = keys.filter((k) => !k.startsWith("net:"));
+  return (await store.signers(own.length ? own : keys)).find(Boolean) || null;
+}
+
 async function actorOf(store, req, admin, changes, signers, before) {
   if (admin) return { k: "admin" };
   if (signers) { // signed up in this very request
     const id = Object.values(signers)[0], u = changes.signups[id];
     if (u && u.n) return { k: "player", n: u.n };
   }
-  const keys = visitorKeys(req);
-  // The browser's own keys (fingerprint, device id) decide. The network + browser key, which a housemate can share,
-  // only counts when the request has neither.
-  const own = keys.filter((k) => !k.startsWith("net:")), ids = await store.signers(own.length ? own : keys);
-  const id = ids.find(Boolean);
+  const keys = visitorKeys(req), id = await ownSignupId(store, req);
   if (id) {
     const u = id in before ? before[id] : (await store.signups([id]))[0];
     if (u && u.n) return { k: "player", n: u.n };
@@ -354,6 +409,39 @@ function describe(changes, before, w, sizeBefore) {
   const slots = Object.keys(changes.slots).length;
   if (slots) add("slots", "", { n: slots });
   return out;
+}
+
+// Change requests. A player asks to change the specs and/or side of their own signup (found by their browser keys, as
+// for the changelog); the admin answers by removing the request, with or without applying it in the same POST.
+// A player can withdraw their own request. Removing a signup drops its request. Logs request, approved, rejected,
+// withdrawn. Returns a warning for the reply, or null.
+async function handleRequests(store, req, admin, changes, before, actor, entries) {
+  let warning = null;
+  for (const [id, u] of Object.entries(changes.signups)) if (u === null) changes.requests[id] = null;
+  const answered = Object.keys(changes.requests);
+  if (!changes.request && !answered.length) return null;
+  const now = await readState(store);
+  const signupOf = (id) => now.signups.find((u) => u.id === id), open = new Map(now.requests.map((q) => [q.id, q]));
+  const mine = changes.request || (!admin && answered.length) ? await ownSignupId(store, req) : null;
+  const t = Date.now(), add = (a, n, x) => entries.push(x ? { t, w: actor, a, n, x } : { t, w: actor, a, n });
+  for (const id of answered) {
+    const q = open.get(id), u = signupOf(id);
+    if (!admin && id !== mine) { delete changes.requests[id]; warning = "Only the admin can answer a change request."; continue; }
+    if (!q || !u || changes.signups[id] === null) continue; // nothing open, or the signup goes away with it
+    if (!admin) { add("request-withdrawn", u.n); continue; }
+    const v = changes.signups[id], applied = v && ((q.c && v.c.join() === q.c.join()) || (q.f && v.f === q.f));
+    add(applied ? "request-approved" : "request-rejected", u.n, q);
+  }
+  if (changes.request) {
+    const u = mine && signupOf(mine), q = changes.request;
+    if (!u) return "Sign up first: you can only ask to change your own signup.";
+    if (q.c && q.c.join() === u.c.join()) delete q.c;
+    if (q.f && q.f === u.f) delete q.f;
+    if (!q.c && !q.f) return warning || "That is what you already have.";
+    changes.requests[mine] = { ...q, t };
+    add("request", u.n, { ...(q.c ? { from: u.c, c: q.c } : {}), ...(q.f ? { fromF: u.f || "", f: q.f } : {}) });
+  }
+  return warning;
 }
 
 // HMGET without automatic deserialization gives an array in field order; accept an object too.
@@ -386,8 +474,8 @@ function redisStore() {
   const redis = new Redis({ url, token, automaticDeserialization: false });
   return {
     async read() {
-      const [v, slots, meta, signups] = await redis.pipeline().get(KEYS.version).hgetall(KEYS.slots).hgetall(KEYS.meta).hgetall(KEYS.signups).exec();
-      return toState(v, slots, meta, signups);
+      const [v, slots, meta, signups, requests] = await redis.pipeline().get(KEYS.version).hgetall(KEYS.slots).hgetall(KEYS.meta).hgetall(KEYS.signups).hgetall(KEYS.requests).exec();
+      return toState(v, slots, meta, signups, requests);
     },
     async signups(ids) {
       return inOrder(await redis.hmget(KEYS.signups, ...ids), ids).map(parseSignup);
@@ -417,6 +505,7 @@ function redisStore() {
       const tx = redis.multi();
       stageHash(tx, KEYS.slots, changes.slots);
       stageHash(tx, KEYS.signups, changes.signups);
+      stageHash(tx, KEYS.requests, changes.requests);
       if (signers) tx.hset(KEYS.signers, signers);
       if (log.length) { tx.lpush(KEYS.log, ...log.map((e) => JSON.stringify(e))); tx.ltrim(KEYS.log, 0, LOG_MAX - 1); }
       if (changes.size !== undefined) tx.hset(KEYS.meta, { size: String(changes.size) });
@@ -424,9 +513,10 @@ function redisStore() {
       tx.hgetall(KEYS.slots);
       tx.hgetall(KEYS.meta);
       tx.hgetall(KEYS.signups);
+      tx.hgetall(KEYS.requests);
       const out = await tx.exec();
       const n = out.length;
-      return toState(out[n - 4], out[n - 3], out[n - 2], out[n - 1]);
+      return toState(out[n - 5], out[n - 4], out[n - 3], out[n - 2], out[n - 1]);
     },
   };
 }
@@ -438,7 +528,7 @@ function memoryStore() {
   mem.limits ||= {}; // name -> { n, until }
   return {
     async read() {
-      return toState(mem.v, { ...mem.slots }, { ...mem.meta }, { ...mem.signups });
+      return toState(mem.v, { ...mem.slots }, { ...mem.meta }, { ...mem.signups }, { ...(mem.requests || {}) });
     },
     async signups(ids) {
       return ids.map((id) => parseSignup(mem.signups[id]));
@@ -465,7 +555,8 @@ function memoryStore() {
     async write(changes, signers, log = []) {
       Object.assign(mem.signers, signers);
       if (log.length) mem.log = log.slice().reverse().map((e) => JSON.stringify(e)).concat(mem.log || []).slice(0, LOG_MAX);
-      for (const hash of ["slots", "signups"]) {
+      mem.requests ||= {};
+      for (const hash of ["slots", "signups", "requests"]) {
         for (const [field, value] of Object.entries(changes[hash])) {
           if (value) mem[hash][field] = JSON.stringify(value);
           else delete mem[hash][field];
@@ -512,7 +603,9 @@ export default async function handler(req, res) {
     // visitor already have a signup (then the page does not offer to join). Not cached: the answer is per visitor.
     if (me) {
       const admin = await isAdmin(store, req);
-      return res.status(200).json({ admin, signedUp: !admin && (await hasSignup(store, visitorKeys(req))) });
+      // mine: the id of this visitor's own signup, so the page can offer "Request change" on that row.
+      const mine = admin ? null : await ownSignupId(store, req);
+      return res.status(200).json({ admin, signedUp: !admin && (!!mine || (await hasSignup(store, visitorKeys(req)))), mine });
     }
     // GET ?log=1&page=N: one page of the changelog (page 0 is the newest). Counted by the flood limit above.
     if (log) {
@@ -532,10 +625,13 @@ export default async function handler(req, res) {
     // Changelog: who, and what changed after the signup rules. Nothing that the rules blocked shows up.
     const before = Object.fromEntries(ids.map((id, i) => [id, stored[i]]));
     const sizeBefore = changes.size !== undefined ? (await readState(store)).size : undefined;
-    const entries = describe(changes, before, await actorOf(store, req, admin, changes, signers, before), sizeBefore);
+    const actor = await actorOf(store, req, admin, changes, signers, before);
+    const entries = describe(changes, before, actor, sizeBefore);
+    const asked = await handleRequests(store, req, admin, changes, before, actor, entries);
+    const note = warning || asked;
     const state = await store.write(changes, signers, entries);
     lastRead = { at: Date.now(), state: Promise.resolve(state) }; // this instance's next GETs show the write at once
-    return res.status(200).json(warning ? { ...state, warning } : state);
+    return res.status(200).json(note ? { ...state, warning: note } : state);
   } catch (err) {
     if (err instanceof BadRequest) return res.status(400).json({ error: "bad_request", message: err.message });
     console.error("raidcomp api error", err);
