@@ -57,7 +57,9 @@ button{cursor:pointer}
 
 /* Top bar */
 .top{position:sticky;top:0;z-index:20;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 18px;padding:10px max(16px,env(safe-area-inset-right)) 10px max(16px,env(safe-area-inset-left));background:rgba(14,14,16,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
-.brand{display:flex;align-items:center;gap:10px}
+/* The brand sits on its own row, centred on the page (the right padding offsets the mark so the title itself is centred). It links home. */
+.brand{flex:1 0 100%;display:flex;align-items:center;justify-content:center;gap:10px;padding-right:40px;color:inherit;text-decoration:none;text-align:center}
+.brand:hover h1{color:var(--accent)}
 .brand .mark{width:30px;height:30px;border-radius:6px;background:linear-gradient(135deg,#f2b84b,#b8741f);display:grid;place-items:center;color:var(--accent-ink);font-family:var(--display);font-weight:700;font-size:17px}
 .brand h1 span{color:var(--accent)}
 .brand h1{margin:0;font-family:var(--display);font-size:22px;line-height:1;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#fff}
@@ -542,7 +544,7 @@ span.fx-btn:hover{transform:none}
 </head>
 <body>
 <header class="top">
-  <div class="brand"><span class="mark" aria-hidden="true">S</span><div><h1>Supreme <span>Forever</span></h1><p>Raid planner · World of Warcraft: Forever</p></div></div>
+  <a class="brand" href="/" data-act="view" data-v="roster" aria-label="Supreme Forever: home"><span class="mark" aria-hidden="true">S</span><div><h1>Supreme <span>Forever</span></h1><p>Raid planner · World of Warcraft: Forever</p></div></a>
   <ol class="launch" id="launch" aria-label="WoW Forever launch calendar"></ol>
   <div class="tools" id="tools"></div>
 </header>
@@ -2391,6 +2393,7 @@ span.fx-btn:hover{transform:none}
       if (a === "poll-vote") { sendVote(act.dataset.v); return; }
       if (a === "sign-out") { signOut(); return; }
       if (a === "view") {
+        if (act.tagName === "A") { if (e.ctrlKey || e.metaKey || e.shiftKey) return; e.preventDefault(); } // the brand link: plain clicks stay in the page
         if (act.dataset.v === "audit") location.hash = "audit";
         else { history.pushState(null, "", location.pathname + location.search); readView(); }
         window.scrollTo(0, 0); return;
