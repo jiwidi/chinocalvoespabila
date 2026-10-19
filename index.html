@@ -91,6 +91,17 @@ button{cursor:pointer}
 .au-stats{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 8px}
 .au-table .c-specs{width:150px}.au-table .c-status{width:96px}.au-table .c-when{width:96px}.au-table .c-dc{width:150px}.au-table .c-act{width:92px}
 .au-table td:last-child{text-align:right}
+.au-table .c-act2{width:150px}.au-table .c-dc2{width:240px}
+.au-asks{border-color:var(--accent)}
+.tab-badge{display:inline-grid;place-items:center;min-width:16px;height:16px;margin-left:4px;padding:0 4px;border-radius:8px;background:var(--accent);color:var(--accent-ink);font-size:10.5px}
+/* Claim picker and the claim line in the signups panel */
+.ask-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px;max-height:min(55vh,460px);overflow-y:auto}
+.ask-pick{display:flex;align-items:center;gap:8px;min-width:0;height:36px;padding:0 10px;border:1px solid var(--line-2);border-radius:6px;background:var(--panel-2);font-weight:700;font-size:13px;color:#fff;text-align:left}
+.ask-pick span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ask-pick:hover,.ask-pick:focus-visible{border-color:var(--accent)}
+.ask-pick.on{border-color:var(--accent);box-shadow:inset 0 -2px 0 var(--accent)}
+.ck-fx{flex:none;width:22px;height:22px;border-radius:50%}
+.ask-line{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:-4px 0 12px;padding:8px 10px;border:1px dashed var(--line-2);border-radius:6px;font-size:12.5px;color:var(--soft)}
 .seg{display:inline-flex;align-items:center;gap:2px;padding:2px;border:1px solid var(--line-2);border-radius:6px;background:var(--panel-2);height:32px}
 .seg span{padding:0 6px 0 8px;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
 .seg button{height:26px;padding:0 10px;border:0;border-radius:4px;background:none;font-weight:700;font-size:12px;color:var(--muted)}
@@ -809,6 +820,9 @@ span.fx-btn:hover{transform:none}
   // Whether the server accepts this browser's admin key (only then the page shows the signup edit controls),
   // and whether this visitor already has a signup (then the page does not let them join again).
   let adminOk = false, signedUp = false, myId = null; // myId: this visitor's own signup (the only one they may fill in)
+  // myAsk: this player's open claim request ({ id }); taken: signups that have a Discord account; adminAsks: the
+  // number of open claim requests (admin).
+  let myAsk = null, taken = [], adminAsks = 0;
   function checkAdmin() {
     const sent = adminKey;
     fetch(API + "?me=1", { headers: visitorHeaders() }).then(readJSON).then((j) => {
@@ -824,8 +838,9 @@ span.fx-btn:hover{transform:none}
       discordId = j.discord || "";
       meUser = j.user || null;
       if (session && !meUser) { session = ""; try { localStorage.removeItem(SESSION_STORE); } catch (e) {} } // expired or bad
-      renderTools();
-      sendClaim();
+      myAsk = j.ask || null; taken = j.taken || []; adminAsks = j.asks || 0;
+      renderTools(); renderSignups();
+      if (!sendClaim()) { promptSignIn(); promptClaim(); }
     }, () => { /* keep the last answer; the server checks every edit anyway */ });
   }
   // #admin=<key> turns admin mode on for this browser and #admin= turns it off, on load or in an open tab.
@@ -872,10 +887,11 @@ span.fx-btn:hover{transform:none}
     try { localStorage.removeItem(SESSION_STORE); } catch (e) {}
     renderTools(); checkAdmin(); toast("Signed out.");
   }
-  function askSignIn(why) {
+  function askSignIn(why, no) {
+    firstTime("raidcomp-signin-asked");
     dialogRoot.innerHTML = '<div class="overlay" data-act="close-dialog"><div class="dialog si-dialog" role="dialog" aria-modal="true" aria-labelledby="si-title"><h3 id="si-title">Sign in with Discord</h3>' +
-      '<p class="fx-who">' + esc(why || "Sign in with your Discord account to sign up, make a change or ask for one.") + "</p>" +
-      '<div class="row"><button type="button" class="btn" data-act="close-dialog">Not now</button><button type="button" class="btn discord" data-act="sign-in">Sign in with Discord</button></div></div></div>';
+      '<p class="fx-who">' + esc(why || "Sign in with your Discord account to sign up or to claim your signup.") + "</p>" +
+      '<div class="row"><button type="button" class="btn" data-act="close-dialog">' + (no || "Not now") + '</button><button type="button" class="btn discord" data-act="sign-in">Sign in with Discord</button></div></div></div>';
     const b = dialogRoot.querySelector(".btn.discord");
     if (b) b.focus();
   }
@@ -889,18 +905,49 @@ span.fx-btn:hover{transform:none}
   function sendClaim() {
     let token = "";
     try { token = sessionStorage.getItem(CLAIM_STORE) || ""; } catch (e) {}
-    if (!token) return;
-    if (!discordId) { try { sessionStorage.removeItem(CLAIM_STORE); } catch (e) {} toast("Claim links work once Discord sign-in is on. Ask the admin."); return; }
-    if (!session) { askSignIn("Sign in with Discord to claim your signup. The link stays ready in this tab."); return; }
+    if (!token) return false;
+    if (!discordId) { try { sessionStorage.removeItem(CLAIM_STORE); } catch (e) {} toast("Claim links work once Discord sign-in is on. Ask the admin."); return true; }
+    if (!session) { askSignIn("Sign in with Discord to claim your signup. The link stays ready in this tab."); return true; }
     try { sessionStorage.removeItem(CLAIM_STORE); } catch (e) {}
     postNow({ claim: token }, "Your signup is now linked to your Discord account.", checkAdmin);
+    return true;
+  }
+
+  // True the first time per browser session (per page load when storage is blocked).
+  const asked = new Set();
+  function firstTime(key) {
+    if (asked.has(key)) return false;
+    asked.add(key);
+    try { if (sessionStorage.getItem(key)) return false; sessionStorage.setItem(key, "1"); } catch (e) {}
+    return true;
+  }
+  // On arrival, once per browser session: a visitor who is not signed in gets asked to sign in with Discord, or skip.
+  function promptSignIn() {
+    if (!discordId || session || adminKey || dialogRoot.innerHTML || !firstTime("raidcomp-signin-asked")) return;
+    askSignIn("Sign in to join the raid, or to claim the signup you made before. Without it you can only look.", "Skip");
+  }
+  // After sign-in, once per browser session: a player with no signup picks the earlier signup that is theirs. That asks
+  // the admin, who confirms it in the Audit view. Players who are new close it and sign up.
+  const openSignups = () => state.signups.filter((u) => !taken.includes(u.id)).sort((a, b) => a.n.localeCompare(b.n));
+  function promptClaim() {
+    if (!meUser || adminOk || signedUp || myAsk || dialogRoot.innerHTML || !openSignups().length || !firstTime("raidcomp-claim-asked")) return;
+    showClaimPicker();
+  }
+  function showClaimPicker() {
+    firstTime("raidcomp-claim-asked");
+    const pick = (u) => '<button type="button" class="ask-pick' + (myAsk && myAsk.id === u.id ? " on" : "") + '" data-act="ask-pick" data-id="' + esc(u.id) + '">' +
+      (FACTION[u.f] ? img(FACTION[u.f].icon, "ck-fx") : '<span class="ck-fx"></span>') + "<span>" + esc(u.n) + "</span></button>";
+    dialogRoot.innerHTML = '<div class="overlay" data-act="close-dialog"><div class="dialog ask-dialog" role="dialog" aria-modal="true" aria-labelledby="ask-title">' +
+      '<h3 id="ask-title">Already signed up?</h3><p class="fx-who">Pick your name. The admin confirms it, then that signup is yours.</p>' +
+      '<div class="ask-list">' + openSignups().map(pick).join("") + "</div>" +
+      '<div class="row"><button type="button" class="btn" data-act="close-dialog">I\'m not on the list</button></div></div></div>';
   }
 
   // Admin: the Audit view (#audit) takes the roster's place. It shows every signup with its status and who claimed it
   // (Discord username) or its claim link to send, and the changelog. The links come from the server (they are signed).
   // Its data reloads when the signups change (at most every 30 s), on Refresh and after an Undo.
   let view = location.hash === "#audit" ? "audit" : "roster";
-  let claimList = null, auLog = null, auPage = 0, auditKey = "", auditAt = 0;
+  let claimList = null, askList = [], auLog = null, auPage = 0, auditKey = "", auditAt = 0;
   function readView() {
     view = location.hash === "#audit" ? "audit" : "roster";
     renderTools(); renderView();
@@ -916,7 +963,11 @@ span.fx-btn:hover{transform:none}
     const key = JSON.stringify(state.signups);
     if (!adminOk || view !== "audit" || (!force && key === auditKey && Date.now() - auditAt < 30000)) return;
     auditKey = key; auditAt = Date.now();
-    fetch(API + "?claims=1", { headers: visitorHeaders() }).then(readJSON).then((d) => { claimList = d.claims || []; renderAudit(); }, () => {});
+    fetch(API + "?claims=1", { headers: visitorHeaders() }).then(readJSON).then((d) => {
+      claimList = d.claims || []; askList = d.asks || [];
+      if (adminAsks !== askList.length) { adminAsks = askList.length; renderTools(); }
+      renderAudit();
+    }, () => {});
     loadAuditLog(auPage);
   }
   function loadAuditLog(page) {
@@ -946,7 +997,17 @@ span.fx-btn:hover{transform:none}
         '<td class="cl-when"' + (t ? ' title="' + esc(clWhen(t)) + '">' + esc(clAgo(t)) : ">") + "</td><td>" + discord(c) + "</td><td>" + action(c) + "</td></tr>";
     };
     const list = state.signups.slice().reverse(); // newest first, like the signups panel
-    el.innerHTML =
+    const askRow = (a) => {
+      const u = state.signups.find((x) => x.id === a.id);
+      return '<tr><td class="cl-name">' + (u && FACTION[u.f] ? clSide(u.f) : "") + esc(u ? u.n : "(removed)") + "</td>" +
+        '<td><span class="cl-tag ok">@' + esc(a.u) + "</span> " + esc(a.d && a.d !== a.u ? a.d : "") + "</td>" +
+        '<td class="cl-when" title="' + esc(clWhen(a.t)) + '">' + esc(clAgo(a.t)) + "</td>" +
+        '<td><button type="button" class="btn sm primary" data-act="ask-ok" data-k="' + esc(a.k) + '">Confirm</button> <button type="button" class="btn sm" data-act="ask-no" data-k="' + esc(a.k) + '">No</button></td></tr>';
+    };
+    el.innerHTML = (askList.length ? '<section class="panel au-asks" aria-labelledby="au-asks"><div class="phead"><h2 class="ttl" id="au-asks">Claim requests <span class="count">' + askList.length + "</span></h2></div>" +
+      '<p class="hint">These Discord accounts say the signup is theirs. <b>Confirm</b> links it to that account, like a claim link. Check the name in Discord first.</p>' +
+      '<div class="cl-wrap"><table class="cl-table au-table"><colgroup><col><col class="c-dc2"><col class="c-when"><col class="c-act2"></colgroup>' +
+      "<thead><tr><th>Signup</th><th>Discord account</th><th>Asked</th><th></th></tr></thead><tbody>" + askList.map(askRow).join("") + "</tbody></table></div></section>" : "") +
       '<section class="panel" aria-labelledby="au-su"><div class="phead"><h2 class="ttl" id="au-su">Signups <span class="count">' + list.length + "</span></h2>" +
       '<span class="ck-acts">' + (open.length ? '<button type="button" class="btn sm" data-act="claim-copy-all">Copy all ' + open.length + " links</button>" : "") +
       '<button type="button" class="btn sm" data-act="audit-refresh" title="Reload claims and the changelog">Refresh</button></span></div>' +
@@ -1291,7 +1352,8 @@ span.fx-btn:hover{transform:none}
       : ["ok", "Live"];
     tools.innerHTML =
       (adminOk ? '<div class="seg" role="group" aria-label="View">' + [["roster", "Roster"], ["audit", "Audit"]].map(([v, label]) =>
-        '<button type="button" data-act="view" data-v="' + v + '" aria-pressed="' + (view === v) + '">' + label + "</button>").join("") + "</div>" : "") +
+        '<button type="button" data-act="view" data-v="' + v + '" aria-pressed="' + (view === v) + '">' + label +
+        (v === "audit" && adminAsks ? ' <b class="tab-badge" title="Claim requests to answer">' + adminAsks + "</b>" : "") + "</button>").join("") + "</div>" : "") +
       '<div class="seg" role="group" aria-label="Raid size"><span>Size</span>' +
       SIZES.map((s) => '<button type="button" data-size="' + s + '" aria-pressed="' + (state.size === s) + '"' + (adminOk ? "" : ' disabled title="Only the admin changes the raid size"') + ">" + s + "</button>").join("") + "</div>" +
       '<button type="button" class="btn" data-act="pets" aria-pressed="' + pets + '">Hunter pets: ' + (pets ? "On" : "Off") + "</button>" +
@@ -1442,6 +1504,13 @@ span.fx-btn:hover{transform:none}
         accept(s, true);
       }, (err) => err.status === 401 ? askSignIn(err.message) : toast(err.status === 400 ? "The server rejected that: " + err.message : "Could not reach the server. Try again."));
   }
+  // A signed-in player with no signup: their open claim request, or a way to make one.
+  function askLine() {
+    if (!meUser || adminOk || signedUp) return "";
+    const u = myAsk && state.signups.find((x) => x.id === myAsk.id);
+    if (u) return '<p class="ask-line">Waiting for the admin to confirm that <b>' + esc(u.n) + '</b> is you. <button type="button" class="btn sm" data-act="ask-open">Change</button></p>';
+    return openSignups().length ? '<p class="ask-line">Already on the list? <button type="button" class="btn sm" data-act="ask-open">Claim your signup</button></p>' : "";
+  }
   let signupsDirty = false, holdSignups = false;
   function renderSignups() {
     const a = document.activeElement;
@@ -1452,7 +1521,7 @@ span.fx-btn:hover{transform:none}
     suggest().slots.forEach((m, i) => { if (m && m.n) placed.set(m.n.toLowerCase(), i); });
     const all = newestFirst(), waiting = all.filter((u) => u.p), listed = all.filter((u) => !u.p);
     signups.innerHTML = '<div class="phead"><h2 class="ttl">Signups <span class="count">' + listed.length + "</span></h2></div>" +
-      '<p class="hint">Join with your name, pick a side, then your specs (best first, up to ' + MAX_CLASSES + " classes). One signup per person. The admin approves new signups, and after that only the admin can change them. G1–G4 is the player's group in the suggested comp.</p>" +
+      '<p class="hint">Join with your name, pick a side, then your specs (best first, up to ' + MAX_CLASSES + " classes). One signup per person. The admin approves new signups, and after that only the admin can change them. G1–G4 is the player's group in the suggested comp.</p>" + askLine() +
       signupRow({ id: "", n: "", c: [] }, placed) +
       (waiting.length ? '<section class="su-wait" aria-label="Waiting for approval"><h3 class="ttl">Waiting for approval <span class="count">' + waiting.length + "</span></h3>" + waiting.map((u) => signupRow(u, placed)).join("") + "</section>" : "") +
       listed.map((u) => signupRow(u, placed)).join("");
@@ -1775,6 +1844,7 @@ span.fx-btn:hover{transform:none}
     const changed = !loaded || next.size !== state.size || next.slots.some((m, i) => !same(m, state.slots[i])) || JSON.stringify(next.signups) !== JSON.stringify(state.signups) || JSON.stringify(next.requests) !== JSON.stringify(state.requests);
     state = next;
     loaded = true;
+    if (myAsk && !fromWrite) checkAdmin(); // the admin may have answered the claim request: no reload needed
     if (changed) renderAll();
   }
   function applyDeferred() {
@@ -2047,6 +2117,7 @@ span.fx-btn:hover{transform:none}
   function closeDialog() {
     joining = null; specDraft = null;
     dialogRoot.innerHTML = "";
+    promptSignIn(); promptClaim(); // if they waited for this dialog
   }
 
   // Notice on arrival: until the deadline, players can ask the admin to change their side or specs.
@@ -2226,6 +2297,18 @@ span.fx-btn:hover{transform:none}
         window.scrollTo(0, 0); return;
       }
       if (a === "audit-refresh") { loadAudit(true); return; }
+      if (a === "ask-open") { showClaimPicker(); return; }
+      if (a === "ask-pick") {
+        const u = state.signups.find((x) => x.id === act.dataset.id);
+        closeDialog();
+        if (u) postNow({ ask: u.id }, "Sent. The admin will confirm that you are " + u.n + ".", checkAdmin);
+        return;
+      }
+      if (a === "ask-ok" || a === "ask-no") {
+        const k = act.dataset.k, q = askList.find((x) => x.k === k), u = q && state.signups.find((x) => x.id === q.id);
+        postNow(a === "ask-ok" ? { askOk: k } : { askNo: k }, a === "ask-ok" ? (u ? u.n : "The signup") + " is now @" + (q ? q.u : "") + "'s." : "Claim request refused.", () => loadAudit(true));
+        return;
+      }
       if (a === "au-page") { loadAuditLog(+act.dataset.p); return; }
       if (a === "claim-copy") { const c = claimList.find((x) => x.id === act.dataset.id); if (c) copyText(claimUrl(c), "Claim link for " + c.n + " copied"); return; }
       if (a === "claim-copy-all") { copyText(claimList.filter((c) => !c.by).map((c) => c.n + ": " + claimUrl(c)).join("\n"), "All unclaimed links copied"); return; }

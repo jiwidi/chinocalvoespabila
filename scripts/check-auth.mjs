@@ -99,7 +99,7 @@ const claim = (token, who) => call("POST", { body: { claim: token }, who });
 // A made-up or changed link does nothing.
 assert.match((await claim(old1.id + "." + "A".repeat(22), fresh({ session: bo }))).out.warning, /not valid/);
 assert.equal((await claim(link(old1.id), fresh())).code, 401, "claiming needs Discord sign-in");
-// Bo claims Old1: it becomes his, and his account counts as signed up.
+// Bo claims Old1: it becomes Bo's, and Bo's account counts as signed up.
 let r = await claim(link(old1.id), fresh({ session: bo }));
 assert.equal(r.out.warning, undefined);
 assert.equal((await call("GET", { url: "/api/comp?me=1", who: fresh({ session: bo }) })).out.mine, old1.id);
@@ -116,8 +116,45 @@ await call("POST", { body: { unclaim: old1.id }, who: fresh(admin) });
 assert.equal((await claim(link(old1.id), fresh({ session: cy }))).out.warning, undefined);
 assert.equal((await call("GET", { url: "/api/comp?me=1", who: fresh({ session: cy }) })).out.mine, old1.id);
 assert.equal((await call("GET", { url: "/api/comp?me=1", who: fresh({ session: bo }) })).out.mine, null);
+// Claim requests: a signed-in player asks for an earlier signup, and the admin confirms it or says no.
+const di = await signIn("100000000000000004");
+const ask = (id, who) => call("POST", { body: { ask: id }, who });
+const meDi = (await call("GET", { url: "/api/comp?me=1", who: fresh({ session: di }) })).out;
+assert.equal(meDi.ask, null);
+assert.ok(meDi.taken.includes(old1.id) && meDi.taken.includes(a1.id) && !meDi.taken.includes(old2.id), "taken lists the owned signups");
+assert.equal((await ask(old2.id, fresh())).code, 401, "asking needs Discord sign-in");
+assert.equal((await ask(old2.id, fresh({ session: di }))).out.warning, undefined);
+assert.deepEqual((await call("GET", { url: "/api/comp?me=1", who: fresh({ session: di }) })).out.ask, { id: old2.id });
+assert.match((await ask(old2.id, fresh({ session: ana }))).out.warning, /already has a signup/);
+assert.match((await ask(old1.id, fresh({ session: bo }))).out.warning, /Another Discord account already has Old1/);
+assert.equal((await ask(old2.id, fresh({ session: bo }))).out.warning, undefined, "two players can ask for the same signup");
+let asks = (await call("GET", { url: "/api/comp?claims=1", who: fresh(admin) })).out.asks;
+assert.deepEqual(asks.map((a) => [a.id, a.u, a.d]), [[old2.id, "user100000000000000004", "Name 100000000000000004"], [old2.id, "user100000000000000002", "Name 100000000000000002"]]);
+assert.equal((await call("GET", { url: "/api/comp?me=1", who: fresh(admin) })).out.asks, 2);
+assert.equal((await call("POST", { body: { askOk: "dc:nothex" }, who: fresh(admin) })).code, 400);
+assert.match((await call("POST", { body: { askOk: asks[0].k }, who: fresh({ session: bo }) })).out.warning, /Only the admin/);
+// The admin confirms Di: Old2 is Di's, and Bo's request for it goes away.
+assert.equal((await call("POST", { body: { askOk: asks[0].k }, who: fresh(admin) })).out.warning, undefined);
+assert.equal((await call("GET", { url: "/api/comp?me=1", who: fresh({ session: di }) })).out.mine, old2.id);
+assert.deepEqual((await call("GET", { url: "/api/comp?claims=1", who: fresh(admin) })).out.asks, []);
+assert.match((await call("POST", { body: { askOk: asks[1].k }, who: fresh(admin) })).out.warning, /gone/);
+// The admin says no: the request goes, the signup stays free.
+const old3 = await join(fresh(admin), "Old3");
+await ask(old3.id, fresh({ session: bo }));
+asks = (await call("GET", { url: "/api/comp?claims=1", who: fresh(admin) })).out.asks;
+await call("POST", { body: { askNo: asks[0].k }, who: fresh(admin) });
+const after = (await call("GET", { url: "/api/comp?claims=1", who: fresh(admin) })).out;
+assert.deepEqual([after.asks, after.claims.find((c) => c.id === old3.id).by], [[], null]);
+// A claim link also ends the account's open request.
+await ask(old3.id, fresh({ session: bo }));
+await claim(link(old2.id), fresh({ session: bo })); // owned by Di: refused, request stays
+assert.equal((await call("GET", { url: "/api/comp?claims=1", who: fresh(admin) })).out.asks.length, 1);
+const old3link = (await call("GET", { url: "/api/comp?claims=1", who: fresh(admin) })).out.claims.find((c) => c.id === old3.id).token;
+await claim(old3link, fresh({ session: bo }));
+assert.deepEqual((await call("GET", { url: "/api/comp?claims=1", who: fresh(admin) })).out.asks, []);
+
 // The changelog shows the claims.
 const log = (await call("GET", { url: "/api/comp?log=1", who: fresh() })).out.entries.map((e) => e.a);
 assert.ok(log.includes("claim") && log.includes("unclaim"), log.join());
 assert.ok(!sent.some((u) => !u.startsWith("https://discord.com/")), "only Discord was called");
-console.log("auth checks passed: Discord sign-in, 401 without it, one signup per account, claim links, unclaim");
+console.log("auth checks passed: Discord sign-in, 401 without it, one signup per account, claim links, unclaim, claim requests");
