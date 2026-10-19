@@ -17,7 +17,7 @@ async function seedFrom(url) {
   const { v, size, slots, signups } = await res.json();
   const mem = { v: Number(v) || 0, slots: {}, meta: { size: String(size) }, signups: {} };
   slots.forEach((slot, i) => { if (slot) mem.slots[i] = JSON.stringify(slot); });
-  for (const { id, n, c, f, p } of signups) mem.signups[id] = JSON.stringify({ n, c, f, p }); // p: waiting for approval
+  for (const { id, ...u } of signups) mem.signups[id] = JSON.stringify(u); // every field: p (waiting), b (bench), r (locked in)
   globalThis.__raidcompMemory = mem;
   console.log(`Seeded ${Object.keys(mem.slots).length} slots and ${signups.length} signups from ${url}`);
 }
