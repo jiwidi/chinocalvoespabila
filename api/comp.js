@@ -510,7 +510,7 @@ function redisStore() {
     },
     // Open claim requests: { key: request }.
     async asks() {
-      const all = (await redis.hgetall(KEYS.asks)) || {};
+      const all = hashToObject(await redis.hgetall(KEYS.asks)); // a flat [field, value, ...] list without deserialization
       return Object.fromEntries(Object.entries(all).map(([k, v]) => [k, parseEntry(v)]).filter(([, v]) => v));
     },
     async pending() {
