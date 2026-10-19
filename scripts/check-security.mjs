@@ -124,6 +124,38 @@ assert.equal((await call("GET", { url: "/api/comp?me=1", who: flood })).code, 42
 assert.equal((await call("GET", { who: flood })).code, 200);
 assert.equal((await post({ slots: { 7: { s: "rogue_combat", n: "Other" } } }, { ip: "203.0.113.201" })).code, 200);
 
+// Changelog: who made each change (admin, the player by their signup, or a visitor tag) and only what really changed.
+const queued = (await call("GET")).out.signups.filter((u) => u.p); // the checks above filled the approval queue
+await post({ signups: Object.fromEntries(queued.map((u) => [u.id, { n: u.n, c: u.c }])) }, { ip: "192.0.2.152", admin: KEY });
+const logPage = async (page = 0) => (await call("GET", { url: "/api/comp?log=1&page=" + page, who: freshNet() })).out;
+const player = { ip: "192.0.2.150", ua: "LogBrowser", headers: { "x-raidcomp-fp": "a".repeat(64) } };
+const mine = await join(player, "Logger");
+assert.ok(mine.made);
+let top = (await logPage()).entries[0];
+assert.deepEqual([top.a, top.n, top.w], ["join", "Logger", { k: "player", n: "Logger" }]);
+const stranger = { ip: "192.0.2.151", ua: "Other" };
+await post({ slots: { 9: { s: "mage_frost", n: "Logger" } } }, stranger);
+top = (await logPage()).entries[0];
+assert.equal(top.a, "slots");
+assert.equal(top.w.k, "visitor");
+assert.match(top.w.tag, /^[a-f0-9]{4}$/);
+// A housemate: same network and browser, but their own fingerprint, so not named as the player.
+await post({ slots: { 8: { s: "mage_fire", n: "x" } } }, { ...player, headers: { "x-raidcomp-fp": "b".repeat(64) } });
+assert.equal((await logPage()).entries[0].w.k, "visitor", "same network, other browser fingerprint");
+await post({ slots: { 8: null } }, player);
+assert.deepEqual((await logPage()).entries[0].w, { k: "player", n: "Logger" }, "same fingerprint");
+const stored = (await call("GET")).out.signups.find((u) => u.id === mine.id);
+await post({ signups: { [mine.id]: { ...stored, n: "Hacked" } } }, stranger); // blocked by the signup lock
+assert.notEqual((await logPage()).entries[0].a, "rename", "a blocked edit logs nothing");
+await post({ signups: { [mine.id]: { n: "Logger", c: ["mage_frost"], f: "h", p: 1 } } }, { ip: "192.0.2.152", admin: KEY });
+const adminRows = (await logPage()).entries.slice(0, 2).map((e) => [e.a, e.w.k]);
+assert.deepEqual(adminRows.sort(), [["side", "admin"], ["specs", "admin"]]);
+const p0 = await logPage(0), p1 = await logPage(1);
+assert.equal(p0.entries.length, 20);
+assert.ok(p0.pages >= 2 && p0.total > 20);
+assert.notDeepEqual(p0.entries[0], p1.entries[0]);
+assert.equal((await logPage(99999)).page, 49, "page is clamped");
+
 // Security headers. The CSP allows every outside host the page loads from, and no page can frame this one.
 const vercel = JSON.parse(await readFile(new URL("../vercel.json", import.meta.url), "utf8"));
 const all = vercel.headers.find((rule) => rule.source === "/(.*)").headers;
@@ -137,4 +169,4 @@ for (const d of ["default-src 'self'", "connect-src 'self'", "object-src 'none'"
 assert.equal(header("X-Content-Type-Options"), "nosniff");
 assert.equal(header("Referrer-Policy"), "strict-origin-when-cross-origin");
 
-console.log("security checks passed: cached reads, same-site POSTs, body limits, signup limits, admin key guesses, flood limit, headers");
+console.log("security checks passed: cached reads, same-site POSTs, body limits, signup limits, admin key guesses, flood limit, changelog, headers");

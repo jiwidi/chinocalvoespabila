@@ -414,6 +414,31 @@ span.fx-btn:hover{transform:none}
   .crest-h{width:calc(var(--crest) * .72)}
 }
 
+/* Changelog dialog */
+.cl-dialog{width:min(900px,100%)}
+.cl-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
+.cl-head h3{margin:0;font-family:var(--display);font-size:22px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#fff}
+.cl-wrap{max-height:min(62vh,640px);overflow:auto;border:1px solid var(--line);border-radius:6px}
+.cl-table{width:100%;border-collapse:collapse;font-size:12.5px}
+.cl-table th{position:sticky;top:0;z-index:1;padding:8px 10px;background:var(--panel-2);text-align:left;font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.cl-table td{padding:8px 10px;border-top:1px solid var(--line);vertical-align:middle;color:var(--soft)}
+.cl-table tbody tr:nth-child(even) td{background:rgba(255,255,255,.015)}
+.cl-when{white-space:nowrap;color:var(--muted)!important;cursor:help}
+.cl-name{font-weight:700;color:#fff!important;white-space:nowrap}
+.cl-who{font-weight:700;color:var(--soft);white-space:nowrap}
+.cl-who.admin{padding:1px 8px;border-radius:10px;background:rgba(242,184,75,.15);color:var(--accent)}
+.cl-who.anon{color:var(--muted);font-weight:600}
+.cl-what{min-width:320px;line-height:1.9}
+.cl-specs{display:inline-flex;gap:3px;vertical-align:middle;margin:0 2px}
+.cl-specs .ic,.cl-fx{width:20px;height:20px;border-radius:4px;vertical-align:middle}
+.cl-fx{display:inline-block;border-radius:50%;margin:0 2px}
+.cl-arrow{margin:0 6px;color:var(--faint);font-weight:700}
+.cl-none{color:var(--faint);font-style:italic}
+.cl-tag{padding:1px 8px;border-radius:10px;background:var(--panel-2);font-size:11px;font-weight:700;color:var(--soft)}
+.cl-tag.ok{background:rgba(76,196,107,.14);color:var(--ok)}
+.cl-empty{margin:18px 0;text-align:center;color:var(--muted)}
+.cl-pager{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px;font-size:12px;color:var(--muted)}
+
 /* Notice on arrival */
 .notice{width:min(480px,100%);border-color:var(--accent);box-shadow:0 0 50px rgba(242,184,75,.18)}
 .notice h3{margin:0 0 10px;font-family:var(--display);font-size:24px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:#fff}
@@ -1035,6 +1060,7 @@ span.fx-btn:hover{transform:none}
       SIZES.map((s) => '<button type="button" data-size="' + s + '" aria-pressed="' + (state.size === s) + '">' + s + "</button>").join("") + "</div>" +
       '<button type="button" class="btn" data-act="pets" aria-pressed="' + pets + '">Hunter pets: ' + (pets ? "On" : "Off") + "</button>" +
       '<button type="button" class="btn" data-act="copy">Copy roster</button>' +
+      '<button type="button" class="btn" data-act="changelog" title="Who changed what, newest first">Changelog</button>' +
       (adminKey ? '<button type="button" class="btn admin" data-act="admin-off" title="Admin mode: the faction change limit is off on this browser. Click to turn admin mode off.">Admin</button>' : "") +
       '<span class="live ' + status[0] + '" role="status"><i></i>' + status[1] + "</span>";
   }
@@ -1617,6 +1643,68 @@ span.fx-btn:hover{transform:none}
     if (missing.length) lines.push("", "Missing: " + missing.join(", "));
     return lines.join("\n");
   }
+  /* ---------- Changelog ---------- */
+  // The server logs every change with who made it: the admin, the player (by the signup their browser made), or an
+  // anonymous visitor tag. This dialog pages through it, newest first.
+  const CL_SIDE = { a: "Alliance", h: "Horde", d: "Either side" };
+  function clAgo(t) {
+    const s = Math.max(0, Math.round((Date.now() - t) / 1000));
+    if (s < 60) return "just now";
+    const m = Math.round(s / 60); if (m < 60) return m + " min ago";
+    const h = Math.round(m / 60); if (h < 24) return h + " h ago";
+    const d = Math.round(h / 24); return d + (d === 1 ? " day ago" : " days ago");
+  }
+  function clWhen(t) {
+    try { return new Date(t).toLocaleString("es-ES", { timeZone: "Europe/Madrid", dateStyle: "medium", timeStyle: "short" }); } catch (err) { return new Date(t).toISOString(); }
+  }
+  function clWho(w) {
+    if (!w) return '<span class="cl-who anon">?</span>';
+    if (w.k === "admin") return '<span class="cl-who admin">Admin</span>';
+    if (w.k === "player") return '<span class="cl-who">' + esc(w.n) + "</span>";
+    return '<span class="cl-who anon" title="A visitor without a signup. The tag stays the same for that browser.">Visitor #' + esc(w.tag || "") + "</span>";
+  }
+  const clSpecs = (list) => '<span class="cl-specs">' + (list || []).filter((k) => SPEC[k]).map((k) => img(SPEC[k].icon, "", specName(SPEC[k]))).join("") + "</span>";
+  const clSide = (f) => (FACTION[f] ? img(FACTION[f].icon, "cl-fx", CL_SIDE[f] || "") : '<span class="cl-none">none</span>');
+  function clWhat(e) {
+    const x = e.x || {};
+    switch (e.a) {
+      case "join": return "Signed up " + (x.f ? clSide(x.f) : "") + clSpecs(x.c) + (x.p ? ' <span class="cl-tag">waiting for approval</span>' : "");
+      case "remove": return "Signup removed";
+      case "rename": return "Renamed from <b>" + esc(x.from) + "</b>";
+      case "approve": return '<span class="cl-tag ok">Approved</span>';
+      case "wait": return '<span class="cl-tag">Moved back to waiting</span>';
+      case "bench": return '<span class="cl-tag">Benched</span>';
+      case "unbench": return "Taken off the bench";
+      case "lock": return '<span class="cl-tag ok">Locked in</span>';
+      case "unlock": return "Unlocked";
+      case "side": return "Side " + clSide(x.from) + '<span class="cl-arrow">→</span>' + clSide(x.to);
+      case "specs": return "Specs " + clSpecs(x.from) + '<span class="cl-arrow">→</span>' + clSpecs(x.to);
+      case "size": return "Raid size " + esc(x.from) + '<span class="cl-arrow">→</span>' + esc(x.to);
+      case "slots": return "Changed " + plural(Number(x.n) || 0, "raid slot");
+      default: return esc(e.a);
+    }
+  }
+  let clPage = 0;
+  function showChangelog(page) {
+    clPage = Math.max(0, page || 0);
+    const frame = (body, foot) => '<div class="overlay" data-act="close-dialog"><div class="dialog cl-dialog" role="dialog" aria-modal="true" aria-labelledby="cl-title">' +
+      '<div class="cl-head"><h3 id="cl-title">Changelog</h3><button type="button" class="btn" data-act="close-dialog">Close</button></div>' + body + (foot || "") + "</div></div>";
+    dialogRoot.innerHTML = frame('<p class="cl-empty">Loading…</p>');
+    fetch(API + "?log=1&page=" + clPage).then(readJSON).then((d) => {
+      if (!dialogRoot.querySelector(".cl-dialog")) return; // closed meanwhile
+      const rows = (d.entries || []).map((e) =>
+        '<tr><td class="cl-when" title="' + esc(clWhen(e.t)) + '">' + esc(clAgo(e.t)) + "</td><td>" + clWho(e.w) + '</td><td class="cl-name">' + esc(e.n || "") + '</td><td class="cl-what">' + clWhat(e) + "</td></tr>").join("");
+      const body = rows ? '<div class="cl-wrap"><table class="cl-table"><thead><tr><th>When</th><th>Who</th><th>Player</th><th>Change</th></tr></thead><tbody>' + rows + "</tbody></table></div>"
+        : '<p class="cl-empty">No changes logged yet.</p>';
+      const foot = d.pages > 1 ? '<div class="cl-pager"><button type="button" class="btn" data-act="cl-page" data-p="' + (d.page - 1) + '"' + (d.page <= 0 ? " disabled" : "") + ">← Newer</button>" +
+        "<span>Page " + (d.page + 1) + " of " + d.pages + " · " + plural(d.total, "change") + "</span>" +
+        '<button type="button" class="btn" data-act="cl-page" data-p="' + (d.page + 1) + '"' + (d.page >= d.pages - 1 ? " disabled" : "") + ">Older →</button></div>" : "";
+      dialogRoot.innerHTML = frame(body, foot);
+    }, () => {
+      if (dialogRoot.querySelector(".cl-dialog")) dialogRoot.innerHTML = frame('<p class="cl-empty">Could not load the changelog. Try again.</p>');
+    });
+  }
+
   function showCopyDialog(text) {
     dialogRoot.innerHTML = '<div class="overlay" data-act="close-dialog"><div class="dialog" role="dialog" aria-modal="true" aria-labelledby="copy-title"><h3 id="copy-title">Copy this roster</h3><textarea id="copy-text" readonly aria-label="Roster text">' + esc(text) + '</textarea><div class="row"><button type="button" class="btn" data-act="close-dialog">Done</button></div></div></div>';
     const ta = $("#copy-text"); ta.focus(); ta.select();
@@ -1855,6 +1943,8 @@ span.fx-btn:hover{transform:none}
         try { localStorage.setItem(PETS_KEY, pets ? "on" : "off"); } catch (err) {}
         renderAll(); return;
       }
+      if (a === "changelog") { showChangelog(0); return; }
+      if (a === "cl-page") { showChangelog(+act.dataset.p); return; }
       if (a === "copy") {
         const text = rosterText();
         try { navigator.clipboard.writeText(text).then(() => toast("Roster copied"), () => showCopyDialog(text)); }
