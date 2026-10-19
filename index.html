@@ -319,7 +319,7 @@ button{cursor:pointer}
 .sg-cell.benched .ic{filter:grayscale(.5)}
 .sg-cell .bt{flex:none;padding:1px 7px;border-radius:10px;background:var(--panel-2);font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
 .bench-body{display:flex;flex-wrap:wrap;align-items:center;gap:16px 24px}
-.bench-art{flex:0 0 auto;width:min(300px,100%);height:auto}
+.bench-art{flex:0 0 auto;width:min(380px,100%);height:auto}
 .bench-names{flex:1 1 260px;min-width:0}
 .bench-names h4{margin:0 0 8px;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
 .bench-names h4 small{margin-left:4px;padding:1px 7px;border-radius:10px;background:var(--panel-2);font-size:11px;letter-spacing:0;color:var(--soft)}
@@ -1656,52 +1656,78 @@ span.fx-btn:hover{transform:none}
       '<ul class="needs">' + needs + "</ul>" +
       '<div class="grid">' + groupsH + "</div>" + bench;
   }
-  // The bench, drawn inline: a sad orc and a sad gnome holding a PICK ME! sign under a crooked BENCH board,
-  // and a pigeon who has given up and fallen asleep. No image file needed.
-  const BENCH_ART = '<svg class="bench-art" viewBox="0 0 300 190" role="img" aria-label="A sad orc and a sad gnome on a bench, holding a PICK ME sign under a crooked BENCH board, with a sleeping pigeon">' +
-    // posts and the crooked board
-    '<rect x="62" y="34" width="7" height="104" rx="2" fill="#5b3a1c"/><rect x="231" y="34" width="7" height="104" rx="2" fill="#5b3a1c"/>' +
-    '<g transform="rotate(-6 150 30)"><rect x="52" y="6" width="196" height="44" rx="7" fill="#f2b84b" stroke="#8a5a1c" stroke-width="3"/>' +
-    '<circle cx="64" cy="18" r="2.5" fill="#8a5a1c"/><circle cx="236" cy="18" r="2.5" fill="#8a5a1c"/>' +
-    '<text x="150" y="40" text-anchor="middle" font-family="Barlow Condensed, Arial Narrow, Arial, sans-serif" font-weight="700" font-size="32" letter-spacing="7" fill="#1a1206">BENCH</text></g>' +
-    // backrest
-    '<rect x="30" y="92" width="240" height="9" rx="3" fill="#a86f38"/><rect x="30" y="105" width="240" height="9" rx="3" fill="#94602f"/>' +
-    // orc: green, tusks, frown, a tear
-    '<rect x="88" y="140" width="9" height="26" rx="3" fill="#3f6b28"/><rect x="104" y="140" width="9" height="26" rx="3" fill="#3f6b28"/>' +
-    '<ellipse cx="91" cy="168" rx="8" ry="4" fill="#2a2a2e"/><ellipse cx="110" cy="168" rx="8" ry="4" fill="#2a2a2e"/>' +
-    '<ellipse cx="100" cy="122" rx="22" ry="22" fill="#8a3b2a"/><path d="M80 116 Q100 128 120 116" stroke="#5e2416" stroke-width="3" fill="none"/>' +
-    '<circle cx="100" cy="86" r="19" fill="#6cb048"/><path d="M84 80 L94 84 M116 80 L106 84" stroke="#2a3a1a" stroke-width="2.5" stroke-linecap="round"/>' +
-    '<circle cx="93" cy="88" r="2.6" fill="#1a1a1a"/><circle cx="107" cy="88" r="2.6" fill="#1a1a1a"/>' +
-    '<path d="M92 100 Q100 94 108 100" stroke="#2a3a1a" stroke-width="2.5" fill="none" stroke-linecap="round"/>' +
-    '<path d="M92 99 L94 92 L96 99 Z M104 99 L106 92 L108 99 Z" fill="#f4f0e2"/>' +
-    '<path d="M88 92 Q85 99 88 102 Q91 99 88 92 Z" fill="#62b4ff"/>' +
-    '<path d="M83 74 L74 66 L86 70 Z M117 74 L126 66 L114 70 Z" fill="#6cb048"/>' +
-    // gnome: pointy hat, white beard, a tear
-    '<rect x="190" y="142" width="7" height="18" rx="3" fill="#2f4f8f"/><rect x="202" y="142" width="7" height="18" rx="3" fill="#2f4f8f"/>' +
-    '<ellipse cx="193" cy="162" rx="6" ry="3.5" fill="#2a2a2e"/><ellipse cx="206" cy="162" rx="6" ry="3.5" fill="#2a2a2e"/>' +
-    '<ellipse cx="200" cy="128" rx="15" ry="16" fill="#3a6fd8"/>' +
-    '<circle cx="200" cy="104" r="13" fill="#f1c7a0"/>' +
-    '<path d="M186 100 L200 64 L214 100 Z" fill="#d6455a"/><circle cx="200" cy="64" r="3.5" fill="#ffd166"/><rect x="185" y="97" width="30" height="5" rx="2.5" fill="#b8384b"/>' +
-    '<path d="M189 108 Q200 132 211 108 Q200 114 189 108 Z" fill="#f4f0e2"/>' +
-    '<circle cx="195" cy="104" r="2" fill="#1a1a1a"/><circle cx="205" cy="104" r="2" fill="#1a1a1a"/>' +
-    '<path d="M196 113 Q200 110 204 113" stroke="#7a4b3a" stroke-width="2" fill="none" stroke-linecap="round"/>' +
-    '<path d="M209 106 Q212 112 209 114 Q206 112 209 106 Z" fill="#62b4ff"/>' +
-    // the PICK ME! sign they hold together
-    '<path d="M118 118 L134 122 M182 120 L168 122" stroke="#5b3a1c" stroke-width="3" stroke-linecap="round"/>' +
-    '<g transform="rotate(4 151 124)"><rect x="128" y="111" width="46" height="24" rx="3" fill="#e9dcc0" stroke="#a89878" stroke-width="1.5"/>' +
-    '<text x="151" y="128" text-anchor="middle" font-family="Barlow Condensed, Arial Narrow, Arial, sans-serif" font-weight="700" font-size="12" fill="#3a2a1a">PICK ME!</text></g>' +
-    // seat and legs, in front of the sitters
-    '<rect x="24" y="138" width="252" height="10" rx="3" fill="#b77b40"/><rect x="24" y="150" width="252" height="7" rx="3" fill="#94602f"/>' +
-    '<path d="M40 114 L40 138 M260 114 L260 138" stroke="#3a3a40" stroke-width="6" stroke-linecap="round"/>' +
-    '<path d="M38 157 L32 182 M262 157 L268 182 M70 157 L74 182 M230 157 L226 182" stroke="#3a3a40" stroke-width="6" stroke-linecap="round"/>' +
-    // a pigeon, asleep at the end of the bench
-    '<ellipse cx="252" cy="128" rx="13" ry="9" fill="#8d93a3"/><circle cx="262" cy="120" r="6" fill="#9aa0b0"/>' +
-    '<path d="M267 120 L273 122 L267 123 Z" fill="#e0913a"/><path d="M259 119 Q262 121 265 119" stroke="#2a2a2e" stroke-width="1.5" fill="none"/>' +
-    '<path d="M238 128 L230 124 L238 132 Z" fill="#6d7383"/><path d="M250 137 L250 139 M256 137 L256 139" stroke="#e0913a" stroke-width="2"/>' +
-    '<text x="270" y="108" font-family="Arial, sans-serif" font-weight="700" font-size="9" fill="#8d8d95">z</text>' +
-    '<text x="277" y="99" font-family="Arial, sans-serif" font-weight="700" font-size="11" fill="#8d8d95">z</text>' +
-    '<text x="285" y="88" font-family="Arial, sans-serif" font-weight="700" font-size="13" fill="#8d8d95">Z</text>' +
-    '<rect x="12" y="183" width="276" height="3" rx="1.5" fill="#2a2a2e"/></svg>';
+  // The bench, drawn inline (no image file): a wooden park bench on cast-iron frames with a brass BENCH plaque, and three
+  // ragged outcast gnomes on it, feeling poorly. One of them says so.
+  const BENCH_ART = (() => {
+    const wood = (x, y, w, hh, id) => '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + hh + '" rx="2.5" fill="url(#' + id + ')" stroke="#3d2412" stroke-width="1"/>' +
+      '<path d="M' + (x + 8) + " " + (y + hh * 0.35) + " Q" + (x + w * 0.3) + " " + (y + hh * 0.2) + " " + (x + w * 0.55) + " " + (y + hh * 0.4) + " T" + (x + w - 10) + " " + (y + hh * 0.3) +
+      " M" + (x + 20) + " " + (y + hh * 0.7) + " Q" + (x + w * 0.45) + " " + (y + hh * 0.85) + " " + (x + w * 0.8) + " " + (y + hh * 0.65) + '" stroke="#4a2c14" stroke-opacity=".45" stroke-width="1" fill="none"/>';
+    // x: center; o: { hat, tunic, patch, pants, skin, nose, beard, extra }
+    const gnome = (x, o) =>
+      // legs hanging over the seat, worn boots
+      '<rect x="' + (x - 9) + '" y="150" width="7" height="24" rx="3" fill="' + o.pants + '"/><rect x="' + (x + 2) + '" y="150" width="7" height="24" rx="3" fill="' + o.pants + '"/>' +
+      '<ellipse cx="' + (x - 6) + '" cy="176" rx="7.5" ry="4" fill="#2b1d12"/><ellipse cx="' + (x + 6) + '" cy="176" rx="7.5" ry="4" fill="#2b1d12"/>' +
+      '<path d="M' + (x + 9) + " 178 l3 -2" + '" stroke="#d9c7a3" stroke-width="1.2"/>' + // a hole in the boot
+      // ragged tunic with a patch and a rope belt
+      '<path d="M' + (x - 17) + " 153 Q" + (x - 20) + " 125 " + (x - 10) + " 118 L" + (x + 10) + " 118 Q" + (x + 20) + " 125 " + (x + 17) + " 153 L" + (x + 12) + " 150 L" + (x + 7) + " 154 L" + (x + 1) + " 150 L" + (x - 5) + " 154 L" + (x - 11) + " 150 Z" + '" fill="' + o.tunic + '"/>' +
+      '<rect x="' + (x + 3) + '" y="128" width="9" height="8" fill="' + o.patch + '" transform="rotate(12 ' + (x + 7) + ' 132)"/>' +
+      '<path d="M' + (x + 4) + " 129 l7 6 M" + (x + 4) + ' 133 l3 2" stroke="#2b1d12" stroke-width=".8" opacity=".6"/>' +
+      '<path d="M' + (x - 16) + " 141 Q" + x + " 145 " + (x + 16) + ' 141" stroke="#8a6b3e" stroke-width="2.4" fill="none"/>' +
+      // drooping arms and hands in the lap
+      '<path d="M' + (x - 14) + " 124 Q" + (x - 22) + " 138 " + (x - 9) + ' 146" stroke="' + o.tunic + '" stroke-width="7" stroke-linecap="round" fill="none"/>' +
+      '<path d="M' + (x + 14) + " 124 Q" + (x + 22) + " 138 " + (x + 9) + ' 146" stroke="' + o.tunic + '" stroke-width="7" stroke-linecap="round" fill="none"/>' +
+      '<circle cx="' + (x - 7) + '" cy="147" r="3.6" fill="' + o.skin + '"/><circle cx="' + (x + 7) + '" cy="147" r="3.6" fill="' + o.skin + '"/>' +
+      // head: big ears, droopy eyes with bags, sad brows, a big nose, a scraggly beard
+      '<ellipse cx="' + (x - 13) + '" cy="105" rx="3.5" ry="5" fill="' + o.skin + '"/><ellipse cx="' + (x + 13) + '" cy="105" rx="3.5" ry="5" fill="' + o.skin + '"/>' +
+      '<circle cx="' + x + '" cy="104" r="13" fill="' + o.skin + '"/>' +
+      '<path d="M' + (x - 8) + " 103 q3 2.5 6 0 M" + (x + 2) + " 103 q3 2.5 6 0" + '" stroke="#2b1d12" stroke-width="1.6" fill="none" stroke-linecap="round"/>' +
+      '<path d="M' + (x - 8) + " 106 q3 1.5 6 0 M" + (x + 2) + " 106 q3 1.5 6 0" + '" stroke="#000" stroke-opacity=".25" stroke-width="1.2" fill="none"/>' +
+      '<path d="M' + (x - 9) + " 99 L" + (x - 3) + " 96.5 M" + (x + 3) + " 96.5 L" + (x + 9) + ' 99" stroke="#5a4632" stroke-width="1.8" stroke-linecap="round"/>' +
+      '<path d="M' + (x - 11) + " 110 Q" + (x - 9) + " 124 " + (x - 4) + " 121 Q" + x + " 128 " + (x + 4) + " 121 Q" + (x + 9) + " 124 " + (x + 11) + " 110 Q" + x + " 114 " + (x - 11) + ' 110 Z" fill="' + o.beard + '"/>' +
+      '<ellipse cx="' + x + '" cy="108.5" rx="4.4" ry="3.8" fill="' + o.nose + '"/>' +
+      // a torn, drooping hat with a faded pompom
+      '<path d="M' + (x - 15) + " 99 Q" + (x - 4) + " 66 " + (x + 21) + " 74 Q" + (x + 12) + " 80 " + (x + 15) + " 99 Q" + x + ' 94 ' + (x - 15) + ' 99 Z" fill="' + o.hat + '"/>' +
+      '<path d="M' + (x + 4) + " 80 l3 4 l-4 2" + '" stroke="#000" stroke-opacity=".35" stroke-width="1" fill="none"/>' +
+      '<circle cx="' + (x + 22) + '" cy="74" r="3.2" fill="#cfc6b0"/>' +
+      (o.extra || "");
+    const sick = gnome(118, { hat: "#6b5b4b", tunic: "#5e6650", patch: "#8a7a52", pants: "#4a3e33", skin: "#cbd7a4", nose: "#a9b97e", beard: "#bdb7a6",
+      // a crumpled tissue at the nose and a drop of sweat
+      extra: '<path d="M112 110 q6 -6 10 -1 q2 6 -5 7 q-6 0 -5 -6 Z" fill="#f2efe6" stroke="#cfc9ba" stroke-width=".8"/><path d="M104 95 q-2 4 0 6 q2 -2 0 -6 Z" fill="#7cc4ff"/>' });
+    const hurt = gnome(190, { hat: "#7a3b3b", tunic: "#6b5848", patch: "#4f6b7a", pants: "#3f3a35", skin: "#efc9a6", nose: "#d99a83", beard: "#e8e2d4",
+      // a bandage round the head, with a red spot
+      extra: '<path d="M179 97 L201 109 L198 113 L177 101 Z" fill="#f4f1ea" stroke="#cfc9ba" stroke-width=".8"/><path d="M186 101 l2 4 M184 103 l5 -1" stroke="#c94a3a" stroke-width="1.3"/>' });
+    const cold = gnome(262, { hat: "#45566b", tunic: "#5a4f45", patch: "#7a5a3a", pants: "#3b342e", skin: "#efd0b4", nose: "#e2898a", beard: "#9c8f7c",
+      // a tatty blanket over the shoulders and a thermometer in the beard
+      extra: '<path d="M244 118 Q262 108 280 118 L283 150 Q262 156 241 150 Z" fill="#8c4b4b" opacity=".92"/><path d="M247 126 h30 M245 136 h34 M244 146 h36" stroke="#c9a96b" stroke-width="2" opacity=".7"/>' +
+        '<path d="M258 116 L270 110" stroke="#e6edf2" stroke-width="2.4" stroke-linecap="round"/><circle cx="270" cy="110" r="1.6" fill="#d33"/>' });
+    return '<svg class="bench-art" viewBox="0 0 380 230" role="img" aria-label="A wooden park bench with a brass BENCH plaque. Three ragged gnomes sit on it, sick, hurt and cold. One says: Me encuentro maaaal">' +
+      '<defs><linearGradient id="bw1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b47a42"/><stop offset="1" stop-color="#7a4a24"/></linearGradient>' +
+      '<linearGradient id="bw2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9c6534"/><stop offset="1" stop-color="#5f381a"/></linearGradient>' +
+      '<linearGradient id="bir" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#1c1c20"/><stop offset=".5" stop-color="#3b3b42"/><stop offset="1" stop-color="#18181b"/></linearGradient>' +
+      '<linearGradient id="bbr" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e9c46a"/><stop offset="1" stop-color="#a77b2c"/></linearGradient></defs>' +
+      // ground and shadow
+      '<ellipse cx="190" cy="212" rx="172" ry="11" fill="#000" opacity=".4"/>' +
+      '<path d="M60 214 q4 -6 9 -1 M300 212 q5 -5 9 0 M150 216 q3 -4 7 -1" stroke="#6a5a3a" stroke-width="2" fill="none" opacity=".6"/>' +
+      // back legs
+      '<path d="M54 120 L50 206 M326 120 L330 206" stroke="url(#bir)" stroke-width="7" stroke-linecap="round"/>' +
+      // backrest: top rail with the plaque, then three slats
+      wood(44, 56, 292, 12, "bw1") + wood(44, 74, 292, 14, "bw2") + wood(44, 94, 292, 14, "bw1") + wood(44, 114, 292, 12, "bw2") +
+      '<rect x="160" y="57" width="60" height="16" rx="2" fill="url(#bbr)" stroke="#6e5220" stroke-width="1"/>' +
+      '<circle cx="164" cy="65" r="1.4" fill="#6e5220"/><circle cx="216" cy="65" r="1.4" fill="#6e5220"/>' +
+      '<text x="190" y="69.5" text-anchor="middle" font-family="Georgia, serif" font-weight="700" font-size="11" letter-spacing="2.5" fill="#3e2b0c">BENCH</text>' +
+      // seat: two slats and the front edge
+      wood(34, 136, 312, 8, "bw1") + wood(34, 145, 312, 9, "bw2") + '<rect x="34" y="153" width="312" height="5" rx="2" fill="#3d2412"/>' +
+      // the gnomes, then the speech bubble
+      sick + hurt + cold +
+      '<path d="M226 6 h132 a10 10 0 0 1 10 10 v24 a10 10 0 0 1 -10 10 h-104 l-26 30 l8 -30 h-10 a10 10 0 0 1 -10 -10 v-24 a10 10 0 0 1 10 -10 Z" fill="#f7f3ea" stroke="#2b1d12" stroke-width="1.5"/>' +
+      '<text x="296" y="33" text-anchor="middle" font-family="Barlow Condensed, Arial Narrow, Arial, sans-serif" font-weight="700" font-size="17" fill="#2b1d12">Me encuentro maaaal</text>' +
+      // cast-iron side frames in front: scrolled armrests and front legs
+      '<path d="M40 206 L44 158 Q36 136 46 122 Q60 112 76 120 Q66 122 62 132" stroke="url(#bir)" stroke-width="7" fill="none" stroke-linecap="round" stroke-linejoin="round"/>' +
+      '<path d="M340 206 L336 158 Q344 136 334 122 Q320 112 304 120 Q314 122 318 132" stroke="url(#bir)" stroke-width="7" fill="none" stroke-linecap="round" stroke-linejoin="round"/>' +
+      '<circle cx="62" cy="132" r="3.5" fill="#2a2a2f"/><circle cx="318" cy="132" r="3.5" fill="#2a2a2f"/>' +
+      '<path d="M36 206 h12 M332 206 h12" stroke="#18181b" stroke-width="5" stroke-linecap="round"/>' +
+      "</svg>";
+  })();
   // The Bench panel: who sits out in the option on screen, and who the admin benched.
   function renderBench(optBench, adminBench) {
     const extra = adminBench.filter((u) => !optBench.includes(u));
