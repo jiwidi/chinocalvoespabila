@@ -121,3 +121,9 @@ Who, without storing who they are:
 - `{ "k": "visitor", "tag": "3fa9" }` otherwise: 4 characters cut from the visitor's keyed hash, the same for that browser, not reversible.
 
 `GET /api/comp?log=1&page=N` answers `{ entries, page, pages, total }`, 20 entries a page, page 0 the newest. It counts toward the per-network request limit. The **Changelog** button on the page opens it in a dialog.
+
+### Change requests
+
+After signing up, only the admin can change a signup. A player can **ask** for a change: the **Request change** button on their own row (found by their browser keys, as for the changelog) opens the spec picker with a side choice, and sends `POST /api/comp {"request": {"c": [...], "f": "a" | "h" | "d"}}`. The server stores it in `raidcomp:requests` (signup id → `{ c, f, t }`, one open request per signup; a new one replaces it) and refuses a request from a visitor without a signup, or one that asks for what the signup already has. `GET /api/comp` lists open requests in `requests`, and rows with one show **Change asked**.
+
+The admin sees **Change requests** above the signups: approve applies the change to the signup and closes the request in one POST (`signups` + `requests: {id: null}`); reject only closes it. The player can withdraw their own request (`requests: {<own id>: null}`); nobody else can. Removing a signup drops its request. The changelog logs `request`, `request-approved`, `request-rejected` and `request-withdrawn`. `GET /api/comp?me=1` also answers `mine`: the id of the visitor's own signup.
