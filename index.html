@@ -353,6 +353,15 @@ span.fx-btn:hover{transform:none}
 .sp-spec:disabled{cursor:not-allowed}
 .btn:disabled{opacity:.45;cursor:not-allowed}
 
+/* Notice on arrival */
+.notice{width:min(480px,100%);border-color:var(--accent);box-shadow:0 0 50px rgba(242,184,75,.18)}
+.notice h3{margin:0 0 10px;font-family:var(--display);font-size:24px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:#fff}
+.notice p{margin:0 0 10px;font-size:13px;line-height:1.5;color:var(--soft)}
+.notice p b{color:#fff}
+.notice .notice-date{padding:10px 12px;border-radius:6px;background:rgba(242,184,75,.1);box-shadow:inset 3px 0 0 var(--accent);font-size:14px}
+.notice .notice-date b{color:var(--accent)}
+.notice .notice-date span{color:var(--muted);font-size:12px}
+
 /* Copy dialog and toast */
 .overlay{position:fixed;inset:0;z-index:30;display:flex;overflow-y:auto;padding:16px;background:rgba(0,0,0,.7)}
 .dialog{margin:auto;width:min(560px,100%);padding:16px;background:var(--panel);border:1px solid var(--line-2);border-radius:var(--radius)}
@@ -1472,6 +1481,28 @@ span.fx-btn:hover{transform:none}
     dialogRoot.innerHTML = "";
   }
 
+  // Notice on arrival: until the deadline, players can ask the admin to change their side or specs.
+  // Shown once per browser session (a reload after a deploy does not show it again), and not after the deadline.
+  // 26 Oct 2026 20:00 in mainland Spain is CET (summer time ends on 25 Oct), so 19:00 UTC.
+  const CHANGES_UNTIL = Date.UTC(2026, 9, 26, 19, 0);
+  const NOTICE_KEY = "raidcomp-notice-2026-10-26";
+  function showChangesNotice() {
+    const left = CHANGES_UNTIL - Date.now();
+    if (left <= 0 || dialogRoot.innerHTML) return;
+    try { if (sessionStorage.getItem(NOTICE_KEY)) return; sessionStorage.setItem(NOTICE_KEY, "1"); } catch (err) { /* show it anyway */ }
+    const days = Math.floor(left / 864e5), hours = Math.floor((left % 864e5) / 36e5);
+    const remaining = days ? days + (days === 1 ? " día" : " días") + (hours ? " y " + hours + (hours === 1 ? " hora" : " horas") : "")
+      : hours ? hours + (hours === 1 ? " hora" : " horas") : "menos de una hora";
+    dialogRoot.innerHTML = '<div class="overlay" data-act="close-dialog"><div class="dialog notice" role="dialog" aria-modal="true" aria-labelledby="notice-title">' +
+      '<p class="step">Aviso</p><h3 id="notice-title">Voto y clase: cambios hasta el 26 de octubre</h3>' +
+      '<p class="notice-date"><b>Lunes 26 oct · 20:00</b> hora peninsular <span>(quedan ' + remaining + ")</span></p>" +
+      "<p>Hasta entonces se puede cambiar tu <b>voto de facción</b> (Horda o Alianza) y tus <b>clases y specs</b>. Una vez apuntado, los cambios los hace el admin: pídeselo y te lo cambia.</p>" +
+      "<p>Después de esa hora, voto y clases quedan cerrados.</p>" +
+      '<div class="row"><button type="button" class="btn primary" data-act="close-dialog">Entendido</button></div></div></div>';
+    const ok = dialogRoot.querySelector(".btn.primary");
+    if (ok) ok.focus();
+  }
+
   // Quick spec picker: click specs in order of preference; the order of clicks is the priority.
   let specDraft = null; // { id, c }
   function showSpecPicker(id) {
@@ -1801,6 +1832,7 @@ span.fx-btn:hover{transform:none}
   });
 
   renderAll();
+  showChangesNotice();
   readAdminHash();
   fingerprintReady.then(checkAdmin); // so "already signed up" also counts the fingerprint
   poll();
