@@ -492,7 +492,7 @@ span.fx-btn:hover{transform:none}
       ["kings", "10% Stats", "spell_magic_greaterblessingofkings", "Greater Blessing of Kings (Paladin)"],
       ["wisdom", "Mana Restoration", "spell_holy_greaterblessingofwisdom", "Greater Blessing of Wisdom (Paladin)"],
       ["light", "Healing Received", "spell_holy_greaterblessingoflight", "Greater Blessing of Light (Paladin)"],
-      ["salv", "Reduced Threat", "spell_holy_greaterblessingofsalvation", "Greater Blessing of Salvation (Paladin)"]]],
+      ["salv", "Reduced Threat", "spell_holy_greaterblessingofsalvation", "Mass Salvation (any Paladin, on top of a blessing)"]]],
     ["Raid totems", false, [
       ["wf", "Windfury Totem", "spell_nature_windfury", "Shaman air totem"],
       ["ft", "Flametongue Totem", "spell_nature_guardianward", "Shaman fire totem"],
@@ -754,75 +754,78 @@ span.fx-btn:hover{transform:none}
   }
 
   // What a raid wants, as points. The solver trades these against how far down each player's list it has to go.
-  // Priority, as WoW Forever guides put it for fixed 10/20 rosters: tanks and healers first, then must-have tools
-  // (interrupts, dispels), then buffs that cover a 5-player group (avoiding redundant ones), raid-wide buffs, damage last.
-  // Templates the group plays: 10 = 2 tanks, 2 healers, 6 dps; 20 = 2 tanks, 3 or 4 healers, 14-15 dps with one or two
-  // dps who can flex to healing. Ranged (healers count as ranged) should match or outnumber melee.
-  // Forever beta notes used here: Leader of the Pack and Moonkin aura don't stack in a group; Windfury, Flametongue and
-  // Grace of Air are group-wide and exclude each other; Curse of the Elements covers all magic; Expose Armor replaces
-  // Sunder stacking; Druids and Hunters have no interrupt.
-  // Kept modest so a player moves to a lower choice when the raid clearly gains (a missing healer, a useless duplicate).
+  // The guild's targets: at least 2 tanks, 3 healers plus 1 off-healer, 2-3 shamans, and one of each main buff
+  // (for 10: 2 healers plus 1 off-healer, 1-2 shamans). Ranged (healers count as ranged) should match or outnumber melee.
+  // WoW Forever beta notes (Oct 16, 2026): Battle Shout, Trueshot Aura, Moonkin Aura (spell crit), Leader of the Pack
+  // (melee and ranged crit), and the Windfury, Grace of Air, Strength of Earth and Flametongue totems are raid wide, so
+  // one provider covers everyone and a second adds nothing. Windfury and Flametongue exclude each other. Windfury and
+  // Grace of Air are both air totems, so having both takes 2 shamans. Salvation is no longer a blessing: any paladin
+  // gives it on top of one blessing. Still per group: paladin auras and the water totems (Mana Spring, Mana Tide).
+  // Earlier notes: Curse of the Elements covers all magic; Expose Armor replaces Sunder stacking; Druids and Hunters
+  // have no interrupt.
+  // Kept modest so a player moves to a lower choice when the raid clearly gains (a missing healer, a missing buff).
   const PREF_COST = (r) => 6.5 * r - 0.5 * r * r; // 1st 0, 2nd 6, 3rd 11, 4th 15, 5th 18
   // Hybrid dps specs are brought for their one-of-a-kind buff; a second copy adds little over a pure dps class.
   const HYBRID_DPS = new Set(["druid_balance", "druid_feral", "paladin_retribution", "priest_shadow", "shaman_elemental", "shaman_enhancement"]);
   const HYBRID_DUP_COST = 10; // per extra copy of the same hybrid spec
   const FIRST_WARLOCK = 20;
-  const BLESSINGS = [["kings", 25], ["wisdom", 15], ["might", 12], ["salv", 10], ["light", 5]]; // each paladin covers one blessing
+  const BLESSINGS = [["kings", 25], ["wisdom", 15], ["might", 12], ["light", 5]]; // each paladin covers one blessing
+  // Raid totems by how many shamans they take: one drops Windfury and Strength of Earth; Grace of Air is a second air totem.
+  const TOTEMS = [["wf", 1], ["soe", 1], ["goa", 2]];
   // Interrupts: Pummel/Shield Bash, Kick, Counterspell, Earth Shock, Spell Lock (felhunter), Silence (Shadow).
   const canKick = (k) => ["warrior", "rogue", "mage", "shaman", "warlock"].includes(SPEC[k].cls) || k === "priest_shadow";
-  // Buffs that reach one 5-player group: the first provider is worth `first`, each extra one (up to one per group) `more`.
-  const GROUP_BUFFS = [ // [label, providers(spec) -> bool, first, more]
-    ["totems", (sp) => sp.cls === "shaman", 14, 7], // Windfury / Grace of Air / Mana Spring per group
-    ["druid aura", (sp) => sp.key === "druid_feral" || sp.key === "druid_guardian" || sp.key === "druid_balance", 6, 3], // LotP or Moonkin, not both in one group
-    ["paladin aura", (sp) => sp.cls === "paladin", 4, 3]
+  // An off-healer: a Druid, Paladin, Priest or Shaman in a dps spec, who can still heal when the healers need help.
+  const HEAL_CLASSES = new Set(["druid", "paladin", "priest", "shaman"]);
+  const isOffHeal = (k) => (SPEC[k].role === "melee" || SPEC[k].role === "range") && HEAL_CLASSES.has(SPEC[k].cls);
+  const NEEDS = [ // [tag, points]: raid-wide, so one provider is enough and a second adds nothing
+    // Main buffs and debuffs: the raid wants one of each.
+    ["stam", 22], ["motw", 22], ["int", 20], ["ap", 18], ["crit", 18], ["armor1", 18], ["coe", 16], ["scrit", 14], ["rap", 12],
+    ["armor2", 12], ["salv", 10],
+    // Dispels, tools and smaller buffs.
+    ["dmagic", 14], ["dcurse", 12], ["brez", 10], ["ddisease", 6], ["dpoison", 6], ["frenzy", 6], ["demo", 6], ["purge", 5],
+    ["hit", 3], ["spirit", 3], ["shadowres", 3], ["tongues", 3], ["natureres", 2], ["mortal", 2]
   ];
-  const NEEDS = [ // [tag, points] for buffs, debuffs and tools one player is enough for
-    ["stam", 22], ["motw", 22], ["int", 16], ["armor1", 15], ["coe", 14], ["dmagic", 14], ["ap", 12], ["dcurse", 12], ["brez", 10],
-    ["ddisease", 6], ["dpoison", 6], ["armor2", 6], ["frenzy", 6], ["purge", 5], ["demo", 4], ["hit", 3], ["spirit", 3],
-    ["rap", 3], ["shadowres", 3], ["tongues", 3], ["natureres", 2], ["mortal", 2]
-  ];
-  // heal: healers wanted, healMax: most healers before it hurts, flex: dps who could switch to healing.
+  // heal: healers wanted; off: one more who can heal (an off-healer, or one extra healer); shaman to shamanMax shamans.
   function targets(size) {
     return size <= 10
-      ? { tank: 2, heal: 2, healMax: 2, flex: 1, paladin: 1, kick: 2 }
-      : { tank: 2, heal: 3, healMax: 4, flex: 2, paladin: 2, kick: 3 };
+      ? { tank: 2, heal: 2, off: 1, shaman: 1, shamanMax: 2, paladin: 1, kick: 2 }
+      : { tank: 2, heal: 3, off: 1, shaman: 2, shamanMax: 3, paladin: 2, kick: 3 };
   }
-  const canHeal = (c) => c.some((k) => SPEC[k].role === "heal");
-  // A dps player whose signup also lists a healing spec.
-  const isFlex = (k, c) => (SPEC[k].role === "melee" || SPEC[k].role === "range") && canHeal(c);
   // entries: [{ k: chosen spec, c: that player's signup specs }]
   function compScore(entries, t) {
     const cls = {}, role = { tank: 0, heal: 0, melee: 0, range: 0 }, tags = new Set(), seen = {};
-    let flex = 0, dup = 0, kick = 0;
-    const groupBuff = GROUP_BUFFS.map(() => 0);
-    entries.forEach(({ k, c }) => {
+    let off = 0, dup = 0, kick = 0;
+    entries.forEach(({ k }) => {
       const sp = SPEC[k];
       if (HYBRID_DPS.has(k) && seen[k]) dup++;
       seen[k] = true;
       cls[sp.cls] = (cls[sp.cls] || 0) + 1;
       role[sp.role]++;
-      if (isFlex(k, c)) flex++;
+      if (isOffHeal(k)) off++;
       if (canKick(k)) kick++;
-      GROUP_BUFFS.forEach(([, has], i) => { if (has(sp)) groupBuff[i]++; });
       specTags(sp).forEach((x) => tags.add(x));
     });
     const groups = Math.max(1, Math.ceil(entries.length / 5));
-    let s = 40 * Math.min(role.tank, t.tank) - 20 * Math.max(0, role.tank - t.tank);
-    s += 30 * Math.min(role.heal, t.heal) + 4 * Math.max(0, Math.min(role.heal, t.healMax) - t.heal) - 15 * Math.max(0, role.heal - t.healMax);
-    s += 8 * Math.min(flex, t.flex);
+    // At least t.tank tanks. A third is fine for some fights; more are dps lost.
+    let s = 40 * Math.min(role.tank, t.tank) - 4 * Math.max(0, role.tank - t.tank) - 16 * Math.max(0, role.tank - t.tank - 1);
+    // Healers, then one off-healer: a hybrid in a dps spec, or else one extra healer. An extra healer that the
+    // off-healer slot does not need costs a little dps; beyond healers + off-healer it costs more.
+    const extraHeal = Math.max(0, role.heal - t.heal);
+    s += 30 * Math.min(role.heal, t.heal) + 12 * Math.min(t.off, off + extraHeal);
+    s -= 6 * Math.max(0, extraHeal - Math.max(0, t.off - off)) + 9 * Math.max(0, extraHeal - t.off);
     s -= HYBRID_DUP_COST * dup;
     // Melee against ranged, healers counted as ranged: lose points for every melee too many, gain a little for extra ranged.
     const ranged = role.range + role.heal;
     s -= 10 * Math.max(0, role.melee - ranged);
     s += 3 * Math.min(2, Math.max(0, ranged - role.melee));
+    // Shamans: the first ones bring the raid totems (see TOTEMS); one more adds water totems for a group; more, no gain.
+    const sham = cls.shaman || 0;
+    s += 26 * Math.min(sham, t.shaman) + 8 * Math.max(0, Math.min(sham, t.shamanMax) - t.shaman) - 12 * Math.max(0, sham - t.shamanMax);
     const pal = cls.paladin || 0;
     BLESSINGS.slice(0, pal).forEach(([, w]) => { s += w; });
     s += 10 * Math.min(pal, t.paladin);
+    if (pal) s += 4 + 3 * (Math.min(pal, groups) - 1); // a paladin aura reaches one group
     s += 8 * Math.min(kick, t.kick);
-    GROUP_BUFFS.forEach(([, , first, more], i) => {
-      const n = Math.min(groupBuff[i], groups);
-      if (n) s += first + more * (n - 1);
-    });
     // The first warlock brings utility no tag covers (Healthstones, summoning, Soulstone on top of a curse): worth a lot.
     // More warlocks add only a second curse.
     if (cls.warlock) s += FIRST_WARLOCK + (cls.warlock >= 2 ? 5 : 0);
@@ -917,8 +920,8 @@ span.fx-btn:hover{transform:none}
     return { raid, bench, slots: arrange(raid, size), adds: [] };
   }
 
-  // Spread players over groups of five: tanks and melee with shamans and paladins, casters together,
-  // one healer, shaman, paladin and warlock per group where possible.
+  // Spread players over groups of five: tanks and melee together, casters together, and one healer, shaman, paladin
+  // and warlock per group where possible. Shamans lean to casters and healers, who use their water totems most.
   function arrange(raid, size) {
     const G = Math.min(size / 5, Math.max(1, Math.ceil(raid.length / 5)));
     const groups = Array.from({ length: G }, () => []);
@@ -935,9 +938,8 @@ span.fx-btn:hover{transform:none}
         if (phys(sp)) v += 4 * count(phys) - 3 * count(caster);
         if (caster(sp)) v += 4 * count(caster) - 3 * count(phys);
         if (sp.role === "heal") v -= 10 * count((x) => x.role === "heal");
-        if (sp.cls === "shaman") v += 3 * count(phys) - 15 * count((x) => x.cls === "shaman");
+        if (sp.cls === "shaman") v += 2 * count((x) => caster(x) || x.role === "heal") - 15 * count((x) => x.cls === "shaman");
         if (sp.cls === "paladin") v -= 12 * count((x) => x.cls === "paladin");
-        if (sp.cls === "druid" && sp.role !== "heal") v -= 10 * count((x) => x.cls === "druid" && x.role !== "heal"); // one crit aura per group
         if (sp.cls === "warlock") v -= 4 * count((x) => x.cls === "warlock");
         if (v > bestV) { bestV = v; bestG = gi; }
       });
@@ -1146,11 +1148,12 @@ span.fx-btn:hover{transform:none}
       if (always) missing += h; else if (ok) covered += h; else missing += h;
     };
     const tanks = count((sp) => sp.role === "tank"), heals = count((sp) => sp.role === "heal"), pals = count((sp) => sp.cls === "paladin");
-    need(tanks >= t.tank, canBring((sp) => sp.role === "tank"), "ability_warrior_defensivestance", "Tanks " + tanks + "/" + t.tank, "Tanks", true);
-    const healGoal = t.heal === t.healMax ? String(t.heal) : t.heal + "–" + t.healMax;
-    need(heals >= t.heal && heals <= t.healMax, canBring((sp) => sp.role === "heal"), "spell_holy_flashheal", "Healers " + heals + "/" + healGoal, "Healers: " + healGoal + " for a raid of " + state.size, true);
-    const flex = raid.filter((m) => isFlex(m.s, m.u.c)).length;
-    need(flex >= t.flex, [...signupsByName().values()].some((u) => u.c.some((k) => SPEC[k].role !== "heal") && canHeal(u.c)), "spell_nature_healingtouch", "Flex healers " + flex + "/" + t.flex, "DPS players who also signed up with a healing spec, so they can switch if needed", true);
+    const shams = count((sp) => sp.cls === "shaman");
+    need(tanks >= t.tank, canBring((sp) => sp.role === "tank"), "ability_warrior_defensivestance", "Tanks " + tanks + "/" + t.tank, "At least " + t.tank + " tanks", true);
+    need(heals >= t.heal && heals <= t.heal + t.off, canBring((sp) => sp.role === "heal"), "spell_holy_flashheal", "Healers " + heals + "/" + t.heal, t.heal + " healers for a raid of " + state.size + ", plus one off-healer", true);
+    const offs = Math.min(t.off, raid.filter((m) => isOffHeal(m.s)).length + Math.max(0, heals - t.heal));
+    need(offs >= t.off, canBring((sp) => isOffHeal(sp.key)) || canBring((sp) => sp.role === "heal"), "spell_nature_healingtouch", "Off-healer " + offs + "/" + t.off, "A Druid, Paladin, Priest or Shaman in a dps spec who can help heal, or one extra healer", true);
+    need(shams >= t.shaman && shams <= t.shamanMax, canBring((sp) => sp.cls === "shaman"), "spell_nature_windfury", "Shamans " + shams + "/" + t.shaman + "–" + t.shamanMax, "One shaman drops Windfury and Strength of Earth for the whole raid. Grace of Air is also an air totem, so it takes a second shaman. One more adds water totems for a group", true);
     const melee = count((sp) => sp.role === "melee"), ranged = count((sp) => sp.role === "range" || sp.role === "heal");
     need(ranged >= melee, true, "ability_marksmanship", "Melee " + melee + " · Ranged " + ranged, "Healers count as ranged. Ranged should match or outnumber melee", true);
     const locks = count((sp) => sp.cls === "warlock");
@@ -1158,11 +1161,11 @@ span.fx-btn:hover{transform:none}
     const kicks = raid.filter((m) => canKick(m.s)).length;
     need(kicks >= t.kick, [...signupsByName().values()].some((u) => u.c.some(canKick)), "ability_kick", "Interrupts " + kicks + "/" + t.kick, "Players who can interrupt a cast: Warrior, Rogue, Mage, Shaman, Warlock (felhunter), Shadow Priest. Druids, Hunters and Paladins can't", true);
     need(pals >= t.paladin, canBring((sp) => sp.cls === "paladin"), "spell_magic_greaterblessingofkings", "Paladins " + pals + "/" + t.paladin, "Each paladin gives one blessing (Kings, Wisdom, Might, Salvation, Light)", true);
-    BLESSINGS.concat(NEEDS).forEach(([tag], i) => {
-      const b = BUFF[tag], ok = i < BLESSINGS.length ? i < pals : tags.has(tag);
-      const possible = i < BLESSINGS.length ? canBring((sp) => sp.cls === "paladin") : canBring((sp) => specTags(sp).includes(tag));
-      need(ok, possible, b.icon, b.label, b.label + " · " + b.src);
-    });
+    // One of each main buff: blessings take one paladin each, Grace of Air a second shaman, the rest one provider.
+    const buffNeed = (tag, ok, possible) => need(ok, possible, BUFF[tag].icon, BUFF[tag].label, BUFF[tag].label + " · " + BUFF[tag].src);
+    BLESSINGS.forEach(([tag], i) => buffNeed(tag, i < pals, canBring((sp) => sp.cls === "paladin")));
+    TOTEMS.forEach(([tag, n]) => buffNeed(tag, shams >= n, canBring((sp) => sp.cls === "shaman")));
+    NEEDS.forEach(([tag]) => buffNeed(tag, tags.has(tag), canBring((sp) => specTags(sp).includes(tag))));
     const needs = missing + (covered ? '<li class="sep" aria-hidden="true"></li>' + covered : "");
     const ranks = {};
     raid.forEach((m) => { ranks[m.rank] = (ranks[m.rank] || 0) + 1; });
