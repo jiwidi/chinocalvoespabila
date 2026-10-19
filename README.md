@@ -120,7 +120,7 @@ Who, without storing who they are:
 - `{ "k": "player", "n": "<name>" }` when the browser's own keys (fingerprint, device id) made a signup: the name of that signup. The network + browser key, which housemates can share, only counts for requests that send neither;
 - `{ "k": "visitor", "tag": "3fa9" }` otherwise: 4 characters cut from the visitor's keyed hash, the same for that browser, not reversible.
 
-`GET /api/comp?log=1&page=N` answers `{ entries, page, pages, total }`, 20 entries a page, page 0 the newest. It counts toward the per-network request limit. The **Changelog** button on the page opens it in a dialog.
+`GET /api/comp?log=1&page=N` answers `{ entries, page, pages, total }`, 20 entries a page, page 0 the newest. It counts toward the per-network request limit. The **Changelog** button on the page opens it in a dialog. The admin sees it in the **Audit** view instead.
 
 ### Who can change what
 
@@ -140,7 +140,7 @@ How it works:
 
 Claim links, for signups made before Discord sign-in:
 
-- In admin mode, the **Claim links** panel under the signups lists every signup, in signup order, with its link (`/#claim=<signup id>.<HMAC>`), with **Copy link**, **Copy all unclaimed links** and who claimed each one (Discord username, only the admin sees it). Send each player their own link in a private message.
+- In admin mode, the header has **Roster | Audit**. The **Audit** view (`/#audit`) takes the place of the roster. It lists every signup, newest first, with side, specs, status, when they joined, its link (`/#claim=<signup id>.<HMAC>`), with **Copy link**, **Copy all unclaimed links** and who claimed each one (Discord username, only the admin sees it), and under it the changelog. Send each player their own link in a private message.
 - The player opens the link. If they are not signed in, the page keeps the link in that tab, they sign in with Discord, and the claim goes through when they come back. Their Discord account then owns that signup.
 - One owner per signup and one signup per account. **Undo** frees a signup so its link works again. API: `GET ?claims=1` (admin), `POST {claim: token}`, `POST {unclaim: id}` (admin). Storage: `raidcomp:owners` (signup id → `{ k, u }`).
 
