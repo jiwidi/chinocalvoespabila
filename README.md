@@ -130,15 +130,22 @@ A visitor's edit to the raid gets the warning "Only the admin can change the rai
 
 ### Discord sign-in and claim links
 
-When the Discord app is set up, every change (signing up, asking for a change, any edit) needs a signed-in Discord account. Viewing stays open to everyone, and the admin key still works without Discord. Until the three variables below are set, nothing changes.
+When the Discord app is set up, every change (signing up, claiming a signup, any edit) needs a signed-in Discord account. Viewing stays open to everyone, and the admin key still works without Discord. Until the three variables below are set, nothing changes.
 
 How it works:
 
 - **Sign in with Discord** sends the player to Discord's authorize page (scope `identify` only: Discord id and name, no email). Discord sends them back to `/api/discord`, which trades the code for their identity and sends the page a session token in the URL fragment. The page accepts it only when the `state` matches the one it made. The token is signed with `RAIDCOMP_SESSION_SECRET` and lasts 30 days. The server stores no token.
 - The page sends the token as `X-Raidcomp-Session`. The Discord account is the strongest visitor key, so one signup per person becomes one signup per Discord account, and ownership and the changelog follow the account across browsers. The changelog never shows Discord names.
+- On arrival, a visitor who is not signed in sees a **Sign in with Discord** popup with **Skip**, once per browser session (not with the admin key).
 - A POST without a session (and without the admin key) gets `401 { error: "sign_in" }`. `GET /api/comp?me=1` adds `discord` (the client id, or "") and `user` (`{ name }` or null).
 
-Claim links, for signups made before Discord sign-in:
+Claim requests, for signups made before Discord sign-in:
+
+- After sign-in, a player with no signup sees **Already signed up?** (once per browser session) with the signups that have no Discord account yet. Picking one asks the admin. The signups panel then shows "Waiting for the admin to confirm that <name> is you", with **Change**, or "Already on the list? **Claim your signup**" when they skipped.
+- The admin sees the open requests at the top of the **Audit** view, and their number on the **Audit** tab. **Confirm** does what a claim link does. **No** drops the request. Confirming drops the other requests for that signup.
+- One open request per Discord account (a new one replaces it), at most 50 at once. API: `POST {ask: id}`, `POST {askOk: key}` / `POST {askNo: key}` (admin); `GET ?claims=1` adds `asks`; `GET ?me=1` adds `ask` and `taken` for a signed-in player, `asks` (a count) for the admin. Storage: `raidcomp:asks` (the account's visitor key → `{ id, u, d, t }`).
+
+Claim links, the other way to do the same (send each player their own link):
 
 - In admin mode, the header has **Roster | Audit**. The **Audit** view (`/#audit`) takes the place of the roster. It lists every signup, newest first, with side, specs, status, when they joined, its link (`/#claim=<signup id>.<HMAC>`), with **Copy link**, **Copy all unclaimed links** and who claimed each one (Discord username, only the admin sees it), and under it the changelog. Send each player their own link in a private message.
 - The player opens the link. If they are not signed in, the page keeps the link in that tab, they sign in with Discord, and the claim goes through when they come back. Their Discord account then owns that signup.
