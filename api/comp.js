@@ -4,6 +4,7 @@
 // GET  /api/comp?claims=1  -> (admin) a claim link token for every signup, and which Discord user claimed it
 // POST /api/comp {claim: token} -> the signed-in Discord user claims that signup; {unclaim: id} (admin) undoes a claim
 // POST /api/comp {ask: id} -> the signed-in Discord user asks the admin for that signup; {askOk|askNo: key} (admin) answers
+// POST /api/comp {vote: "y" | "n"} -> the signed-in Discord user votes in the poll: pick the faction by coin flip?
 // POST /api/comp {slots, size, signups} -> applies changes, returns the new comp
 //
 // Storage: Upstash Redis (Vercel Marketplace). Each slot is its own hash field,
@@ -54,6 +55,10 @@ const MAX_ASKS = 50; // open claim requests at once
 const NEW_SIGNUPS_PER_DAY = 3; // per network: an IPv4 address or an IPv6 /64
 const LOG_MAX = 1000; // changelog entries kept
 const LOG_PAGE = 20; // changelog entries per page
+// Poll: a vote can change at most MAX_VOTE_CHANGES times, and not within VOTE_COOLDOWN_MS of the last change.
+const MAX_VOTE_CHANGES = 3;
+const VOTE_COOLDOWN_MS = 10 * 60 * 1000;
+const VOTES = new Set(["y", "n"]); // yes, by coin flip; no
 const ADMIN_TRIES = 10; // wrong admin keys per network (an IPv4 address or an IPv6 /48) in 15 minutes
 const ADMIN_KEY = process.env.RAIDCOMP_ADMIN_KEY || "";
 // Key for the visitor hashes. It is the admin key unless set, so the stored hashes keep matching. Before you change
@@ -69,6 +74,7 @@ const KEYS = {
   log: `${PREFIX}:log`, // changelog: JSON entries, newest first, at most LOG_MAX
   owners: `${PREFIX}:owners`, // signup id -> { k: the Discord account's visitor key, u: Discord username }: who owns it
   asks: `${PREFIX}:asks`, // Discord account's visitor key -> { id: signup id, u: username, d: display name, t }: claim requests
+  poll: `${PREFIX}:poll`, // Discord account's visitor key -> { v: "y" | "n", n: Discord display name, t, c: changes so far }
 };
 
 class BadRequest extends Error {}
@@ -114,7 +120,7 @@ function hashToObject(hash) {
   return out;
 }
 
-function toState(version, slotsHash, metaHash, signupsHash) {
+function toState(version, slotsHash, metaHash, signupsHash, pollHash) {
   const slots = Array(MAX_SLOTS).fill(null);
   metaHash = hashToObject(metaHash);
   for (const [field, raw] of Object.entries(hashToObject(slotsHash))) {
@@ -139,7 +145,19 @@ function toState(version, slotsHash, metaHash, signupsHash) {
   }
   signups.sort((a, b) => (a.id < b.id ? -1 : 1)); // ids start with a timestamp, so this is signup order
   const size = Number(metaHash && metaHash.size);
-  return { v: Number(version) || 0, size: SIZES.has(size) ? size : 20, slots, signups };
+  return { v: Number(version) || 0, size: SIZES.has(size) ? size : 20, slots, signups, poll: pollOf(pollHash) };
+}
+
+// Discord display names go up to 32 characters; same cleaning as signup names.
+const voterName = (s) => String(s ?? "").replace(/[ -<>]/g, "").trim().slice(0, 32);
+
+// The poll as the page shows it: { y: [names], n: [names] }, each list in the order people voted.
+function pollOf(pollHash) {
+  const votes = Object.values(hashToObject(pollHash)).map(parseEntry).filter((e) => e && VOTES.has(e.v));
+  votes.sort((a, b) => (Number(a.t) || 0) - (Number(b.t) || 0));
+  const out = { y: [], n: [] };
+  for (const e of votes) out[e.v].push(voterName(e.n) || "?");
+  return out;
 }
 
 // Vercel parses a JSON body when the code first reads req.body, and throws when it cannot.
@@ -201,8 +219,12 @@ function parseChanges(body) {
     if (typeof body[f] !== "string" || !ASK_KEY.test(body[f])) throw new BadRequest(f + " takes a claim request key");
     out[f] = body[f];
   }
+  if (body.vote !== undefined) {
+    if (!VOTES.has(body.vote)) throw new BadRequest('vote takes "y" or "n"');
+    out.vote = body.vote;
+  }
   if (!Object.keys(out.slots).length && !Object.keys(out.signups).length && out.size === undefined && !out.claim && !out.unclaim &&
-    !out.ask && !out.askOk && !out.askNo) {
+    !out.ask && !out.askOk && !out.askNo && !out.vote) {
     throw new BadRequest("Nothing to change");
   }
   return out;
@@ -463,6 +485,25 @@ async function handleAsks(store, req, admin, user, changes, entries) {
   return { signers: { [key]: ask.id } };
 }
 
+// Poll: only a signed-in Discord account votes, under its display name (the voter lists are public). The first vote is
+// free; after that a vote changes at most MAX_VOTE_CHANGES times, and not within VOTE_COOLDOWN_MS of the last change,
+// so nobody can flip it back and forth. The admin key alone does not vote: it is not a person.
+async function handleVote(store, req, user, changes, actor, entries) {
+  if (!changes.vote) return {};
+  if (!user) return { warning: "Sign in with Discord to vote." };
+  const key = visitorKeys(req)[0], cur = await store.vote(key), now = Date.now(); // keys[0] is the Discord account
+  if (cur && cur.v === changes.vote) return { warning: "That is already your vote." };
+  if (cur) {
+    const used = Number(cur.c) || 0;
+    if (used >= MAX_VOTE_CHANGES) return { warning: "You changed your vote " + MAX_VOTE_CHANGES + " times. It stays as it is now." };
+    const wait = (Number(cur.t) || 0) + VOTE_COOLDOWN_MS - now;
+    if (wait > 0) return { warning: "Wait " + Math.ceil(wait / 60000) + " min before you change your vote again." };
+  }
+  changes.poll = { [key]: { v: changes.vote, n: voterName(user.name || user.username), t: now, c: cur ? (Number(cur.c) || 0) + 1 : 0 } };
+  entries.push({ t: now, w: actor, a: "vote", n: "", x: { v: changes.vote, change: !!cur } });
+  return {};
+}
+
 // HMGET without automatic deserialization gives an array in field order; accept an object too.
 function inOrder(raw, fields) {
   return Array.isArray(raw) ? raw : fields.map((f) => (raw && raw[f] != null ? raw[f] : null));
@@ -493,8 +534,12 @@ function redisStore() {
   const redis = new Redis({ url, token, automaticDeserialization: false });
   return {
     async read() {
-      const [v, slots, meta, signups] = await redis.pipeline().get(KEYS.version).hgetall(KEYS.slots).hgetall(KEYS.meta).hgetall(KEYS.signups).exec();
-      return toState(v, slots, meta, signups);
+      const [v, slots, meta, signups, poll] = await redis.pipeline().get(KEYS.version).hgetall(KEYS.slots).hgetall(KEYS.meta).hgetall(KEYS.signups).hgetall(KEYS.poll).exec();
+      return toState(v, slots, meta, signups, poll);
+    },
+    // This Discord account's vote, or null.
+    async vote(key) {
+      return parseEntry(await redis.hget(KEYS.poll, key));
     },
     async signups(ids) {
       return inOrder(await redis.hmget(KEYS.signups, ...ids), ids).map(parseSignup);
@@ -537,6 +582,7 @@ function redisStore() {
       stageHash(tx, KEYS.signups, changes.signups);
       stageHash(tx, KEYS.owners, changes.owners || {});
       stageHash(tx, KEYS.asks, changes.asks || {});
+      stageHash(tx, KEYS.poll, changes.poll || {});
       if (changes.unsign) tx.hdel(KEYS.signers, ...changes.unsign);
       if (signers) tx.hset(KEYS.signers, signers);
       if (log.length) { tx.lpush(KEYS.log, ...log.map((e) => JSON.stringify(e))); tx.ltrim(KEYS.log, 0, LOG_MAX - 1); }
@@ -545,9 +591,10 @@ function redisStore() {
       tx.hgetall(KEYS.slots);
       tx.hgetall(KEYS.meta);
       tx.hgetall(KEYS.signups);
+      tx.hgetall(KEYS.poll);
       const out = await tx.exec();
       const n = out.length;
-      return toState(out[n - 4], out[n - 3], out[n - 2], out[n - 1]);
+      return toState(out[n - 5], out[n - 4], out[n - 3], out[n - 2], out[n - 1]);
     },
   };
 }
@@ -558,10 +605,14 @@ function memoryStore() {
   mem.signers ||= {};
   mem.owners ||= {};
   mem.asks ||= {};
+  mem.poll ||= {};
   mem.limits ||= {}; // name -> { n, until }
   return {
     async read() {
-      return toState(mem.v, { ...mem.slots }, { ...mem.meta }, { ...mem.signups });
+      return toState(mem.v, { ...mem.slots }, { ...mem.meta }, { ...mem.signups }, { ...mem.poll });
+    },
+    async vote(key) {
+      return parseEntry(mem.poll[key] || null);
     },
     async signups(ids) {
       return ids.map((id) => parseSignup(mem.signups[id]));
@@ -598,7 +649,7 @@ function memoryStore() {
       Object.assign(mem.signers, signers);
       for (const k of changes.unsign || []) delete mem.signers[k];
       if (log.length) mem.log = log.slice().reverse().map((e) => JSON.stringify(e)).concat(mem.log || []).slice(0, LOG_MAX);
-      for (const hash of ["slots", "signups", "owners", "asks"]) {
+      for (const hash of ["slots", "signups", "owners", "asks", "poll"]) {
         for (const [field, value] of Object.entries(changes[hash] || {})) {
           if (value) mem[hash][field] = JSON.stringify(value);
           else delete mem[hash][field];
@@ -660,6 +711,11 @@ export default async function handler(req, res) {
         const [asks, taken] = await Promise.all([store.asks(), store.ownedIds()]), ask = asks[visitorKeys(req)[0]];
         Object.assign(more, { ask: ask ? { id: ask.id } : null, taken });
       }
+      // vote: this account's poll vote, how many changes are left, and when the next change is allowed (ms epoch).
+      if (user) {
+        const cur = await store.vote(visitorKeys(req)[0]);
+        more.vote = cur ? { v: cur.v, left: Math.max(0, MAX_VOTE_CHANGES - (Number(cur.c) || 0)), next: (Number(cur.t) || 0) + VOTE_COOLDOWN_MS } : null;
+      }
       return res.status(200).json({ admin, signedUp, mine, discord: SIGN_IN ? DISCORD_ID : "", user: user ? { name: user.name } : null, ...more });
     }
     // GET ?claims=1 (admin): a claim link token for every signup, and the Discord username that claimed it (or null).
@@ -701,7 +757,8 @@ export default async function handler(req, res) {
     for (const [id, u] of Object.entries(changes.signups)) if (u === null) changes.owners[id] = null; // a removed signup has no owner
     const claim = await handleClaims(store, req, admin, user, changes, actor, entries);
     const ask = await handleAsks(store, req, admin, user, changes, entries);
-    const note = warning || raidNote || claim.warning || ask.warning;
+    const voted = await handleVote(store, req, user, changes, actor, entries);
+    const note = warning || raidNote || claim.warning || ask.warning || voted.warning;
     const added = { ...signers, ...claim.signers, ...ask.signers };
     const state = await store.write(changes, Object.keys(added).length ? added : null, entries);
     lastRead = { at: Date.now(), state: Promise.resolve(state) }; // this instance's next GETs show the write at once

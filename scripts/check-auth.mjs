@@ -153,8 +153,42 @@ const old3link = (await call("GET", { url: "/api/comp?claims=1", who: fresh(admi
 await claim(old3link, fresh({ session: bo }));
 assert.deepEqual((await call("GET", { url: "/api/comp?claims=1", who: fresh(admin) })).out.asks, []);
 
+// Poll (pick the faction by coin flip?): only a Discord account votes, under its display name; a vote changes at most
+// 3 times and not within 10 minutes of the last change.
+{
+  const vote = (v, who) => call("POST", { body: { vote: v }, who });
+  const pollNow = async () => (await call("GET", { who: fresh() })).out.poll;
+  const wait = () => new Promise((r) => setTimeout(r, 1050)); // past the 1-second read cache
+  assert.equal((await vote("y", fresh())).code, 401, "no Discord, no vote");
+  assert.equal((await vote("y", { ...fresh(), admin: KEY })).out.warning, "Sign in with Discord to vote.", "the admin key is not a voter");
+  assert.equal((await vote("maybe", { ...fresh(), session: await signIn("700000000000000001") })).code, 400);
+  const v1 = { ...fresh(), session: await signIn("700000000000000001") }, v2 = { ...fresh(), session: await signIn("700000000000000002") };
+  assert.equal((await vote("y", v1)).out.warning, undefined);
+  assert.equal((await vote("n", v2)).out.warning, undefined);
+  await wait();
+  assert.deepEqual(await pollNow(), { y: ["Name 700000000000000001"], n: ["Name 700000000000000002"] });
+  assert.equal((await vote("y", v1)).out.warning, "That is already your vote.");
+  assert.equal((await vote("n", v1)).out.warning, "Wait 10 min before you change your vote again.", "cooldown after the first vote");
+  const me = async (who) => (await call("GET", { url: "/api/comp?me=1", who })).out.vote;
+  assert.deepEqual([(await me(v1)).v, (await me(v1)).left], ["y", 3]);
+  // Move the clock past each cooldown: 3 changes are allowed, then the vote is final.
+  const realNow = Date.now;
+  let shift = 0;
+  Date.now = () => realNow() + shift;
+  for (const [i, v] of [["n"], ["y"], ["n"]].entries()) {
+    shift += 11 * 60 * 1000;
+    assert.equal((await vote(v[0], v1)).out.warning, undefined, "change " + (i + 1));
+  }
+  shift += 11 * 60 * 1000;
+  assert.equal((await vote("y", v1)).out.warning, "You changed your vote 3 times. It stays as it is now.");
+  assert.equal((await me(v1)).left, 0);
+  await new Promise((r) => setTimeout(r, 1050));
+  assert.deepEqual(await pollNow(), { y: [], n: ["Name 700000000000000002", "Name 700000000000000001"] });
+  Date.now = realNow;
+}
+
 // The changelog shows the claims.
 const log = (await call("GET", { url: "/api/comp?log=1", who: fresh() })).out.entries.map((e) => e.a);
 assert.ok(log.includes("claim") && log.includes("unclaim"), log.join());
 assert.ok(!sent.some((u) => !u.startsWith("https://discord.com/")), "only Discord was called");
-console.log("auth checks passed: Discord sign-in, 401 without it, one signup per account, claim links, unclaim, claim requests");
+console.log("auth checks passed: Discord sign-in, 401 without it, one signup per account, claim links, unclaim, claim requests, poll");
