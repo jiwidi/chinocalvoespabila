@@ -810,11 +810,17 @@ span.fx-btn:hover{transform:none}
   // and whether this visitor already has a signup (then the page does not let them join again).
   let adminOk = false, signedUp = false, myId = null; // myId: this visitor's own signup (the only one they may fill in)
   function checkAdmin() {
+    const sent = adminKey;
     fetch(API + "?me=1", { headers: visitorHeaders() }).then(readJSON).then((j) => {
       signedUp = !!j.signedUp;
       if (myId !== (j.mine || null)) { myId = j.mine || null; renderSignups(); }
       if (adminOk !== !!j.admin) { adminOk = !!j.admin; renderSignups(); renderView(); }
-      if (adminKey && !j.admin) toast("Admin key not accepted. Open the page with #admin=<key> again.");
+      // A refused key is forgotten: sent again, each request counts as one more wrong try for this network.
+      if (sent && sent === adminKey && !j.admin) {
+        adminKey = "";
+        try { localStorage.removeItem(ADMIN_STORE); } catch (e) {}
+        toast("Admin key not accepted. After 10 wrong keys this network waits 15 minutes. Then open the page with #admin=<key> again.");
+      }
       discordId = j.discord || "";
       meUser = j.user || null;
       if (session && !meUser) { session = ""; try { localStorage.removeItem(SESSION_STORE); } catch (e) {} } // expired or bad
