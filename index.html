@@ -244,7 +244,8 @@ button{cursor:pointer}
 .rk.r2{color:var(--warn);background:rgba(242,184,75,.12)}
 .rk.r3{color:#f08a4b;background:rgba(240,138,75,.12)}
 .bench{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:14px 2px 0;padding:10px;border:1px dashed var(--line-2);border-radius:6px;font-size:12px;color:var(--muted)}
-.bench > span:first-child{font-weight:700;color:var(--soft);margin-right:2px}
+.bench-label{font-weight:700;color:var(--soft);margin-right:2px}
+.bench-chip + .bench-label{margin-left:12px}
 .bench-chip{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 9px 0 3px;border-radius:5px;background:var(--slot);box-shadow:inset 3px 0 0 var(--c,var(--line-2));font-weight:700;color:var(--cn,var(--soft))}
 .bench-chip .ic{width:20px;height:20px}
 /* Comp options when more players signed up than the raid holds */
@@ -1200,16 +1201,17 @@ span.fx-btn:hover{transform:none}
         '<button type="button" role="tab" class="sg-tab' + (i === suggestIdx ? " on" : "") + '" data-act="sg-opt" data-i="' + i + '" aria-selected="' + (i === suggestIdx) + '">' +
         "<b>Option " + (i + 1) + "</b><small>" + (i ? "+ " + esc(o.adds.map((u) => u.n).join(", ")) : "best fit") + "</small></button>").join("") + "</div>" +
       '<p class="sg-note">' + plural(compPlayers().length, "player") + " for " + state.size + " seats. Each option after the first brings in the players the earlier ones left out, so everyone plays in at least one.</p>";
-    const bench = sg.bench.length ? '<div class="bench"><span>Bench in this option (' + sg.bench.length + "):</span>" +
-      sg.bench.map((u) => { const k = u.c[0], c = k ? CLASS[SPEC[k].cls] : null; return '<span class="bench-chip"' + (c ? ' style="--c:' + c.color + ";--cn:" + (c.text || c.color) + '"' : "") + ">" + (k ? img(SPEC[k].icon) : "") + esc(u.n) + "</span>"; }).join("") + "</div>" : "";
+    // One bench box: the players this option leaves out, then the players the admin benched (out of every option).
+    const benchChip = (u) => { const k = u.c[0], c = k ? CLASS[SPEC[k].cls] : null; return '<span class="bench-chip"' + (c ? ' style="--c:' + c.color + ";--cn:" + (c.text || c.color) + '"' : "") + ">" + (k ? img(SPEC[k].icon) : "") + esc(u.n) + "</span>"; };
+    const benchPart = (label, list) => list.length ? '<span class="bench-label">' + label + " (" + list.length + "):</span>" + list.map(benchChip).join("") : "";
     const benched = [...signupsByName().values()].filter((u) => u.b);
-    const adminBench = benched.length ? '<p class="sg-note">On the bench by the admin, in no option: ' + esc(benched.map((u) => u.n).join(", ")) + ".</p>" : "";
+    const bench = sg.bench.length || benched.length ? '<div class="bench">' + benchPart("Bench in this option", sg.bench) + benchPart("Benched by the admin", benched) + "</div>" : "";
     suggestEl.innerHTML = '<div class="phead"><h2 class="ttl">Suggested comp <small>best fit for the signups, updates as they change</small></h2>' +
       '<button type="button" class="btn ' + (useArmed ? "armed" : "primary") + '" data-act="use-suggest">' + (useArmed ? "Click again to replace the groups" : opts.length > 1 ? "Use option " + (suggestIdx + 1) : "Use this comp") + "</button></div>" +
       tabs +
       '<p class="sg-sum"><b>' + raid.length + "</b> players: " + rankSum + ".</p>" +
       '<ul class="needs">' + needs + "</ul>" +
-      '<div class="grid">' + groupsH + "</div>" + bench + adminBench;
+      '<div class="grid">' + groupsH + "</div>" + bench;
   }
   function renderPrefs() {
     const players = [...signupsByName().values()];
