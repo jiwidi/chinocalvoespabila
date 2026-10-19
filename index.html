@@ -197,8 +197,10 @@ button{cursor:pointer}
 .su .mini:hover{color:#fff;background:var(--bad)}
 .su .mini.ok{color:var(--ok);opacity:1}
 .su .bench,.su .bench-btn.on{color:var(--warn);background:rgba(242,184,75,.14)}
-.su .bench-btn{border:0;font-family:inherit;cursor:pointer;opacity:0}
-.su:hover .bench-btn,.su .bench-btn.on,.su .bench-btn:focus-visible{opacity:1}
+.su .locked,.su .lock-btn.on{color:var(--ok);background:rgba(76,196,107,.14)}
+.su .bench-btn,.su .lock-btn{border:0;font-family:inherit;cursor:pointer;opacity:0}
+.su:hover .bench-btn,.su .bench-btn.on,.su .bench-btn:focus-visible,.su:hover .lock-btn,.su .lock-btn.on,.su .lock-btn:focus-visible{opacity:1}
+.sg-cell .lk{flex:none;padding:1px 6px;border-radius:9px;background:rgba(76,196,107,.14);color:var(--ok);font-size:10px;font-weight:700}
 .su.benched .su-name,.su.benched .su-specs{opacity:.55}
 .su .mini.ok:hover{background:var(--ok);color:var(--accent-ink)}
 .su-wait{margin:0 0 10px;padding:6px 4px 4px;border:1px dashed var(--warn);border-radius:6px}
@@ -584,6 +586,7 @@ span.fx-btn:hover{transform:none}
         if (FACTION[u.f]) o.f = u.f;
         if (u.p) o.p = 1; // waiting for the admin's approval
         if (u.b) o.b = 1; // on the bench: the admin left them out of the suggested comp
+        else if (u.r) o.r = 1; // locked in: the admin put them in every option of the suggested comp
         return o;
       });
     return { v: Number(d.v) || 0, size: SIZES.includes(d.size) ? d.size : 20, slots, signups };
@@ -852,12 +855,15 @@ span.fx-btn:hover{transform:none}
     const key = state.size + "|" + pets + "|" + JSON.stringify(state.signups);
     if (suggestMemo.key === key) return suggestMemo.out;
     const players = compPlayers(), t = targets(state.size);
-    const options = [solveComp(players, state.size, t, new Set())];
+    // Players the admin locked in are in every option (earlier signups first if they are more than the seats).
+    const locked = players.map((u, i) => i).filter((i) => players[i].r).slice(0, state.size);
+    const options = [solveComp(players, state.size, t, new Set(locked))];
     const covered = new Set(options[0].raid.map((m) => m.i));
     while (covered.size < players.length && options.length < MAX_OPTIONS) {
-      const forced = new Set(players.map((u, i) => i).filter((i) => !covered.has(i)).slice(0, state.size));
+      const forced = new Set(locked.concat(players.map((u, i) => i).filter((i) => !covered.has(i))).slice(0, state.size));
       const opt = solveComp(players, state.size, t, forced);
-      opt.adds = players.filter((u, i) => forced.has(i));
+      opt.adds = players.filter((u, i) => forced.has(i) && !u.r);
+      if (!opt.adds.length) break; // the locked players fill every seat
       opt.raid.forEach((m) => covered.add(m.i));
       options.push(opt);
     }
@@ -1104,10 +1110,14 @@ span.fx-btn:hover{transform:none}
     const bench = u.p ? "" : adminOk
       ? '<button type="button" class="where bench-btn' + (u.b ? " on" : "") + '" data-act="su-bench" aria-pressed="' + !!u.b + '" title="' + esc(benchTip + (u.b ? " Click to take them off the bench." : "")) + '">Bench</button>'
       : u.b ? '<span class="where bench" title="' + esc(benchTip) + '">Bench</span>' : "";
+    const lockTip = u.r ? who + " is locked into the suggested comp: in every option." : "Lock " + who + " into the suggested comp: in every option.";
+    const lock = u.p ? "" : adminOk
+      ? '<button type="button" class="where lock-btn' + (u.r ? " on" : "") + '" data-act="su-lock" aria-pressed="' + !!u.r + '" title="' + esc(lockTip + (u.r ? " Click to unlock." : "")) + '">' + (u.r ? "Locked" : "Lock") + "</button>"
+      : u.r ? '<span class="where locked" title="' + esc(lockTip) + '">Locked</span>' : "";
     return '<div class="su' + (m ? " placed" : "") + (u.p ? " pending" : "") + (u.b ? " benched" : "") + '" data-id="' + esc(u.id) + '">' + side +
       '<input class="su-name" maxlength="' + NAME_MAX + '" autocomplete="off" spellcheck="false" placeholder="Name" aria-label="Name" value="' + esc(u.n) + '"' + (adminOk ? "" : ' readonly title="Only the admin can change a name."') + ">" +
       '<span class="su-specs">' + chips + (u.c.length ? "" : '<button type="button" class="btn pick-specs" data-act="sp-open">Pick specs</button>') + (opts && u.c.length ? '<select class="su-add" title="Add a spec" aria-label="Add a spec for ' + esc(who) + '"><option value="">+</option>' + opts + "</select>" : "") + "</span>" +
-      (m ? '<span class="where" title="In group ' + g + '">G' + g + "</span>" : "") + bench + approve +
+      (m ? '<span class="where" title="In group ' + g + '">G' + g + "</span>" : "") + lock + bench + approve +
       (adminOk ? '<button type="button" class="mini" data-act="su-del" aria-label="Remove ' + esc(who) + ' from signups">&times;</button>' : "") + "</div>";
   }
   let signupsDirty = false, holdSignups = false;
@@ -1190,7 +1200,7 @@ span.fx-btn:hover{transform:none}
         const m = sg.slots[i];
         if (!m) { cells += '<div class="sg-cell empty"></div>'; continue; }
         const sp = SPEC[m.s], c = CLASS[sp.cls];
-        cells += '<div class="sg-cell" style="--c:' + c.color + ";--cn:" + (c.text || c.color) + '" title="' + esc(m.n + ": " + specName(sp) + " (" + ordinal(m.rank + 1) + " choice)") + '">' + img(sp.icon) + '<span class="nm">' + esc(m.n) + "</span>" + rankBadge(m.rank) + "</div>";
+        cells += '<div class="sg-cell' + (m.u.r ? " locked" : "") + '" style="--c:' + c.color + ";--cn:" + (c.text || c.color) + '" title="' + esc(m.n + ": " + specName(sp) + " (" + ordinal(m.rank + 1) + " choice)" + (m.u.r ? ". Locked in by the admin." : "")) + '">' + img(sp.icon) + '<span class="nm">' + esc(m.n) + "</span>" + (m.u.r ? '<span class="lk">Locked</span>' : "") + rankBadge(m.rank) + "</div>";
       }
       groupsH += '<section class="group"><h3>Group ' + (g + 1) + "<span>" + sg.slots.slice(g * 5, g * 5 + 5).filter(Boolean).length + "/5</span></h3>" + '<div class="cells">' + cells + "</div></section>";
     }
@@ -1275,7 +1285,7 @@ span.fx-btn:hover{transform:none}
     const su = {};
     new Set(before.signups.concat(after.signups).map((u) => u.id)).forEach((id) => {
       const b = before.signups.find((u) => u.id === id), a = after.signups.find((u) => u.id === id);
-      if (JSON.stringify(b) !== JSON.stringify(a)) su[id] = a ? { n: a.n, c: a.c, f: a.f, p: a.p, b: a.b } : null;
+      if (JSON.stringify(b) !== JSON.stringify(a)) su[id] = a ? { n: a.n, c: a.c, f: a.f, p: a.p, b: a.b, r: a.r } : null;
     });
     if (Object.keys(su).length) { ch.signups = su; any = true; }
     return any ? ch : null;
@@ -1435,9 +1445,14 @@ span.fx-btn:hover{transform:none}
     else if (act === "su-approve") { const { p, ...ok } = u; updateSignup(id, ok); toast(u.n + " is in the signups."); }
     else if (act === "su-wait") { updateSignup(id, { ...u, p: 1 }); toast(u.n + " is waiting for approval again."); }
     else if (act === "su-bench") {
-      const { b, ...rest } = u;
-      updateSignup(id, b ? rest : { ...u, b: 1 });
+      const { b, r, ...rest } = u; // benching unlocks
+      updateSignup(id, b ? rest : { ...rest, b: 1 });
       toast(b ? u.n + " is off the bench." : u.n + " is on the bench: left out of the suggested comp.");
+    }
+    else if (act === "su-lock") {
+      const { b, r, ...rest } = u; // locking in takes them off the bench
+      updateSignup(id, r ? rest : { ...rest, r: 1 });
+      toast(r ? u.n + " is unlocked." : u.n + " is locked into the suggested comp: in every option.");
     }
     else if (act === "su-drop") updateSignup(id, u.n || u.c.length > 1 ? { ...u, c: u.c.filter((k) => k !== key) } : null);
     else if (act === "su-place") placePlayer(key, u.n);
