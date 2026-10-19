@@ -156,3 +156,9 @@ Setup:
 1. On https://discord.com/developers/applications create an application. Under **OAuth2**, copy the **Client ID**, reset and copy the **Client Secret**, and add a redirect: `https://<your site>/api/discord` (and `http://localhost:3000/api/discord` for local tests).
 2. In Vercel, add `RAIDCOMP_DISCORD_CLIENT_ID`, `RAIDCOMP_DISCORD_CLIENT_SECRET` (sensitive) and `RAIDCOMP_SESSION_SECRET` (sensitive; a long random value such as `openssl rand -base64 32`, different for Production and Preview), then redeploy.
 3. A preview shares the production database unless you also set `RAIDCOMP_PREFIX` (for example `raidcomp-preview`) for Preview.
+
+### Poll: pick the faction by coin flip?
+
+Under **Horde vs Alliance**, a poll asks "¿Elegimos facción a cara o cruz?" (yes: coin flip; no: the majority decides). Only a signed-in Discord account votes (`POST /api/comp {"vote": "y" | "n"}`); the admin key alone does not. Votes live in `raidcomp:poll` (Discord account's visitor key → `{ v, n: Discord display name, t, c: changes so far }`). `GET /api/comp` returns `poll: { y: [names], n: [names] }`, in the order people voted, so the page shows the share and who voted what.
+
+Against flip-flopping, a vote can change at most 3 times, and not within 10 minutes of the last change (`MAX_VOTE_CHANGES`, `VOTE_COOLDOWN_MS`); the server answers with a warning otherwise. `GET /api/comp?me=1` gives the signed-in account's `vote: { v, left, next }` so the page shows what is left. The changelog logs each vote.
