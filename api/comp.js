@@ -1,6 +1,6 @@
 // Shared raid comp API.
 // GET  /api/comp           -> current comp { v, size, slots[40], signups[] }
-// POST /api/comp {request: {c, f}} -> a player asks to change their own signup; {requests: {id: null}} answers it
+// POST /api/comp {request: {id, c, f}} -> anyone asks to change a signup; {requests: {key: null}} answers or withdraws it
 // GET  /api/comp?log=1&page=N -> changelog, newest first: { entries, page, pages, total }
 // POST /api/comp {slots, size, signups} -> applies changes, returns the new comp
 //
@@ -43,6 +43,8 @@ const MAX_PENDING = 25; // signups that wait for approval at once
 const NEW_SIGNUPS_PER_DAY = 3; // per network: an IPv4 address or an IPv6 /64
 const LOG_MAX = 1000; // changelog entries kept
 const LOG_PAGE = 20; // changelog entries per page
+const MAX_OPEN_REQUESTS = 60; // change requests open at once, from everyone
+const REQUEST_KEY = /^([a-z0-9]{6,24}):([a-f0-9]{12})$/; // signup id, then the session that asked
 const ADMIN_TRIES = 10; // wrong admin keys per network (an IPv4 address or an IPv6 /48) in 15 minutes
 const ADMIN_KEY = process.env.RAIDCOMP_ADMIN_KEY || "";
 // Key for the visitor hashes. It is the admin key unless set, so the stored hashes keep matching. Before you change
@@ -56,7 +58,7 @@ const KEYS = {
   signers: `${PREFIX}:signers`, // visitor key -> id of the last signup made with it
   limit: `${PREFIX}:limit:`, // + "signup:<network>" or "admin:<network>": counters that expire
   log: `${PREFIX}:log`, // changelog: JSON entries, newest first, at most LOG_MAX
-  requests: `${PREFIX}:requests`, // signup id -> { c, f, t }: a change the player asked for, waiting for the admin
+  requests: `${PREFIX}:requests`, // "<signup id>:<session>" -> { c, f, t, by }: a change someone asked for, waiting for the admin
 };
 
 class BadRequest extends Error {}
@@ -117,6 +119,10 @@ function cleanRequest(v) {
   }
   if (!out.c && !out.f) return null;
   out.t = Number(v.t) || Date.now();
+  const by = v.by;
+  if (by && by.k === "admin") out.by = { k: "admin" };
+  else if (by && by.k === "player" && by.n) out.by = { k: "player", n: cleanName(by.n) };
+  else if (by && by.k === "visitor" && /^[a-f0-9]{4}$/.test(by.tag)) out.by = { k: "visitor", tag: by.tag };
   return out;
 }
 
@@ -146,11 +152,12 @@ function toState(version, slotsHash, metaHash, signupsHash, requestsHash) {
   signups.sort((a, b) => (a.id < b.id ? -1 : 1)); // ids start with a timestamp, so this is signup order
   const size = Number(metaHash && metaHash.size);
   const ids = new Set(signups.map((u) => u.id)), requests = [];
-  for (const [id, raw] of Object.entries(hashToObject(requestsHash))) {
+  for (const [key, raw] of Object.entries(hashToObject(requestsHash))) {
+    const m = key.match(REQUEST_KEY), id = m ? m[1] : key, s = m ? m[2] : ""; // a key without a session is from before
     if (!ids.has(id)) continue; // the signup is gone
     try {
       const q = cleanRequest(typeof raw === "string" ? JSON.parse(raw) : raw);
-      if (q) requests.push({ id, ...q });
+      if (q) requests.push({ key, id, s, ...q });
     } catch {
       /* ignore a corrupt field */
     }
@@ -210,16 +217,17 @@ function parseChanges(body) {
     }
     const q = cleanRequest({ c: body.request && body.request.c, f: body.request && body.request.f });
     if (!q) throw new BadRequest("A change request needs specs (up to " + MAX_CLASSES + " classes) or a side");
+    if (typeof body.request.id !== "string" || !SIGNUP_ID.test(body.request.id)) throw new BadRequest("A change request names the signup (id)");
     if (body.request.c === undefined) delete q.c;
-    out.request = q;
+    out.request = { id: body.request.id, ...q };
   }
   if (body.requests !== undefined) {
     if (!body.requests || typeof body.requests !== "object") throw new BadRequest("requests must be an object");
     const entries = Object.entries(body.requests);
     if (entries.length > MAX_SIGNUPS) throw new BadRequest("Too many requests");
-    for (const [id, value] of entries) {
-      if (!SIGNUP_ID.test(id) || value !== null) throw new BadRequest("Bad value for request " + id);
-      out.requests[id] = null;
+    for (const [key, value] of entries) {
+      if (!(REQUEST_KEY.test(key) || SIGNUP_ID.test(key)) || value !== null) throw new BadRequest("Bad value for request " + key);
+      out.requests[key] = null;
     }
   }
   if (!Object.keys(out.slots).length && !Object.keys(out.signups).length && out.size === undefined && !out.request && !Object.keys(out.requests).length) throw new BadRequest("Nothing to change");
@@ -373,6 +381,14 @@ async function ownSignupId(store, req) {
   return (await store.signers(own.length ? own : keys)).find(Boolean) || null;
 }
 
+// The session a change request belongs to: 12 characters of the visitor's keyed hash, fingerprint or device id first
+// (the network + browser key only when the request has neither). The changelog's visitor tag is its first 4.
+function sessionOf(req) {
+  const keys = visitorKeys(req);
+  const best = keys.find((k) => k.startsWith("fp:")) || keys.find((k) => k.startsWith("dev:")) || keys[0];
+  return best.split(":")[1].slice(0, 12);
+}
+
 async function actorOf(store, req, admin, changes, signers, before) {
   if (admin) return { k: "admin" };
   if (signers) { // signed up in this very request
@@ -411,34 +427,39 @@ function describe(changes, before, w, sizeBefore) {
   return out;
 }
 
-// Change requests. A player asks to change the specs and/or side of their own signup (found by their browser keys, as
-// for the changelog); the admin answers by removing the request, with or without applying it in the same POST.
-// A player can withdraw their own request. Removing a signup drops its request. Logs request, approved, rejected,
-// withdrawn. Returns a warning for the reply, or null.
+// Change requests, by session. Anyone can ask to change any signup's specs and/or side; each session (browser) has at
+// most one open request per signup, and a new one replaces it. The admin answers by removing a request, with or
+// without applying it in the same POST; a session can withdraw its own. Removing a signup drops its requests.
+// Logs request, approved, rejected, withdrawn. Returns a warning for the reply, or null.
 async function handleRequests(store, req, admin, changes, before, actor, entries) {
   let warning = null;
-  for (const [id, u] of Object.entries(changes.signups)) if (u === null) changes.requests[id] = null;
-  const answered = Object.keys(changes.requests);
-  if (!changes.request && !answered.length) return null;
-  const now = await readState(store);
-  const signupOf = (id) => now.signups.find((u) => u.id === id), open = new Map(now.requests.map((q) => [q.id, q]));
-  const mine = changes.request || (!admin && answered.length) ? await ownSignupId(store, req) : null;
+  const dropped = Object.entries(changes.signups).filter(([, u]) => u === null).map(([id]) => id);
+  if (!changes.request && !Object.keys(changes.requests).length && !dropped.length) return null;
+  const now = await readState(store), sess = sessionOf(req);
+  for (const q of now.requests) if (dropped.includes(q.id)) changes.requests[q.key] = null;
+  const signupOf = (id) => now.signups.find((u) => u.id === id), open = new Map(now.requests.map((q) => [q.key, q]));
   const t = Date.now(), add = (a, n, x) => entries.push(x ? { t, w: actor, a, n, x } : { t, w: actor, a, n });
-  for (const id of answered) {
-    const q = open.get(id), u = signupOf(id);
-    if (!admin && id !== mine) { delete changes.requests[id]; warning = "Only the admin can answer a change request."; continue; }
-    if (!q || !u || changes.signups[id] === null) continue; // nothing open, or the signup goes away with it
+  for (const key of Object.keys(changes.requests)) {
+    const q = open.get(key), u = q && signupOf(q.id);
+    if (!admin && !dropped.includes(q ? q.id : "") && !key.endsWith(":" + sess)) {
+      delete changes.requests[key];
+      warning = "Only the admin can answer a change request; you can withdraw your own.";
+      continue;
+    }
+    if (!q || !u || changes.signups[q.id] === null) continue; // nothing open, or the signup goes away with it
     if (!admin) { add("request-withdrawn", u.n); continue; }
-    const v = changes.signups[id], applied = v && ((q.c && v.c.join() === q.c.join()) || (q.f && v.f === q.f));
-    add(applied ? "request-approved" : "request-rejected", u.n, q);
+    const v = changes.signups[q.id], applied = v && ((q.c && v.c.join() === q.c.join()) || (q.f && v.f === q.f));
+    add(applied ? "request-approved" : "request-rejected", u.n, { ...(q.c ? { c: q.c } : {}), ...(q.f ? { f: q.f } : {}), ...(q.by ? { by: q.by } : {}) });
   }
   if (changes.request) {
-    const u = mine && signupOf(mine), q = changes.request;
-    if (!u) return "Sign up first: you can only ask to change your own signup.";
+    const { id, ...q } = changes.request, u = signupOf(id);
+    if (!u) return warning || "That signup is gone.";
     if (q.c && q.c.join() === u.c.join()) delete q.c;
     if (q.f && q.f === u.f) delete q.f;
-    if (!q.c && !q.f) return warning || "That is what you already have.";
-    changes.requests[mine] = { ...q, t };
+    if (!q.c && !q.f) return warning || "That is what the signup already has.";
+    const key = id + ":" + sess;
+    if (!open.has(key) && now.requests.length >= MAX_OPEN_REQUESTS) return warning || "Too many change requests wait for the admin. Try again later.";
+    changes.requests[key] = { ...q, t, by: actor };
     add("request", u.n, { ...(q.c ? { from: u.c, c: q.c } : {}), ...(q.f ? { fromF: u.f || "", f: q.f } : {}) });
   }
   return warning;
@@ -605,7 +626,7 @@ export default async function handler(req, res) {
       const admin = await isAdmin(store, req);
       // mine: the id of this visitor's own signup, so the page can offer "Request change" on that row.
       const mine = admin ? null : await ownSignupId(store, req);
-      return res.status(200).json({ admin, signedUp: !admin && (!!mine || (await hasSignup(store, visitorKeys(req)))), mine });
+      return res.status(200).json({ admin, signedUp: !admin && (!!mine || (await hasSignup(store, visitorKeys(req)))), mine, session: sessionOf(req) });
     }
     // GET ?log=1&page=N: one page of the changelog (page 0 is the newest). Counted by the flood limit above.
     if (log) {

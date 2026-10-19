@@ -425,7 +425,8 @@ span.fx-btn:hover{transform:none}
 .su-req{margin:0 0 12px;padding:10px;border:1px solid rgba(242,184,75,.45);border-radius:8px;background:rgba(242,184,75,.05)}
 .su-req h3{margin:0 0 8px;font-size:13px;color:var(--accent)}
 .rq{display:flex;align-items:center;gap:10px;padding:6px 4px;border-top:1px solid var(--line)}
-.rq > b{flex:0 0 110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#fff}
+.rq > b{flex:0 0 120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#fff}
+.rq > b small{display:block;overflow:hidden;text-overflow:ellipsis;font-size:10.5px;font-weight:600;color:var(--muted)}
 .rq-diff{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
 .rq-line{display:flex;flex-wrap:wrap;align-items:center;gap:4px}
 .rq-line i{margin:0 4px;font-style:normal;font-weight:700;color:var(--faint)}
@@ -702,16 +703,19 @@ span.fx-btn:hover{transform:none}
         else if (u.r) o.r = 1; // locked in: the admin put them in every option of the suggested comp
         return o;
       });
-    // Change requests: a player asks for other specs and/or side; the admin applies or drops them.
+    // Change requests: anyone asks for other specs and/or side on a signup, one per browser session and signup; the
+    // admin applies or drops them.
     const requests = (Array.isArray(d.requests) ? d.requests : []).filter((q) => q && typeof q.id === "string").map((q) => {
-      const o = { id: q.id, t: Number(q.t) || 0 };
+      const o = { key: String(q.key || q.id), id: q.id, s: String(q.s || ""), t: Number(q.t) || 0 };
+      if (q.by && typeof q.by === "object") o.by = { k: q.by.k, n: cleanName(q.by.n), tag: String(q.by.tag || "").slice(0, 4) };
       if (Array.isArray(q.c)) o.c = q.c.filter((k) => SPEC[k]);
       if (FACTION[q.f]) o.f = q.f;
       return o;
     });
     return { v: Number(d.v) || 0, size: SIZES.includes(d.size) ? d.size : 20, slots, signups, requests };
   }
-  const requestOf = (id) => (state.requests || []).find((q) => q.id === id);
+  const requestsOf = (id) => (state.requests || []).filter((q) => q.id === id);
+  const myRequestOf = (id) => requestsOf(id).find((q) => mySession && q.s === mySession);
   const same = (a, b) => (a ? a.s + "|" + a.n : "") === (b ? b.s + "|" + b.n : "");
   // Starts with a timestamp, so sorting by id keeps signup order. The random tail avoids clashes.
   const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
@@ -807,11 +811,11 @@ span.fx-btn:hover{transform:none}
   }
   // Whether the server accepts this browser's admin key (only then the page shows the signup edit controls),
   // and whether this visitor already has a signup (then the page does not let them join again).
-  let adminOk = false, signedUp = false, myId = null; // myId: this visitor's own signup (for change requests)
+  let adminOk = false, signedUp = false, myId = null, mySession = ""; // mySession: whose change requests are this browser's
   function checkAdmin() {
     fetch(API + "?me=1", { headers: visitorHeaders() }).then(readJSON).then((j) => {
       signedUp = !!j.signedUp;
-      if (myId !== (j.mine || null)) { myId = j.mine || null; renderSignups(); }
+      if (myId !== (j.mine || null) || mySession !== (j.session || "")) { myId = j.mine || null; mySession = j.session || ""; renderSignups(); }
       if (adminOk !== !!j.admin) { adminOk = !!j.admin; renderSignups(); }
       if (adminKey && !j.admin) toast("Admin key not accepted. Open the page with #admin=<key> again.");
     }, () => { /* keep the last answer; the server checks every edit anyway */ });
@@ -1279,12 +1283,12 @@ span.fx-btn:hover{transform:none}
     // so they take no room from the specs.
     const benchTip = u.b ? who + " is on the bench: left out of the suggested comp." : "Bench " + who + ": leave them out of the suggested comp.";
     const lockTip = u.r ? who + " is locked into the suggested comp: in every option." : "Lock " + who + " into the suggested comp: in every option.";
-    const rq = requestOf(u.id);
-    const rqTip = rq ? who + " asked the admin for a change" + (rq.f && FACTION[rq.f] ? ": " + FACTION[rq.f].name : "") + (rq.c ? (rq.f ? ", " : ": ") + rq.c.map((k) => specName(SPEC[k])).join(" > ") : "") + "." : "";
+    const rqs = requestsOf(u.id), rq = myRequestOf(u.id);
+    const rqTip = rqs.length ? plural(rqs.length, "change request") + " for " + who + " waiting for the admin" + (rq ? ", one of them yours." : ".") : "";
     const status = (u.r ? '<span class="where st-locked" title="' + esc(lockTip) + '">Locked</span>' : u.b ? '<span class="where st-bench" title="' + esc(benchTip) + '">Bench</span>' : "") +
-      (rq ? '<span class="where st-req" title="' + esc(rqTip) + '">Change asked</span>' : "");
-    // The player's own row: ask the admin for a change (or open the one already asked).
-    const ask = !adminOk && u.id === myId && !u.p && u.c.length ? '<button type="button" class="btn ask-btn" data-act="rq-open" title="Ask the admin to change your specs or side">' + (rq ? "Your request" : "Request change") + "</button>" : "";
+      (rqs.length ? '<span class="where st-req" title="' + esc(rqTip) + '">Change asked' + (rqs.length > 1 ? " ×" + rqs.length : "") + "</span>" : "");
+    // Anyone can ask the admin to change a signup's specs or side (or open the request this browser already made).
+    const ask = !adminOk && !u.p && u.c.length ? '<button type="button" class="btn ask-btn" data-act="rq-open" title="' + esc("Ask the admin to change " + who + "'s specs or side") + '">' + (rq ? "Your request" : "Request change") + "</button>" : "";
     const tool = (act, cls, on, label, title) => '<button type="button" class="tool ' + cls + (on ? " on" : "") + '" data-act="' + act + '" aria-pressed="' + on + '" title="' + esc(title) + '">' + label + "</button>";
     const del = '<button type="button" class="mini" data-act="su-del" title="Remove ' + esc(who) + ' from signups" aria-label="Remove ' + esc(who) + ' from signups">&times;</button>';
     const approve = adminOk && u.p ? '<button type="button" class="mini ok" data-act="su-approve" title="Approve: move ' + esc(who) + ' to the signups" aria-label="Approve ' + esc(who) + '">&#10003;</button>' : "";
@@ -1300,11 +1304,12 @@ span.fx-btn:hover{transform:none}
   // The admin's list of change requests: what the player has now, what they ask for, approve or reject.
   function requestsHTML() {
     const open = (state.requests || []).map((q) => ({ q, u: state.signups.find((x) => x.id === q.id) })).filter((x) => x.u);
+    const asker = (by) => !by ? "" : by.k === "admin" ? "Admin" : by.k === "player" ? by.n : "Visitor #" + by.tag;
     if (!adminOk || !open.length) return "";
     const specs = (list) => '<span class="rq-specs">' + list.map((k) => img(SPEC[k].icon, "", specName(SPEC[k]))).join("") + "</span>";
     const side = (f) => (FACTION[f] ? img(FACTION[f].icon, "rq-fx", FACTION[f].name) : '<span class="rq-none">no side</span>');
     return '<section class="su-req" aria-label="Change requests"><h3 class="ttl">Change requests <span class="count">' + open.length + "</span></h3>" + open.map(({ q, u }) =>
-      '<div class="rq" data-id="' + esc(u.id) + '"><b>' + esc(u.n) + '</b><div class="rq-diff">' +
+      '<div class="rq" data-key="' + esc(q.key) + '"><b>' + esc(u.n) + (q.by ? '<small>asked by ' + esc(asker(q.by)) + "</small>" : "") + '</b><div class="rq-diff">' +
         (q.f ? '<span class="rq-line">' + side(u.f) + "<i>→</i>" + side(q.f) + "</span>" : "") +
         (q.c ? '<span class="rq-line">' + specs(u.c) + "<i>→</i>" + specs(q.c) + "</span>" : "") + "</div>" +
         '<span class="rq-acts"><button type="button" class="mini ok" data-act="rq-approve" title="Apply this change" aria-label="Approve the change for ' + esc(u.n) + '">&#10003;</button>' +
@@ -1319,10 +1324,10 @@ span.fx-btn:hover{transform:none}
       }, (err) => toast(err.status === 400 ? "The server rejected that: " + err.message : "Could not reach the server. Try again."));
   }
   // The admin applies (approve) or drops (reject) a request; approving also writes the signup, in the same POST.
-  function answerRequest(id, approve) {
-    const q = requestOf(id), u = state.signups.find((x) => x.id === id);
+  function answerRequest(key, approve) {
+    const q = (state.requests || []).find((x) => x.key === key), u = q && state.signups.find((x) => x.id === q.id);
     if (!q || !u) return;
-    const body = { requests: { [id]: null } };
+    const id = u.id, body = { requests: { [key]: null } };
     if (approve) {
       const next = { n: u.n, c: q.c || u.c };
       if (q.f || u.f) next.f = q.f || u.f;
@@ -1931,7 +1936,7 @@ span.fx-btn:hover{transform:none}
   function showRequestPicker(id) {
     const u = state.signups.find((x) => x.id === id);
     if (!u) return;
-    const q = requestOf(id);
+    const q = myRequestOf(id);
     specDraft = { id, c: (q && q.c ? q.c : u.c).slice(), f: (q && q.f) || u.f || "", request: true };
     renderSpecPicker();
   }
@@ -1959,13 +1964,13 @@ span.fx-btn:hover{transform:none}
       return '<span class="sp-pick" style="--c:' + c.color + ";--cn:" + (c.text || c.color) + '"><b>' + (i + 1) + "</b>" + img(sp.icon) + esc(specName(sp)) + "</span>";
     }).join("") : '<span class="sp-empty">Nothing yet. Click your best spec first, then the next ones.</span>';
     // Asking for a change: also the side, and the button sends a request instead of saving.
-    const rq = d.request, open = rq && requestOf(d.id);
+    const rq = d.request, open = rq && myRequestOf(d.id);
     const changed = rq && (d.c.join() !== u.c.join() || (d.f || "") !== (u.f || ""));
     const sides = !rq ? "" : '<div class="rq-sides" role="group" aria-label="Side">' + ["h", "a", "d"].filter((f) => FACTION[f]).map((f) =>
       '<button type="button" class="rq-side f-' + f + (d.f === f ? " on" : "") + '" data-act="rq-side" data-f="' + f + '" aria-pressed="' + (d.f === f) + '">' + img(FACTION[f].icon) + "<span>" + esc(FACTION[f].es || FACTION[f].name) + "</span></button>").join("") + "</div>";
     dialogRoot.innerHTML = '<div class="overlay" data-act="close-dialog"><div class="dialog sp-dialog" role="dialog" aria-modal="true" aria-labelledby="sp-title">' +
       '<p class="step">' + (rq ? "Change request" : joining === null ? "" : "Step 2 of 2") + '</p><h3 id="sp-title">' + (rq ? "Ask for a change" : "Pick your specs") + "</h3>" +
-      (rq ? '<p class="fx-who">' + esc(u.n) + ", pick the side and the specs you want. The admin approves or rejects the change." + (open ? " You already asked: sending again replaces it." : "") + "</p>" + sides : "") +
+      (rq ? '<p class="fx-who">Ask for a change to <b>' + esc(u.n) + "</b>: pick the side and the specs. The admin approves or rejects it." + (open ? " You already asked: sending again replaces your request." : "") + "</p>" + sides : "") +
       '<p class="fx-who">' + (rq ? "Specs: c" : esc(u.n) + ", c") + "lick what you can play, best first. Up to " + MAX_CLASSES + " classes (" + own.size + "/" + MAX_CLASSES + ").</p>" +
       '<div class="sp-order">' + order + "</div>" +
       '<div class="sp-grid">' + classes + "</div>" +
@@ -1988,7 +1993,7 @@ span.fx-btn:hover{transform:none}
     const d = specDraft, u = d && state.signups.find((x) => x.id === d.id);
     closeDialog();
     if (!u) return;
-    const body = { request: {} };
+    const body = { request: { id: u.id } };
     if (d.c.join() !== u.c.join()) body.request.c = d.c;
     if (d.f && d.f !== (u.f || "")) body.request.f = d.f;
     if (!body.request.c && !body.request.f) return;
@@ -2100,8 +2105,8 @@ span.fx-btn:hover{transform:none}
       if (a === "rq-open") { showRequestPicker(act.closest(".su").dataset.id); return; }
       if (a === "rq-side") { if (specDraft) { specDraft.f = act.dataset.f; renderSpecPicker(); } return; }
       if (a === "rq-send") { sendRequest(); return; }
-      if (a === "rq-withdraw") { const id = specDraft && specDraft.id; closeDialog(); if (id) sendRequestPost({ requests: { [id]: null } }, "Request withdrawn"); return; }
-      if (a === "rq-approve" || a === "rq-reject") { answerRequest(act.closest(".rq").dataset.id, a === "rq-approve"); return; }
+      if (a === "rq-withdraw") { const q = specDraft && myRequestOf(specDraft.id); closeDialog(); if (q) sendRequestPost({ requests: { [q.key]: null } }, "Request withdrawn"); return; }
+      if (a === "rq-approve" || a === "rq-reject") { answerRequest(act.closest(".rq").dataset.key, a === "rq-approve"); return; }
       if (a === "sp-later") { closeDialog(); return; }
       if (a === "fx-open") { showFactionPicker(act.closest(".su").dataset.id); return; }
       if (a === "fx-pick") { pickFaction(act.dataset.id, act.dataset.f); return; }
