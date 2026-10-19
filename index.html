@@ -257,6 +257,27 @@ button{cursor:pointer}
 .bench-chip + .bench-label{margin-left:12px}
 .bench-chip{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 9px 0 3px;border-radius:5px;background:var(--slot);box-shadow:inset 3px 0 0 var(--c,var(--line-2));font-weight:700;color:var(--cn,var(--soft))}
 .bench-chip .ic{width:20px;height:20px}
+/* Suggested comp: group header roles, party buffs, and who is off their 1st choice */
+.suggest .grid{grid-template-columns:repeat(auto-fill,minmax(260px,1fr))}
+.group h3 .gh{display:inline-flex;align-items:center;gap:4px}
+.gr{padding:0 5px;border-radius:8px;font-style:normal;font-size:10px;font-weight:700;letter-spacing:0;line-height:16px}
+.gr-tank{color:var(--tank);background:color-mix(in srgb,var(--tank) 14%,transparent)}
+.gr-heal{color:var(--heal);background:color-mix(in srgb,var(--heal) 14%,transparent)}
+.gr-dps{color:var(--melee);background:color-mix(in srgb,var(--melee) 14%,transparent)}
+.moves{margin-top:14px;padding:12px;border:1px solid var(--line);border-radius:6px;background:var(--panel-2)}
+.moves h4{margin:0 0 8px;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.moves h4 small{margin-left:4px;padding:1px 7px;border-radius:10px;background:var(--slot);font-size:11px;letter-spacing:0;color:var(--soft)}
+.moves ul{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:6px 14px;margin:0;padding:0;list-style:none}
+.moves li{display:flex;align-items:center;gap:10px;padding:6px 8px;border-radius:5px;background:var(--slot);box-shadow:inset 3px 0 0 var(--c)}
+.mv-specs{display:flex;align-items:center;gap:4px;flex:none}
+.mv-specs .ic{width:24px;height:24px}
+.mv-specs .mv-from{opacity:.45;filter:grayscale(.6)}
+.mv-arrow{color:var(--faint);font-weight:700}
+.mv-txt{min-width:0;font-size:12px;color:var(--soft)}
+.mv-txt b{color:var(--cn)}
+.mv-txt .rk{margin-left:2px}
+.mv-txt small{display:block;font-size:11px;color:var(--muted)}
+
 /* Players left out: extra groups after the raid's, and the Bench panel */
 .bench-group{border-style:dashed;background:transparent}
 .bench-group h3{color:var(--muted)}
@@ -264,7 +285,7 @@ button{cursor:pointer}
 .sg-cell.benched .ic{filter:grayscale(.5)}
 .sg-cell .bt{flex:none;padding:1px 7px;border-radius:10px;background:var(--panel-2);font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
 .bench-body{display:flex;flex-wrap:wrap;align-items:center;gap:16px 24px}
-.bench-art{flex:0 0 auto;width:min(240px,100%);height:auto}
+.bench-art{flex:0 0 auto;width:min(300px,100%);height:auto}
 .bench-names{flex:1 1 260px;min-width:0}
 .bench-names h4{margin:0 0 8px;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
 .bench-names h4 small{margin-left:4px;padding:1px 7px;border-radius:10px;background:var(--panel-2);font-size:11px;letter-spacing:0;color:var(--soft)}
@@ -282,32 +303,31 @@ button{cursor:pointer}
 .sg-note{margin:0 0 10px;font-size:11.5px;color:var(--muted)}
 
 /* Preferences */
-.plist{display:grid}
-.prow{display:grid;grid-template-columns:150px minmax(0,1fr);gap:10px;align-items:center;padding:7px 2px;border-top:1px solid var(--line)}
-.prow .who{display:flex;align-items:center;gap:7px;min-width:0;font-weight:700;font-size:13px;color:#fff}
-.prow .who span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.fx-mini{width:18px;height:18px;border-radius:50%}
-.pchips{display:flex;flex-wrap:wrap;gap:8px 10px}
-.pref .pn{position:absolute;top:-6px;left:-6px;display:grid;place-items:center;width:16px;height:16px;border-radius:50%;background:var(--panel);box-shadow:0 0 0 1px var(--line-2);color:var(--soft);font-style:normal;font-size:9.5px;font-weight:700;z-index:1}
-.pref.rank1 .pn{background:var(--accent);box-shadow:none;color:var(--accent-ink)}
-@media (max-width:620px){.prow{grid-template-columns:minmax(0,1fr)}.pref .rtag{display:none}}
-.pref{position:relative;display:inline-flex;align-items:center;gap:8px;height:36px;padding:0 8px 0 3px;border-radius:5px;background:linear-gradient(90deg,color-mix(in srgb,var(--c) 24%,var(--slot)) 0%,var(--slot) 85%);box-shadow:inset 3px 0 0 var(--c);white-space:nowrap}
-.pref .ic{width:28px;height:28px;margin-left:3px}
-.p-txt{display:flex;flex-direction:column;line-height:1.15}
-.p-txt b{font-size:12px;font-weight:700;color:var(--cn,var(--c))}
-.p-txt small{font-size:10.5px;color:var(--muted)}
+/* Preferences: icon cards grouped by role, like raid sign-up bots */
 .rtag{margin-left:2px;padding:1px 6px;border-radius:9px;font-size:9.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--rc);background:color-mix(in srgb,var(--rc) 14%,transparent)}
-.pref.rank2{opacity:.85}
-.pref.rank3{opacity:.72}
-.pref.rank4{opacity:.6}
-.pref.sug{opacity:1;box-shadow:inset 3px 0 0 var(--c),0 0 0 2px var(--ok)}
-.pref.sug::after{content:"\2713";position:absolute;top:-7px;right:-7px;width:16px;height:16px;border-radius:50%;background:var(--ok);color:#06210f;font-size:10px;font-weight:700;line-height:16px;text-align:center}
-.pref.cur{opacity:1;outline:2px solid #fff;outline-offset:3px}
-.legend{display:flex;flex-wrap:wrap;gap:4px 16px;margin:0 0 10px;font-size:11.5px;color:var(--muted)}
+.rd{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--rc)}
+.pgroup + .pgroup{margin-top:14px}
+.pgroup h4{display:flex;align-items:center;gap:7px;margin:0 0 8px;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--rc)}
+.pgroup h4 small{padding:1px 7px;border-radius:10px;background:var(--panel-2);font-size:11px;letter-spacing:0;color:var(--soft)}
+.pcards{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px}
+.pcard{padding:8px 10px 10px;border-radius:6px;background:linear-gradient(160deg,color-mix(in srgb,var(--c) 16%,var(--slot)) 0%,var(--slot) 60%);box-shadow:inset 0 2px 0 var(--c)}
+.pc-name{display:flex;align-items:center;gap:6px;min-width:0;margin-bottom:8px;font-weight:700;font-size:13px;color:var(--cn)}
+.pc-name span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pc-name em{margin-left:auto;padding:0 6px;border-radius:8px;background:var(--panel-2);font-style:normal;font-size:9.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.fx-mini{width:16px;height:16px;border-radius:50%}
+.pc-icons{display:flex;flex-wrap:wrap;gap:9px}
+.pi{position:relative;display:block;border-radius:6px;box-shadow:0 0 0 2px var(--c)}
+.pi .ic{width:32px;height:32px;border-radius:6px}
+.pi .pn{position:absolute;top:-6px;left:-6px;display:grid;place-items:center;width:15px;height:15px;border-radius:50%;background:var(--panel);box-shadow:0 0 0 1px var(--line-2);color:var(--soft);font-style:normal;font-size:9px;font-weight:700}
+.pi.rank1 .pn{background:var(--accent);box-shadow:none;color:var(--accent-ink)}
+.pi .rd{position:absolute;right:-3px;bottom:-3px;width:9px;height:9px;box-shadow:0 0 0 2px var(--slot)}
+.pi.rank2{opacity:.85}.pi.rank3{opacity:.7}.pi.rank4{opacity:.55}
+.pi.sug{opacity:1;box-shadow:0 0 0 2px var(--c),0 0 0 4px var(--ok)}
+.legend{display:flex;flex-wrap:wrap;align-items:center;gap:4px 16px;margin:0 0 12px;font-size:11.5px;color:var(--muted)}
 .legend i{display:inline-block;width:12px;height:12px;margin-right:6px;vertical-align:-2px;border-radius:3px;background:var(--slot)}
 .legend .l-sug{box-shadow:0 0 0 2px var(--ok)}
-.legend .rtag{margin:0 2px 0 0}
-.legend .l-cur{outline:2px solid #fff}
+.legend .lr{display:inline-flex;align-items:center;gap:5px}
+.legend .lr .rd{width:8px;height:8px;margin:0;border-radius:50%;background:var(--rc)}
 
 /* Horde or Alliance (easter egg) */
 .f-a{--fc:#3a7bff}
@@ -340,7 +360,7 @@ span.fx-btn:hover{transform:none}
 .fx-dialog .row{justify-content:center;gap:8px}
 .fx-score{display:flex;justify-content:space-between;align-items:center;gap:10px}
 .fx-side{display:flex;align-items:center;gap:10px}
-.fx-side.f-h{text-align:right}
+.fx-side.f-a{text-align:right}
 .fx-side .ic{width:40px;height:40px;border-radius:50%;box-shadow:0 0 0 2px var(--fc)}
 .fx-side b{display:block;font-family:var(--display);font-size:28px;line-height:1;color:var(--fc)}
 .fx-side span{font-size:11.5px;font-weight:600;color:var(--soft)}
@@ -381,6 +401,19 @@ span.fx-btn:hover{transform:none}
 .sp-spec:disabled{cursor:not-allowed}
 .btn:disabled{opacity:.45;cursor:not-allowed}
 
+/* Faction crests fixed on both sides (wide screens only; the content keeps a gutter for them) */
+.crest{display:none;position:fixed;top:50%;z-index:0;height:auto;transform:translateY(-45%);pointer-events:none;user-select:none;opacity:.92}
+.crest-h{filter:drop-shadow(0 0 28px rgba(229,65,58,.35))}
+.crest-a{filter:drop-shadow(0 0 28px rgba(58,123,255,.35))}
+@media (min-width:1200px){
+  :root{--crest:clamp(88px,7vw,190px);--gutter:calc(var(--crest) + 36px)}
+  .layout{position:relative;z-index:1;max-width:calc(1520px + 2 * var(--gutter));padding-left:var(--gutter);padding-right:var(--gutter)}
+  .crest{display:block;width:var(--crest)}
+  .crest-h{left:max(20px,calc((100vw - 1520px) / 2 - var(--crest) - 24px))}
+  .crest-a{right:max(20px,calc((100vw - 1520px) / 2 - var(--crest) - 24px))}
+  .crest-h{width:calc(var(--crest) * .72)}
+}
+
 /* Notice on arrival */
 .notice{width:min(480px,100%);border-color:var(--accent);box-shadow:0 0 50px rgba(242,184,75,.18)}
 .notice h3{margin:0 0 10px;font-family:var(--display);font-size:24px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:#fff}
@@ -417,6 +450,9 @@ span.fx-btn:hover{transform:none}
   <div class="brand"><span class="mark" aria-hidden="true">S</span><div><h1>Supreme <span>Forever</span></h1><p>Raid planner · World of Warcraft: Forever</p></div></div>
   <div class="tools" id="tools"></div>
 </header>
+<!-- The two crests stay on the page sides while it scrolls: the Horde on the left, the Alliance on the right. -->
+<img class="crest crest-h" src="img/crest-horde.webp" alt="" aria-hidden="true">
+<img class="crest crest-a" src="img/crest-alliance.webp" alt="" aria-hidden="true">
 <main class="layout">
   <div class="banner" id="banner" hidden></div>
   <div class="side">
@@ -424,11 +460,6 @@ span.fx-btn:hover{transform:none}
     <section class="panel factions" id="factions" aria-label="Horde vs Alliance"></section>
   </div>
   <div class="plan">
-    <section class="panel groups" aria-label="Raid groups">
-      <div class="phead"><h2 class="ttl">Raid groups <small>click a slot to fill it, drag to move</small></h2></div>
-      <div class="grid" id="grid"></div>
-      <p class="foot">Everyone with this link edits the same raid. Changes show up for the others within a couple of seconds.</p>
-    </section>
     <section class="panel suggest" id="suggest" aria-label="Suggested comp"></section>
     <section class="panel bench-panel" id="bench" aria-label="Bench" hidden></section>
     <section class="panel prefs" id="prefs" aria-label="Preferences"></section>
@@ -465,7 +496,7 @@ span.fx-btn:hover{transform:none}
   const DRUID = ["motw", "innervate", "armor2", "brez", "dcurse", "dpoison"];
   const HUNTER = ["hit", "natureres", "frenzy"], PET = ["ap", "tongues", "mortal"];
   const MAGE = ["int", "amp", "dcurse"];
-  const PALADIN = ["kings", "wisdom", "light", "aura", "might", "salv", "jol", "jow", "resaura", "dmagic", "ddisease", "dpoison"];
+  const PALADIN = ["kings", "wisdom", "aura", "might", "salv", "jol", "jow", "resaura", "dmagic", "ddisease", "dpoison"];
   const PRIEST = ["stam", "shadowres", "spirit", "purge", "dmagic", "ddisease"];
   const ROGUE = ["armor1", "mortal", "tongues"];
   const SHAMAN = ["wf", "goa", "ft", "soe", "mst", "hst", "ground", "tremor", "restotem", "purge", "ddisease", "dpoison"];
@@ -520,7 +551,6 @@ span.fx-btn:hover{transform:none}
       ["might", "Melee Attack Power (Paladin)", "spell_holy_fistofjustice", "Greater Blessing of Might (Paladin)"],
       ["kings", "10% Stats", "spell_magic_greaterblessingofkings", "Greater Blessing of Kings (Paladin)"],
       ["wisdom", "Mana Restoration", "spell_holy_greaterblessingofwisdom", "Greater Blessing of Wisdom (Paladin)"],
-      ["light", "Healing Received", "spell_holy_greaterblessingoflight", "Greater Blessing of Light (Paladin)"],
       ["salv", "Reduced Threat", "spell_holy_greaterblessingofsalvation", "Mass Salvation (any Paladin, on top of a blessing)"]]],
     ["Raid totems", false, [
       ["wf", "Windfury Totem", "spell_nature_windfury", "Shaman air totem"],
@@ -738,13 +768,14 @@ span.fx-btn:hover{transform:none}
   }
 
   /* ---------- Analysis ---------- */
-  function analyze() {
+  // Coverage of a comp: by default the suggested comp on screen (the page no longer edits raid groups by hand).
+  function analyze(slots = suggest().slots) {
     const tags = {}, roles = { tank: 0, heal: 0, melee: 0, range: 0 }, armor = {}, tokens = {}, classes = {}, party = [];
     let players = 0;
     for (let g = 0; g < state.size / 5; g++) {
       const p = {};
       for (let k = 0; k < 5; k++) {
-        const m = state.slots[g * 5 + k];
+        const m = slots[g * 5 + k];
         if (!m) continue;
         const sp = SPEC[m.s];
         players++;
@@ -800,7 +831,7 @@ span.fx-btn:hover{transform:none}
   const HYBRID_DPS = new Set(["druid_balance", "druid_feral", "paladin_retribution", "priest_shadow", "shaman_elemental", "shaman_enhancement"]);
   const HYBRID_DUP_COST = 10; // per extra copy of the same hybrid spec
   const FIRST_WARLOCK = 20;
-  const BLESSINGS = [["kings", 25], ["wisdom", 15], ["might", 12], ["light", 5]]; // each paladin covers one blessing
+  const BLESSINGS = [["kings", 25], ["wisdom", 15], ["might", 12]]; // each paladin covers one blessing (Greater Blessing of Light is not in this version)
   // Raid totems by how many shamans they take: one drops Windfury and Strength of Earth; Grace of Air is a second air totem.
   const TOTEMS = [["wf", 1], ["soe", 1], ["goa", 2]];
   // Interrupts: Pummel/Shield Bash, Kick, Counterspell, Earth Shock, Spell Lock (felhunter), Silence (Shadow).
@@ -988,7 +1019,8 @@ span.fx-btn:hover{transform:none}
   }
 
   /* ---------- Rendering ---------- */
-  const tools = $("#tools"), grid = $("#grid"), signups = $("#signups"), buffs = $("#buffs"), banner = $("#banner"), dialogRoot = $("#dialog-root");
+  // The hand-edited raid groups card is gone; its code still draws into a detached element, which nobody sees.
+  const tools = $("#tools"), grid = $("#grid") || document.createElement("div"), signups = $("#signups"), buffs = $("#buffs"), banner = $("#banner"), dialogRoot = $("#dialog-root");
   const benchEl = $("#bench");
   const suggestEl = $("#suggest"), prefsEl = $("#prefs"), factionsEl = $("#factions");
 
@@ -1003,7 +1035,6 @@ span.fx-btn:hover{transform:none}
       SIZES.map((s) => '<button type="button" data-size="' + s + '" aria-pressed="' + (state.size === s) + '">' + s + "</button>").join("") + "</div>" +
       '<button type="button" class="btn" data-act="pets" aria-pressed="' + pets + '">Hunter pets: ' + (pets ? "On" : "Off") + "</button>" +
       '<button type="button" class="btn" data-act="copy">Copy roster</button>' +
-      '<button type="button" class="btn' + (clearArmed ? " armed" : "") + '" data-act="clear">' + (clearArmed ? "Click again to clear" : "Clear groups") + "</button>" +
       (adminKey ? '<button type="button" class="btn admin" data-act="admin-off" title="Admin mode: the faction change limit is off on this browser. Click to turn admin mode off.">Admin</button>' : "") +
       '<span class="live ' + status[0] + '" role="status"><i></i>' + status[1] + "</span>";
   }
@@ -1016,8 +1047,7 @@ span.fx-btn:hover{transform:none}
     ["Mail", "inv_chest_chain_05", [["mail_int", "int"], ["mail_agi", "agi"]]],
     ["Plate", "inv_chest_plate06", [["plate_int", "int"], ["plate_str", "str"]]]
   ];
-  const TOKEN_UI = [["conqueror", "Conqueror", ["paladin", "priest", "warlock"]], ["protector", "Protector", ["warrior", "hunter", "shaman"]], ["vanquisher", "Vanquisher", ["rogue", "mage", "druid"]]];
-  // Roles as tiles; armor and tier tokens as bars, so loot overlap shows at a glance.
+  // Roles as tiles and armor as bars, so loot overlap shows at a glance. (Forever has no tier tokens.)
   function compHTML(a) {
     const total = Math.max(a.players, 1);
     const bar = (segs) => '<span class="bar">' + segs.filter((s) => s[0]).map(([n, color, tip]) => '<i style="width:' + (100 * n / total) + "%;background:" + color + '" title="' + esc(tip) + '"></i>').join("") + "</span>";
@@ -1031,16 +1061,9 @@ span.fx-btn:hover{transform:none}
       return '<div class="meter' + (n ? "" : " zero") + '">' + img(icon) + '<div class="m-body"><div class="m-top"><span>' + label + "</span><b>" + n + "</b></div>" +
         bar(parts.map(([k, st]) => [a.armor[k] || 0, "var(--" + st + ")", (a.armor[k] || 0) + " " + label + " " + STAT_UI[st]])) + '<div class="m-legend">' + legend + "</div></div></div>";
     }).join("");
-    const tokens = TOKEN_UI.map(([k, label, classes]) => {
-      const n = a.tokens[k] || 0;
-      const legend = classes.map((c) => '<span class="st" style="--sc:' + CLASS[c].color + '"><i></i>' + (a.classes[c] || 0) + " " + CLASS[c].name + "</span>").join("");
-      return '<div class="meter' + (n ? "" : " zero") + '"><div class="m-body"><div class="m-top"><span>' + label + "</span><b>" + n + "</b></div>" +
-        bar(classes.map((c) => [a.classes[c] || 0, CLASS[c].color, (a.classes[c] || 0) + " " + CLASS[c].name])) + '<div class="m-legend">' + legend + "</div></div></div>";
-    }).join("");
     return '<div class="comp">' +
       '<div class="ccard"><h4>Roles <small>' + a.players + " / " + state.size + " players</small></h4>" + '<div class="roles">' + roles + "</div></div>" +
-      '<div class="ccard"><h4>Armor</h4>' + armor + "</div>" +
-      '<div class="ccard"><h4>Tier tokens</h4>' + tokens + "</div></div>";
+      '<div class="ccard"><h4>Armor</h4>' + armor + "</div></div>";
   }
 
   // state.signups is in signup order; the page shows the newest first.
@@ -1104,15 +1127,15 @@ span.fx-btn:hover{transform:none}
       return opts && '<optgroup label="' + CLASS[cls].name + '">' + opts + "</optgroup>";
     }).join("");
   }
-  // placed: lower-case name -> raid slot, so a signup shows where that player already is.
+  // placed: lower-case name -> seat in the suggested comp on screen, so a signup shows its group there.
   function signupRow(u, placed) {
     const who = u.n || "this player", i = u.n ? placed.get(u.n.toLowerCase()) : undefined;
-    const m = i != null ? state.slots[i] : null, g = Math.floor(i / 5) + 1;
+    const m = i != null ? suggest().slots[i] : null, g = Math.floor(i / 5) + 1;
     const chips = u.c.map((k) => {
       const sp = SPEC[k], c = CLASS[sp.cls], full = specName(sp);
-      const tip = u.p ? full + ". " + who + " is waiting for the admin's approval." : m ? full + ". " + who + " is in group " + g + (m.s === k ? " as this spec." : ". Click to switch to this spec.") : full + ". Click to put " + who + " in the raid, or drag onto a slot.";
+      const tip = u.p ? full + ". " + who + " is waiting for the admin's approval." : m ? full + ". " + who + " is in group " + g + " of the suggested comp" + (m.s === k ? " as this spec." : ".") : full + ". " + who + " has no seat in the suggested comp on screen.";
       return '<span class="chip' + (m && m.s === k ? " on" : "") + '" draggable="' + !u.p + '" data-spec="' + k + '" style="--c:' + c.color + '">' +
-        '<button type="button"' + (u.p ? "" : ' data-act="su-place"') + ' data-spec="' + k + '" title="' + esc(tip) + '" aria-label="' + esc(full) + '">' + img(sp.icon) + "</button>" +
+        '<button type="button" data-spec="' + k + '" title="' + esc(tip) + '" aria-label="' + esc(full) + '">' + img(sp.icon) + "</button>" +
         (adminOk ? '<button type="button" class="x" data-act="su-drop" data-spec="' + k + '" aria-label="Remove ' + esc(full) + " from " + esc(who) + '">&times;</button>' : "") + "</span>";
     }).join("");
     // A new player only types a name and joins: faction and specs follow in two dialogs.
@@ -1141,7 +1164,7 @@ span.fx-btn:hover{transform:none}
     return '<div class="su' + (m ? " placed" : "") + (u.p ? " pending" : "") + (u.b ? " benched" : "") + '" data-id="' + esc(u.id) + '">' + side +
       '<input class="su-name" maxlength="' + NAME_MAX + '" autocomplete="off" spellcheck="false" placeholder="Name" aria-label="Name" value="' + esc(u.n) + '"' + (adminOk ? "" : ' readonly title="Only the admin can change a name."') + ">" +
       '<span class="su-specs">' + chips + (u.c.length ? "" : '<button type="button" class="btn pick-specs" data-act="sp-open">Pick specs</button>') + (opts && u.c.length ? '<select class="su-add" title="Add a spec" aria-label="Add a spec for ' + esc(who) + '"><option value="">+</option>' + opts + "</select>" : "") + "</span>" +
-      (m ? '<span class="where" title="In group ' + g + '">G' + g + "</span>" : "") + status + approve + tools + "</div>";
+      (m ? '<span class="where" title="Group ' + g + ' in the suggested comp">G' + g + "</span>" : "") + status + approve + tools + "</div>";
   }
   let signupsDirty = false, holdSignups = false;
   function renderSignups() {
@@ -1150,10 +1173,10 @@ span.fx-btn:hover{transform:none}
     if (holdSignups || (a && signups.contains(a) && (a.tagName === "INPUT" || a.tagName === "SELECT"))) { signupsDirty = true; return; }
     signupsDirty = false;
     const placed = new Map();
-    state.slots.forEach((m, i) => { if (m && m.n) placed.set(m.n.toLowerCase(), i); });
+    suggest().slots.forEach((m, i) => { if (m && m.n) placed.set(m.n.toLowerCase(), i); });
     const all = newestFirst(), waiting = all.filter((u) => u.p), listed = all.filter((u) => !u.p);
     signups.innerHTML = '<div class="phead"><h2 class="ttl">Signups <span class="count">' + listed.length + "</span></h2></div>" +
-      '<p class="hint">Join with your name, pick a side, then your specs (best first, up to ' + MAX_CLASSES + " classes). One signup per person. The admin approves new signups, and after that only the admin can change them. Click a spec, or drag it onto a slot, to place the player.</p>" +
+      '<p class="hint">Join with your name, pick a side, then your specs (best first, up to ' + MAX_CLASSES + " classes). One signup per person. The admin approves new signups, and after that only the admin can change them. G1–G4 is the player's group in the suggested comp.</p>" +
       signupRow({ id: "", n: "", c: [] }, placed) +
       (waiting.length ? '<section class="su-wait" aria-label="Waiting for approval"><h3 class="ttl">Waiting for approval <span class="count">' + waiting.length + "</span></h3>" + waiting.map((u) => signupRow(u, placed)).join("") + "</section>" : "") +
       listed.map((u) => signupRow(u, placed)).join("");
@@ -1207,7 +1230,7 @@ span.fx-btn:hover{transform:none}
     need(locks >= 1, canBring((sp) => sp.cls === "warlock"), "spell_shadow_soulgem", "Warlock " + Math.min(locks, 1) + "/1", "One warlock brings Healthstones, summoning, Soulstone and Curse of the Elements; more add little", true);
     const kicks = raid.filter((m) => canKick(m.s)).length;
     need(kicks >= t.kick, [...signupsByName().values()].some((u) => u.c.some(canKick)), "ability_kick", "Interrupts " + kicks + "/" + t.kick, "Players who can interrupt a cast: Warrior, Rogue, Mage, Shaman, Warlock (felhunter), Shadow Priest. Druids, Hunters and Paladins can't", true);
-    need(pals >= t.paladin, canBring((sp) => sp.cls === "paladin"), "spell_magic_greaterblessingofkings", "Paladins " + pals + "/" + t.paladin, "Each paladin gives one blessing (Kings, Wisdom, Might, Salvation, Light)", true);
+    need(pals >= t.paladin, canBring((sp) => sp.cls === "paladin"), "spell_magic_greaterblessingofkings", "Paladins " + pals + "/" + t.paladin, "Each paladin gives one blessing (Kings, Wisdom, Might, Salvation)", true);
     // One of each main buff: blessings take one paladin each, Grace of Air a second shaman, the rest one provider.
     const buffNeed = (tag, ok, possible) => need(ok, possible, BUFF[tag].icon, BUFF[tag].label, BUFF[tag].label + " · " + BUFF[tag].src);
     BLESSINGS.forEach(([tag], i) => buffNeed(tag, i < pals, canBring((sp) => sp.cls === "paladin")));
@@ -1218,6 +1241,14 @@ span.fx-btn:hover{transform:none}
     raid.forEach((m) => { ranks[m.rank] = (ranks[m.rank] || 0) + 1; });
     const rankSum = Object.keys(ranks).sort((a, b) => a - b).map((r) => "<b>" + ranks[r] + "</b> on " + ordinal(+r + 1) + " choice").join(", ");
     let groupsH = "";
+    const party = analyze(sg.slots).party;
+    // Per group: tanks, healers and dps in the header, and the party-wide buffs the group gets under it.
+    const groupRoles = (g) => {
+      const ms = sg.slots.slice(g * 5, g * 5 + 5).filter(Boolean).map((m) => SPEC[m.s].role);
+      const n = (r) => ms.filter((x) => x === r).length;
+      return [["tank", "T", n("tank")], ["heal", "H", n("heal")], ["dps", "D", n("melee") + n("range")]]
+        .filter((x) => x[2]).map(([r, l, c]) => '<i class="gr gr-' + r + '" title="' + c + " " + (r === "dps" ? "dps" : r === "heal" ? "healer" + (c > 1 ? "s" : "") : "tank" + (c > 1 ? "s" : "")) + '">' + c + l + "</i>").join("");
+    };
     for (let g = 0; g * 5 < raid.length || g === 0; g++) {
       let cells = "";
       for (let i = g * 5; i < g * 5 + 5; i++) {
@@ -1226,7 +1257,9 @@ span.fx-btn:hover{transform:none}
         const sp = SPEC[m.s], c = CLASS[sp.cls];
         cells += '<div class="sg-cell' + (m.u.r ? " locked" : "") + '" style="--c:' + c.color + ";--cn:" + (c.text || c.color) + '" title="' + esc(m.n + ": " + specName(sp) + " (" + ordinal(m.rank + 1) + " choice)" + (m.u.r ? ". Locked in by the admin." : "")) + '">' + img(sp.icon) + '<span class="nm">' + esc(m.n) + "</span>" + (m.u.r ? '<span class="lk">Locked</span>' : "") + rankBadge(m.rank) + "</div>";
       }
-      groupsH += '<section class="group"><h3>Group ' + (g + 1) + "<span>" + sg.slots.slice(g * 5, g * 5 + 5).filter(Boolean).length + "/5</span></h3>" + '<div class="cells">' + cells + "</div></section>";
+      const pb = (party[g] || []).map((tag) => img(BUFF[tag].icon, "", BUFF[tag].label + " · " + BUFF[tag].src)).join("");
+      groupsH += '<section class="group"><h3>Group ' + (g + 1) + '<span class="gh">' + groupRoles(g) + "<span>" + sg.slots.slice(g * 5, g * 5 + 5).filter(Boolean).length + "/5</span></span></h3>" + '<div class="cells">' + cells + "</div>" +
+        (pb ? '<div class="party" title="Party buffs in this group">' + pb + "</div>" : "") + "</section>";
     }
     // More players than seats: one tab per option, so nobody is missing from every comp.
     const opts = sg.options;
@@ -1250,24 +1283,78 @@ span.fx-btn:hover{transform:none}
       groupsH += '<section class="group bench-group"><h3>Group ' + (raidGroups + g + 1) + "<span>Bench · " + part.length + "</span></h3>" + '<div class="cells">' + cells + "</div></section>";
     }
     renderBench(sg.bench, benched);
-    const bench = "";
+    // Who plays something other than their 1st choice, and why: a role the raid lacked, or a buff only they bring.
+    const raidTagCount = {};
+    raid.forEach((m) => specTags(SPEC[m.s]).forEach((x) => { raidTagCount[x] = (raidTagCount[x] || 0) + 1; }));
+    const weightOf = new Map(BLESSINGS.concat(NEEDS));
+    const roleWord = { tank: "a tank", heal: "a healer", melee: "melee", range: "ranged" };
+    const moves = raid.filter((m) => m.rank > 0).map((m) => {
+      const first = SPEC[m.u.c[0]], now = SPEC[m.s];
+      const only = specTags(now).filter((x) => raidTagCount[x] === 1 && weightOf.has(x) && !specTags(first).includes(x))
+        .sort((x, y) => weightOf.get(y) - weightOf.get(x)).slice(0, 2).map((x) => BUFF[x].label);
+      const why = [];
+      if (now.role !== first.role) why.push("the raid needs " + roleWord[now.role]);
+      if (now.cls === "warlock" && first.cls !== "warlock" && raid.filter((x) => SPEC[x.s].cls === "warlock").length === 1) why.push("the only warlock");
+      if (only.length) why.push("only source of " + only.join(" and "));
+      return '<li style="--c:' + CLASS[now.cls].color + ";--cn:" + (CLASS[now.cls].text || CLASS[now.cls].color) + '">' +
+        '<span class="mv-specs">' + img(first.icon, "mv-from", "1st choice: " + specName(first)) + '<span class="mv-arrow">→</span>' + img(now.icon, "", specName(now)) + "</span>" +
+        '<span class="mv-txt"><b>' + esc(m.n) + "</b> plays " + esc(specName(now)) + " " + rankBadge(m.rank) +
+        "<small>" + esc(why.length ? why.join(" · ") : "a better fit for the raid") + "</small></span></li>";
+    }).join("");
+    const bench = moves ? '<div class="moves"><h4>Off their 1st choice <small>' + raid.filter((m) => m.rank > 0).length + "</small></h4><ul>" + moves + "</ul></div>" : "";
     suggestEl.innerHTML = '<div class="phead"><h2 class="ttl">Suggested comp <small>best fit for the signups, updates as they change</small></h2>' +
-      '<button type="button" class="btn ' + (useArmed ? "armed" : "primary") + '" data-act="use-suggest">' + (useArmed ? "Click again to replace the groups" : opts.length > 1 ? "Use option " + (suggestIdx + 1) : "Use this comp") + "</button></div>" +
+      '<button type="button" class="btn primary" data-act="copy" title="Copy this comp as text, for Discord">' + (opts.length > 1 ? "Copy option " + (suggestIdx + 1) : "Copy comp") + "</button></div>" +
       tabs +
       '<p class="sg-sum"><b>' + raid.length + "</b> players: " + rankSum + ".</p>" +
       '<ul class="needs">' + needs + "</ul>" +
       '<div class="grid">' + groupsH + "</div>" + bench;
   }
-  // A park bench under a BENCH sign, drawn inline so the page needs no image file.
-  const BENCH_ART = '<svg class="bench-art" viewBox="0 0 260 150" role="img" aria-label="A wooden bench under a sign that says BENCH">' +
-    '<rect x="44" y="40" width="7" height="58" rx="2" fill="#5b3a1c"/><rect x="209" y="40" width="7" height="58" rx="2" fill="#5b3a1c"/>' +
-    '<rect x="26" y="6" width="208" height="42" rx="6" fill="#f2b84b" stroke="#8a5a1c" stroke-width="3"/>' +
-    '<text x="130" y="38" text-anchor="middle" font-family="Barlow Condensed, Arial Narrow, Arial, sans-serif" font-weight="700" font-size="32" letter-spacing="6" fill="#1a1206">BENCH</text>' +
-    '<rect x="40" y="70" width="180" height="9" rx="3" fill="#a86f38"/><rect x="40" y="83" width="180" height="9" rx="3" fill="#94602f"/>' +
-    '<rect x="34" y="106" width="192" height="10" rx="3" fill="#b77b40"/><rect x="34" y="118" width="192" height="8" rx="3" fill="#94602f"/>' +
-    '<path d="M50 92 L50 106 M210 92 L210 106" stroke="#3a3a40" stroke-width="6" stroke-linecap="round"/>' +
-    '<path d="M48 126 L42 146 M212 126 L218 146 M76 126 L80 146 M184 126 L180 146" stroke="#3a3a40" stroke-width="6" stroke-linecap="round"/>' +
-    '<rect x="20" y="145" width="220" height="3" rx="1.5" fill="#2a2a2e"/></svg>';
+  // The bench, drawn inline: a sad orc and a sad gnome holding a PICK ME! sign under a crooked BENCH board,
+  // and a pigeon who has given up and fallen asleep. No image file needed.
+  const BENCH_ART = '<svg class="bench-art" viewBox="0 0 300 190" role="img" aria-label="A sad orc and a sad gnome on a bench, holding a PICK ME sign under a crooked BENCH board, with a sleeping pigeon">' +
+    // posts and the crooked board
+    '<rect x="62" y="34" width="7" height="104" rx="2" fill="#5b3a1c"/><rect x="231" y="34" width="7" height="104" rx="2" fill="#5b3a1c"/>' +
+    '<g transform="rotate(-6 150 30)"><rect x="52" y="6" width="196" height="44" rx="7" fill="#f2b84b" stroke="#8a5a1c" stroke-width="3"/>' +
+    '<circle cx="64" cy="18" r="2.5" fill="#8a5a1c"/><circle cx="236" cy="18" r="2.5" fill="#8a5a1c"/>' +
+    '<text x="150" y="40" text-anchor="middle" font-family="Barlow Condensed, Arial Narrow, Arial, sans-serif" font-weight="700" font-size="32" letter-spacing="7" fill="#1a1206">BENCH</text></g>' +
+    // backrest
+    '<rect x="30" y="92" width="240" height="9" rx="3" fill="#a86f38"/><rect x="30" y="105" width="240" height="9" rx="3" fill="#94602f"/>' +
+    // orc: green, tusks, frown, a tear
+    '<rect x="88" y="140" width="9" height="26" rx="3" fill="#3f6b28"/><rect x="104" y="140" width="9" height="26" rx="3" fill="#3f6b28"/>' +
+    '<ellipse cx="91" cy="168" rx="8" ry="4" fill="#2a2a2e"/><ellipse cx="110" cy="168" rx="8" ry="4" fill="#2a2a2e"/>' +
+    '<ellipse cx="100" cy="122" rx="22" ry="22" fill="#8a3b2a"/><path d="M80 116 Q100 128 120 116" stroke="#5e2416" stroke-width="3" fill="none"/>' +
+    '<circle cx="100" cy="86" r="19" fill="#6cb048"/><path d="M84 80 L94 84 M116 80 L106 84" stroke="#2a3a1a" stroke-width="2.5" stroke-linecap="round"/>' +
+    '<circle cx="93" cy="88" r="2.6" fill="#1a1a1a"/><circle cx="107" cy="88" r="2.6" fill="#1a1a1a"/>' +
+    '<path d="M92 100 Q100 94 108 100" stroke="#2a3a1a" stroke-width="2.5" fill="none" stroke-linecap="round"/>' +
+    '<path d="M92 99 L94 92 L96 99 Z M104 99 L106 92 L108 99 Z" fill="#f4f0e2"/>' +
+    '<path d="M88 92 Q85 99 88 102 Q91 99 88 92 Z" fill="#62b4ff"/>' +
+    '<path d="M83 74 L74 66 L86 70 Z M117 74 L126 66 L114 70 Z" fill="#6cb048"/>' +
+    // gnome: pointy hat, white beard, a tear
+    '<rect x="190" y="142" width="7" height="18" rx="3" fill="#2f4f8f"/><rect x="202" y="142" width="7" height="18" rx="3" fill="#2f4f8f"/>' +
+    '<ellipse cx="193" cy="162" rx="6" ry="3.5" fill="#2a2a2e"/><ellipse cx="206" cy="162" rx="6" ry="3.5" fill="#2a2a2e"/>' +
+    '<ellipse cx="200" cy="128" rx="15" ry="16" fill="#3a6fd8"/>' +
+    '<circle cx="200" cy="104" r="13" fill="#f1c7a0"/>' +
+    '<path d="M186 100 L200 64 L214 100 Z" fill="#d6455a"/><circle cx="200" cy="64" r="3.5" fill="#ffd166"/><rect x="185" y="97" width="30" height="5" rx="2.5" fill="#b8384b"/>' +
+    '<path d="M189 108 Q200 132 211 108 Q200 114 189 108 Z" fill="#f4f0e2"/>' +
+    '<circle cx="195" cy="104" r="2" fill="#1a1a1a"/><circle cx="205" cy="104" r="2" fill="#1a1a1a"/>' +
+    '<path d="M196 113 Q200 110 204 113" stroke="#7a4b3a" stroke-width="2" fill="none" stroke-linecap="round"/>' +
+    '<path d="M209 106 Q212 112 209 114 Q206 112 209 106 Z" fill="#62b4ff"/>' +
+    // the PICK ME! sign they hold together
+    '<path d="M118 118 L134 122 M182 120 L168 122" stroke="#5b3a1c" stroke-width="3" stroke-linecap="round"/>' +
+    '<g transform="rotate(4 151 124)"><rect x="128" y="111" width="46" height="24" rx="3" fill="#e9dcc0" stroke="#a89878" stroke-width="1.5"/>' +
+    '<text x="151" y="128" text-anchor="middle" font-family="Barlow Condensed, Arial Narrow, Arial, sans-serif" font-weight="700" font-size="12" fill="#3a2a1a">PICK ME!</text></g>' +
+    // seat and legs, in front of the sitters
+    '<rect x="24" y="138" width="252" height="10" rx="3" fill="#b77b40"/><rect x="24" y="150" width="252" height="7" rx="3" fill="#94602f"/>' +
+    '<path d="M40 114 L40 138 M260 114 L260 138" stroke="#3a3a40" stroke-width="6" stroke-linecap="round"/>' +
+    '<path d="M38 157 L32 182 M262 157 L268 182 M70 157 L74 182 M230 157 L226 182" stroke="#3a3a40" stroke-width="6" stroke-linecap="round"/>' +
+    // a pigeon, asleep at the end of the bench
+    '<ellipse cx="252" cy="128" rx="13" ry="9" fill="#8d93a3"/><circle cx="262" cy="120" r="6" fill="#9aa0b0"/>' +
+    '<path d="M267 120 L273 122 L267 123 Z" fill="#e0913a"/><path d="M259 119 Q262 121 265 119" stroke="#2a2a2e" stroke-width="1.5" fill="none"/>' +
+    '<path d="M238 128 L230 124 L238 132 Z" fill="#6d7383"/><path d="M250 137 L250 139 M256 137 L256 139" stroke="#e0913a" stroke-width="2"/>' +
+    '<text x="270" y="108" font-family="Arial, sans-serif" font-weight="700" font-size="9" fill="#8d8d95">z</text>' +
+    '<text x="277" y="99" font-family="Arial, sans-serif" font-weight="700" font-size="11" fill="#8d8d95">z</text>' +
+    '<text x="285" y="88" font-family="Arial, sans-serif" font-weight="700" font-size="13" fill="#8d8d95">Z</text>' +
+    '<rect x="12" y="183" width="276" height="3" rx="1.5" fill="#2a2a2e"/></svg>';
   // The Bench panel: who sits out in the option on screen, and who the admin benched.
   function renderBench(optBench, adminBench) {
     const extra = adminBench.filter((u) => !optBench.includes(u));
@@ -1285,22 +1372,27 @@ span.fx-btn:hover{transform:none}
     if (!players.length) { prefsEl.innerHTML = ""; prefsEl.hidden = true; return; }
     prefsEl.hidden = false;
     const sg = suggest(), sugBy = new Map(sg.raid.map((m) => [m.n.toLowerCase(), m.s]));
-    const curBy = new Map(state.slots.filter((m) => m && m.n).map((m) => [m.n.toLowerCase(), m.s]));
-    // One row per player; the chips wrap instead of scrolling sideways, each numbered by preference.
-    const rows = players.map((u) => {
-      const key = u.n.toLowerCase(), fx = FACTION[u.f];
-      const chips = u.c.map((k, r) => {
-        const sp = SPEC[k], isSug = sugBy.get(key) === k, isCur = curBy.get(key) === k;
-        const c = CLASS[sp.cls], roleName = ROLE_UI.find((x) => x[0] === sp.role)[1].replace(/s$/, "");
-        return '<span class="pref rank' + Math.min(r + 1, 4) + (isSug ? " sug" : "") + (isCur ? " cur" : "") + '" style="--c:' + c.color + ";--cn:" + (c.text || c.color) + '" title="' + esc(ordinal(r + 1) + " choice: " + specName(sp) + " (" + roleName + ")" + (isSug ? ". Suggested." : "") + (isCur ? ". Playing this in the raid now." : "")) + '">' +
-          '<i class="pn">' + (r + 1) + "</i>" + img(sp.icon) + '<span class="p-txt"><b>' + esc(sp.label) + "</b><small>" + esc(c.name) + "</small></span>" + '<span class="rtag r-' + sp.role + '">' + roleName + "</span></span>";
+    // Icons only, like raid sign-up bots: everyone knows the specs, the tooltip names them. One card per player,
+    // grouped by the role of their 1st choice; specs left to right in order of preference, numbered, with a role dot.
+    const card = (u) => {
+      const key = u.n.toLowerCase(), fx = FACTION[u.f], main = CLASS[SPEC[u.c[0]].cls];
+      const icons = u.c.map((k, r) => {
+        const sp = SPEC[k], c = CLASS[sp.cls], isSug = sugBy.get(key) === k;
+        const roleName = ROLE_UI.find((x) => x[0] === sp.role)[1].replace(/s$/, "");
+        return '<span class="pi rank' + Math.min(r + 1, 4) + (isSug ? " sug" : "") + " r-" + sp.role + '" style="--c:' + c.color + '" title="' + esc(ordinal(r + 1) + " choice: " + specName(sp) + " (" + roleName + ")" + (isSug ? ". In the suggested comp." : "")) + '">' +
+          img(sp.icon) + '<i class="pn">' + (r + 1) + '</i><i class="rd"></i></span>';
       }).join("");
-      return '<div class="prow"><div class="who">' + (fx ? img(fx.icon, "fx-mini", fx.name) : "") + "<span>" + esc(u.n) + '</span></div><div class="pchips">' + chips + "</div></div>";
+      return '<div class="pcard" style="--c:' + main.color + ";--cn:" + (main.text || main.color) + '">' +
+        '<div class="pc-name">' + (fx ? img(fx.icon, "fx-mini", fx.name) : "") + "<span>" + esc(u.n) + "</span>" + (sugBy.has(key) ? "" : '<em title="No seat in the suggested comp on screen">bench</em>') + "</div>" +
+        '<div class="pc-icons">' + icons + "</div></div>";
+    };
+    const byRole = ROLE_UI.map(([role, label]) => {
+      const list = players.filter((u) => SPEC[u.c[0]].role === role);
+      return list.length ? '<section class="pgroup r-' + role + '"><h4><i class="rd"></i>' + label + " <small>" + list.length + '</small></h4><div class="pcards">' + list.map(card).join("") + "</div></section>" : "";
     }).join("");
-    prefsEl.innerHTML = '<div class="phead"><h2 class="ttl">Preferences <small>left to right: what each player wants most</small></h2></div>' +
-      '<p class="legend"><span><i class="l-sug"></i>Suggested comp</span><span><i class="l-cur"></i>In the raid groups now</span><span>' +
-      ROLE_UI.map(([k, label]) => '<span class="rtag r-' + k + '">' + label.replace(/s$/, "") + "</span>").join("") + "</span></p>" +
-      '<div class="plist">' + rows + "</div>";
+    prefsEl.innerHTML = '<div class="phead"><h2 class="ttl">Preferences <small>by 1st choice · left to right = most wanted · hover an icon for its name</small></h2></div>' +
+      '<p class="legend"><span><i class="l-sug"></i>In the suggested comp</span>' +
+      ROLE_UI.map(([k, label]) => '<span class="lr r-' + k + '"><i class="rd"></i>' + label.replace(/s$/, "") + "</span>").join("") + "</p>" + byRole;
   }
 
   function applyFilter() {
@@ -1515,12 +1607,13 @@ span.fx-btn:hover{transform:none}
     else if (act === "su-place") placePlayer(key, u.n);
   }
   function rosterText() {
-    const a = analyze(), lines = ["Supreme Forever raid: " + a.players + "/" + state.size + " players (" + a.roles.tank + " tank, " + a.roles.heal + " heal, " + a.roles.melee + " melee, " + a.roles.range + " range)", ""];
+    const sg = suggest(), a = analyze(sg.slots), lines = ["Supreme Forever raid" + (sg.options.length > 1 ? " (option " + (suggestIdx + 1) + ")" : "") + ": " + a.players + "/" + state.size + " players (" + a.roles.tank + " tank, " + a.roles.heal + " heal, " + a.roles.melee + " melee, " + a.roles.range + " range)", ""];
     for (let g = 0; g < state.size / 5; g++) {
-      const mem = state.slots.slice(g * 5, g * 5 + 5).filter(Boolean).map((m) => (m.n || "?") + " (" + specName(SPEC[m.s]) + ")");
+      const mem = sg.slots.slice(g * 5, g * 5 + 5).filter(Boolean).map((m) => (m.n || "?") + " (" + specName(SPEC[m.s]) + ")");
       lines.push("Group " + (g + 1) + ": " + (mem.length ? mem.join(", ") : "empty"));
     }
     const missing = BUFFS.filter((b) => !b[1]).flatMap((b) => b[2]).filter((r) => !a.tags[r[0]]).map((r) => r[1]);
+    if (sg.bench.length) lines.push("", "Bench: " + sg.bench.map((u) => u.n).join(", "));
     if (missing.length) lines.push("", "Missing: " + missing.join(", "));
     return lines.join("\n");
   }
@@ -1552,7 +1645,7 @@ span.fx-btn:hover{transform:none}
     dialogRoot.innerHTML = '<div class="overlay' + (locked ? " locked" : "") + '"' + (locked ? "" : ' data-act="close-dialog"') + '><div class="dialog fx-dialog" role="dialog" aria-modal="true" aria-labelledby="fx-title">' +
       (locked ? '<p class="step">Step 1 of 2</p>' : "") +
       '<h3 id="fx-title">¿Horda o Alianza?</h3><p class="fx-who">' + esc(u.n || "This player") + (locked ? ", pick your side to join the raid." : ", pick your side.") + "</p>" +
-      '<div class="fx-choices">' + choice("a") + '<span class="fx-vs">VS</span>' + choice("h") + "</div>" +
+      '<div class="fx-choices">' + choice("h") + '<span class="fx-vs">VS</span>' + choice("a") + "</div>" +
       '<button type="button" class="fx-any f-d' + (u.f === "d" ? " on" : "") + '" data-act="fx-pick" data-f="d" data-id="' + esc(id || "") + '">' +
       img(FACTION.d.icon) + "<span>Don't mind</span><small>either side is fine</small></button>" +
       '<div class="row">' + (locked ? '<button type="button" class="btn" data-act="join-cancel">Cancel, don\'t join</button>' : '<button type="button" class="btn" data-act="close-dialog">Close</button>') + "</div></div></div>";
@@ -1707,7 +1800,7 @@ span.fx-btn:hover{transform:none}
     updateSignup(id, { ...u, f });
     celebrate(f, u.n);
   }
-  // Horde vs Alliance share among signups that picked a side.
+  // Horde vs Alliance share among signups that picked a side. The Horde is always on the left, as on the page sides.
   function renderFactions() {
     // Every approved signup counts, with or without specs; a later signup with the same name replaces an earlier one.
     const players = [...new Map(state.signups.filter((u) => u.n && !u.p).map((u) => [u.n.toLowerCase(), u])).values()];
@@ -1715,11 +1808,11 @@ span.fx-btn:hover{transform:none}
     const count = (f) => players.filter((u) => u.f === f).length;
     const a = count("a"), h = count("h"), d = count("d"), total = a + h, none = players.length - total - d;
     const pa = total ? Math.round((100 * a) / total) : 50, ph = total ? 100 - pa : 50;
-    const lead = !total ? "Nobody has picked a side yet." : a === h ? "It's a tie." : (a > h ? "The Alliance" : "The Horde") + " leads.";
+    const lead = !total ? "Nobody has picked a side yet." : a === h ? "It's a tie." : (h > a ? "The Horde" : "The Alliance") + " leads.";
     factionsEl.innerHTML = '<div class="phead"><h2 class="ttl">Horde vs Alliance <small>' + esc(lead) + "</small></h2></div>" +
-      '<div class="fx-score"><div class="fx-side f-a">' + img(FACTION.a.icon) + "<div><b>" + (total ? pa + "%" : "–") + "</b><span>Alianza · " + a + "</span></div></div>" +
-      '<div class="fx-side f-h"><div><b>' + (total ? ph + "%" : "–") + "</b><span>Horda · " + h + "</span></div>" + img(FACTION.h.icon) + "</div></div>" +
-      '<div class="fx-bar' + (total ? "" : " empty") + '"><i class="f-a" style="width:' + pa + '%"></i><i class="f-h" style="width:' + ph + '%"></i></div>' +
+      '<div class="fx-score"><div class="fx-side f-h">' + img(FACTION.h.icon) + "<div><b>" + (total ? ph + "%" : "–") + "</b><span>Horda · " + h + "</span></div></div>" +
+      '<div class="fx-side f-a"><div><b>' + (total ? pa + "%" : "–") + "</b><span>Alianza · " + a + "</span></div>" + img(FACTION.a.icon) + "</div></div>" +
+      '<div class="fx-bar' + (total ? "" : " empty") + '"><i class="f-h" style="width:' + ph + '%"></i><i class="f-a" style="width:' + pa + '%"></i></div>' +
       (d ? '<p class="hint fx-none">' + img(FACTION.d.icon, "fx-mini") + plural(d, "player doesn't", "players don't") + " mind which side.</p>" : "") +
       (none ? '<p class="hint fx-none">' + plural(none, "player has", "players have") + " not picked a side. Click the ? next to your name.</p>" : "");
   }

@@ -4,12 +4,12 @@
 A shared, live raid composition planner for World of Warcraft: Forever. Everyone with the link edits the same raid, and changes show up for everyone else within a couple of seconds.
 
 - Signups (left): each player writes a name and the specs they can play, best first. Up to 3 classes per player, with any number of specs in those classes. One signup per person. A new signup waits, greyed out, in **Waiting for approval** until the admin approves it. Newest signups show first. The list is separate from the groups.
-- Groups of five (right), built from the signups: click an empty slot and pick from the signups not in the raid yet, click a spec in the signups to put that player in the next empty slot, or drag a spec onto a slot. A player is in the raid only once; clicking another of their specs switches it. Signups already in the raid show their group. Each slot shows the player's name; the icon and class color show the spec.
-- Raid size 10 or 20 (the API still accepts 40). **Clear groups** empties the groups and keeps the signups.
+- Suggested comp (right): the best groups of five for the signups, recalculated as they change. Each group shows its tanks/healers/dps and its party buffs; players with no seat fill extra Bench groups, and a Bench panel lists them. A box lists who plays something other than their 1st choice, and why. With more signups than seats, tabs show several options so everyone plays in at least one. The hand-edited raid groups are gone; the slots stay in the API.
+- Raid size 10 or 20 (the API still accepts 40).
 - Suggested comp: the best comp for the signups, built from each player's specs in order of preference. For 20 it aims for at least 2 tanks, 3 healers plus 1 off-healer (a Druid, Paladin, Priest or Shaman in a dps spec, or else a 4th healer), 2–3 shamans, and one of each main buff. For 10: 2 tanks, 2 healers plus 1 off-healer, 1–2 shamans. It follows the WoW Forever beta notes of Oct 16, 2026: Battle Shout, Trueshot Aura, Moonkin Aura, Leader of the Pack and the Windfury, Grace of Air, Strength of Earth and Flametongue totems are raid wide. Windfury and Grace of Air are both air totems, so having both takes 2 shamans. Salvation is no longer a blessing, so any paladin gives it.
-- Coverage panel (under the groups): composition, raid buffs, totems, party buffs (per group), debuffs, resistances, dispels. Hover or click a row to highlight who brings it and which signups could.
+- Coverage panel (under the suggested comp): composition, raid buffs, totems, party buffs (per group), debuffs, resistances, dispels, for the option on screen. Hover or click a row to highlight which signups could bring it.
 - Heads-up notes for blessing, totem and curse limits.
-- Copy roster as text for Discord.
+- Copy the option on screen as text for Discord.
 
 ## How it works
 
