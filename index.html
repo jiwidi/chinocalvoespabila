@@ -63,6 +63,17 @@ button{cursor:pointer}
 .brand h1{margin:0;font-family:var(--display);font-size:22px;line-height:1;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#fff}
 .brand p{margin:2px 0 0;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
 .tools{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+/* Launch calendar: past steps dim, the next one gold with a countdown */
+.launch{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:0 auto 0 0;padding:0;list-style:none}
+.launch li{display:flex;flex-direction:column;justify-content:center;min-height:36px;padding:3px 11px;border:1px solid var(--line-2);border-radius:8px;background:var(--panel-2);line-height:1.2}
+.launch li b{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.launch li span{font-size:12px;font-weight:700;color:var(--soft);white-space:nowrap}
+.launch li small{font-size:10.5px;font-weight:600;color:var(--muted)}
+.launch li.past{opacity:.5}
+.launch li.next{border-color:var(--accent);background:rgba(242,184,75,.1);box-shadow:0 0 18px rgba(242,184,75,.15)}
+.launch li.next b,.launch li.next small{color:var(--accent)}
+.launch li.next span{color:#fff}
+@media (max-width:700px){.launch{order:3;width:100%}.launch li{flex:1 1 30%}}
 .btn{height:32px;padding:0 14px;border:1px solid var(--line-2);border-radius:6px;background:var(--panel-2);font-weight:600;font-size:12px;white-space:nowrap;color:var(--soft);transition:border-color .12s,color .12s,background .12s}
 .btn:hover{border-color:var(--muted);color:#fff}
 .btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
@@ -206,6 +217,7 @@ button{cursor:pointer}
 .su-tools .tool.t-lock.on{color:var(--ok)}
 .su-tools .tool.t-bench.on{color:var(--warn)}
 .su-tools .mini{opacity:1}
+.su.pending .su-tools{position:static;transform:none;opacity:1;pointer-events:auto;box-shadow:none;background:none;margin-left:auto}
 @media (hover:none){.su-tools{position:static;transform:none;opacity:1;pointer-events:auto;box-shadow:none;background:none}}
 .sg-cell .lk{flex:none;padding:1px 6px;border-radius:9px;background:rgba(76,196,107,.14);color:var(--ok);font-size:10px;font-weight:700}
 .su.benched .su-name,.su.benched .su-specs{opacity:.55}
@@ -510,6 +522,7 @@ span.fx-btn:hover{transform:none}
 <body>
 <header class="top">
   <div class="brand"><span class="mark" aria-hidden="true">S</span><div><h1>Supreme <span>Forever</span></h1><p>Raid planner · World of Warcraft: Forever</p></div></div>
+  <ol class="launch" id="launch" aria-label="WoW Forever launch calendar"></ol>
   <div class="tools" id="tools"></div>
 </header>
 <!-- The two crests stay on the page sides while it scrolls: the Horde on the left, the Alliance on the right. -->
@@ -1292,14 +1305,15 @@ span.fx-btn:hover{transform:none}
     const tool = (act, cls, on, label, title) => '<button type="button" class="tool ' + cls + (on ? " on" : "") + '" data-act="' + act + '" aria-pressed="' + on + '" title="' + esc(title) + '">' + label + "</button>";
     const del = '<button type="button" class="mini" data-act="su-del" title="Remove ' + esc(who) + ' from signups" aria-label="Remove ' + esc(who) + ' from signups">&times;</button>';
     const approve = adminOk && u.p ? '<button type="button" class="mini ok" data-act="su-approve" title="Approve: move ' + esc(who) + ' to the signups" aria-label="Approve ' + esc(who) + '">&#10003;</button>' : "";
-    const tools = !adminOk ? "" : '<span class="su-tools">' + (u.p ? "" :
+    // A pending row keeps approve and remove side by side in a fixed box: the floating hover box covered the approve button.
+    const tools = !adminOk ? "" : '<span class="su-tools">' + (u.p ? approve :
       tool("su-lock", "t-lock", !!u.r, u.r ? "Unlock" : "Lock", lockTip + (u.r ? " Click to unlock." : "")) +
       tool("su-bench", "t-bench", !!u.b, u.b ? "Unbench" : "Bench", benchTip + (u.b ? " Click to take them off the bench." : "")) +
       '<button type="button" class="mini" data-act="su-wait" title="Move ' + esc(who) + ' back to waiting for approval" aria-label="Move ' + esc(who) + ' back to waiting for approval">&#8617;</button>') + del + "</span>";
     return '<div class="su' + (m ? " placed" : "") + (u.p ? " pending" : "") + (u.b ? " benched" : "") + '" data-id="' + esc(u.id) + '">' + side +
       '<input class="su-name" maxlength="' + NAME_MAX + '" autocomplete="off" spellcheck="false" placeholder="Name" aria-label="Name" value="' + esc(u.n) + '"' + (adminOk ? "" : ' readonly title="Only the admin can change a name."') + ">" +
       '<span class="su-specs">' + chips + (u.c.length ? "" : '<button type="button" class="btn pick-specs" data-act="sp-open">Pick specs</button>') + (opts && u.c.length ? '<select class="su-add" title="Add a spec" aria-label="Add a spec for ' + esc(who) + '"><option value="">+</option>' + opts + "</select>" : "") + "</span>" +
-      (m ? '<span class="where" title="Group ' + g + ' in the suggested comp">G' + g + "</span>" : "") + status + ask + approve + tools + "</div>";
+      (m ? '<span class="where" title="Group ' + g + ' in the suggested comp">G' + g + "</span>" : "") + status + ask + tools + "</div>";
   }
   // The admin's list of change requests: what the player has now, what they ask for, approve or reject.
   function requestsHTML() {
@@ -1790,6 +1804,32 @@ span.fx-btn:hover{transform:none}
     if (missing.length) lines.push("", "Missing: " + missing.join(", "));
     return lines.join("\n");
   }
+  /* ---------- Launch calendar ---------- */
+  // WoW Forever dates (Blizzard's roadmap as reported by Icy Veins, esports.gg and others, checked 2026-10-19):
+  // name reservation 27 Oct - 3 Nov, launch 4 Nov 15:00 PST = 5 Nov 00:00 in mainland Spain (23:00 UTC),
+  // first raids (Barrow Deeps, Hyjal Summit, Onyxia) 9 Dec; no hour announced for the raids.
+  const LAUNCH = [
+    { label: "Names", at: Date.UTC(2026, 9, 27), until: Date.UTC(2026, 10, 3, 23), text: "27 Oct – 3 Nov", tip: "Character name reservation" },
+    { label: "Launch", at: Date.UTC(2026, 10, 4, 23), text: "Thu 5 Nov · 00:00", tip: "WoW Forever goes live: 4 Nov 15:00 PST, midnight in mainland Spain" },
+    { label: "Raids", at: Date.UTC(2026, 11, 9), text: "Wed 9 Dec", tip: "Barrow Deeps (10), Hyjal Summit (20), Onyxia's Lair (40) open. Time not announced yet" }
+  ];
+  function launchLeft(ms) {
+    const d = Math.floor(ms / 864e5), hr = Math.floor((ms % 864e5) / 36e5), m = Math.floor((ms % 36e5) / 6e4);
+    return d ? "in " + d + "d " + hr + "h" : hr ? "in " + hr + "h " + m + "m" : "in " + Math.max(1, m) + "m";
+  }
+  function renderLaunch() {
+    const el = $("#launch");
+    if (!el) return;
+    const now = Date.now();
+    const next = LAUNCH.findIndex((s) => now < (s.until || s.at)); // the first step not over yet
+    el.innerHTML = LAUNCH.map((s, i) => {
+      const running = s.until && now >= s.at && now < s.until;
+      const cls = i < next || next < 0 ? "past" : i === next ? "next" : "";
+      const note = i !== next ? "" : running ? "open now" : launchLeft(s.at - now);
+      return '<li class="' + cls + '" title="' + esc(s.tip) + '"><b>' + esc(s.label) + "</b><span>" + esc(s.text) + "</span>" + (note ? "<small>" + esc(note) + "</small>" : "") + "</li>";
+    }).join("");
+  }
+
   /* ---------- Changelog ---------- */
   // The server logs every change with who made it: the admin, the player (by the signup their browser made), or an
   // anonymous visitor tag. This dialog pages through it, newest first.
@@ -2291,6 +2331,8 @@ span.fx-btn:hover{transform:none}
   });
 
   renderAll();
+  renderLaunch();
+  setInterval(renderLaunch, 60 * 1000);
   showChangesNotice();
   readAdminHash();
   fingerprintReady.then(checkAdmin); // so "already signed up" also counts the fingerprint
