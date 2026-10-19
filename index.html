@@ -57,9 +57,18 @@ button{cursor:pointer}
 
 /* Top bar */
 .top{position:sticky;top:0;z-index:20;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 18px;padding:10px max(16px,env(safe-area-inset-right)) 10px max(16px,env(safe-area-inset-left));background:rgba(14,14,16,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
-/* The brand sits on its own row, centred on the page (the right padding offsets the mark so the title itself is centred). It links home. */
-.brand{flex:1 0 100%;display:flex;align-items:center;justify-content:center;gap:10px;padding-right:40px;color:inherit;text-decoration:none;text-align:center}
-.brand:hover h1{color:var(--accent)}
+/* The brand links home. When the calendar and the buttons fit beside it on one line (fitTop), the bar becomes three
+   columns and the title sits in the middle of the page (the right padding offsets the mark so the title itself is centred). */
+.top.centred{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);grid-template-areas:"launch brand tools"}
+.top.centred .brand{grid-area:brand;padding-right:40px}
+.top.centred .launch{grid-area:launch;margin:0;flex-wrap:nowrap}
+.top.centred .tools{grid-area:tools;flex-wrap:nowrap}
+.top.centred .tools > :first-child{margin-left:auto} /* right-aligned, but overflow still spills right where fitTop can measure it */
+.brand{display:flex;align-items:center;gap:10px;color:inherit;text-decoration:none}
+.brand .mark,.brand h1,.brand h1 span,.brand p{transition:color .15s,text-shadow .15s,box-shadow .15s,transform .15s}
+.brand:hover .mark{transform:scale(1.08);box-shadow:0 0 16px rgba(242,184,75,.6)}
+.brand:hover h1,.brand:hover h1 span{color:#ffe2a6;text-shadow:0 0 14px rgba(242,184,75,.75)}
+.brand:hover p{color:#ffe2a6}
 .brand .mark{width:30px;height:30px;border-radius:6px;background:linear-gradient(135deg,#f2b84b,#b8741f);display:grid;place-items:center;color:var(--accent-ink);font-family:var(--display);font-weight:700;font-size:17px}
 .brand h1 span{color:var(--accent)}
 .brand h1{margin:0;font-family:var(--display);font-size:22px;line-height:1;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#fff}
@@ -1393,7 +1402,16 @@ span.fx-btn:hover{transform:none}
         : '<button type="button" class="btn discord" data-act="sign-in">Sign in with Discord</button>') : "") +
       (adminKey ? '<button type="button" class="btn admin" data-act="admin-off" title="Admin mode: the faction change limit is off on this browser. Click to turn admin mode off.">Admin</button>' : "") +
       '<span class="live ' + status[0] + '" role="status"><i></i>' + status[1] + "</span>";
+    fitTop();
   }
+  // Centre the title (three-column bar) only while the calendar and the buttons fit beside it without wrapping.
+  function fitTop() {
+    const top = tools.parentNode;
+    top.classList.add("centred");
+    top.classList.toggle("centred", ![$("#launch"), tools].some((el) => el.scrollWidth > el.clientWidth + 1));
+  }
+  window.addEventListener("resize", fitTop);
+  if (document.fonts) document.fonts.ready.then(fitTop);
 
   const ROLE_UI = [["tank", "Tanks", "ability_warrior_defensivestance"], ["heal", "Healers", "spell_holy_flashheal"], ["melee", "Melee", "ability_dualwield"], ["range", "Ranged", "ability_marksmanship"]];
   const STAT_UI = { int: "Int", agi: "Agi", str: "Str" };
@@ -2047,6 +2065,7 @@ span.fx-btn:hover{transform:none}
       const note = i !== next ? "" : running ? "open now" : launchLeft(s.at - now);
       return '<li class="' + cls + '" title="' + esc(s.tip) + '"><b>' + esc(s.label) + "</b><span>" + esc(s.text) + "</span>" + (note ? "<small>" + esc(note) + "</small>" : "") + "</li>";
     }).join("");
+    fitTop();
   }
 
   /* ---------- Changelog ---------- */
