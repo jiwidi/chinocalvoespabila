@@ -156,35 +156,48 @@ assert.ok(p0.pages >= 2 && p0.total > 20);
 assert.notDeepEqual(p0.entries[0], p1.entries[0]);
 assert.equal((await logPage(99999)).page, 49, "page is clamped");
 
-// Change requests: a player asks to change their own signup; only the admin answers; the player can withdraw theirs.
-const reqOf = async (id) => (await call("GET")).out.requests.find((q) => q.id === id);
-await new Promise((r) => setTimeout(r, 1050)); // past the 1-second read cache, so the next reads see the last writes
-assert.equal((await me(player)).mine, mine.id, "me=1 names the player's own signup");
-let asked = await post({ request: { c: ["priest_holy", "priest_shadow"], f: "a" } }, player);
-assert.equal(asked.code, 200);
-assert.equal(asked.out.warning, undefined);
-assert.deepEqual((await reqOf(mine.id)) && [(await reqOf(mine.id)).c, (await reqOf(mine.id)).f], [["priest_holy", "priest_shadow"], "a"]);
+// Change requests, by session: anyone can ask to change any signup; each browser has one open request per signup and
+// can withdraw only its own; only the admin answers.
+const wait = () => new Promise((r) => setTimeout(r, 1050)); // past the 1-second read cache
+const reqsOf = async (id) => (await call("GET")).out.requests.filter((q) => q.id === id);
+await wait();
+const sessP = (await me(player)).session, sessS = (await me(stranger)).session;
+assert.match(sessP, /^[a-f0-9]{12}$/);
+assert.notEqual(sessP, sessS);
+let asked = await post({ request: { id: mine.id, c: ["priest_holy", "priest_shadow"], f: "a" } }, stranger);
+assert.equal(asked.out.warning, undefined, "a stranger can ask too");
+await wait();
+let open = await reqsOf(mine.id);
+assert.equal(open.length, 1);
+assert.deepEqual([open[0].c, open[0].f, open[0].s, open[0].key], [["priest_holy", "priest_shadow"], "a", sessS, mine.id + ":" + sessS]);
+assert.equal(open[0].by.k, "visitor");
 assert.equal((await logPage()).entries[0].a, "request");
-assert.equal((await post({ request: { c: ["priest_holy"] } }, stranger)).out.warning, "Sign up first: you can only ask to change your own signup.");
-assert.equal((await post({ request: { c: ["mage_fire", "rogue_combat", "druid_feral", "warrior_arms"] } }, player)).code, 400, "4 classes");
-assert.equal((await post({ requests: { [mine.id]: null } }, stranger)).out.warning, "Only the admin can answer a change request.");
-assert.ok(await reqOf(mine.id), "a stranger cannot remove it");
-// The admin approves: applies the change and closes the request in one POST.
-const cur = (await call("GET")).out.signups.find((u) => u.id === mine.id), q = await reqOf(mine.id);
-await post({ signups: { [mine.id]: { ...cur, c: q.c, f: q.f } }, requests: { [mine.id]: null } }, { ip: "192.0.2.152", admin: KEY });
-await new Promise((r) => setTimeout(r, 1050));
-const after = (await call("GET")).out;
-assert.deepEqual([after.signups.find((u) => u.id === mine.id).c, after.signups.find((u) => u.id === mine.id).f], [["priest_holy", "priest_shadow"], "a"]);
-assert.equal(after.requests.find((r) => r.id === mine.id), undefined);
-assert.ok((await logPage()).entries.some((e) => e.a === "request-approved"));
-// Asking for what you already have is refused; the player can withdraw a request.
-assert.equal((await post({ request: { f: "a" } }, player)).out.warning, "That is what you already have.");
-await post({ request: { f: "h" } }, player);
-await new Promise((r) => setTimeout(r, 1050));
-await post({ requests: { [mine.id]: null } }, player);
-await new Promise((r) => setTimeout(r, 1050));
-assert.equal(await reqOf(mine.id), undefined, "withdrawn");
+await post({ request: { id: mine.id, f: "a" } }, player); // a second session on the same signup
+await post({ request: { id: mine.id, c: ["priest_holy"] } }, stranger); // replaces the stranger's request
+await wait();
+open = await reqsOf(mine.id);
+assert.equal(open.length, 2, "one per session");
+assert.deepEqual(open.find((q) => q.s === sessS).c, ["priest_holy"]);
+assert.equal(open.find((q) => q.s === sessP).by.n, "Logger", "named by the asker's signup");
+assert.equal((await post({ request: { id: mine.id, c: ["mage_fire", "rogue_combat", "druid_feral", "warrior_arms"] } }, player)).code, 400, "4 classes");
+assert.equal((await post({ request: { c: ["mage_fire"] } }, player)).code, 400, "names no signup");
+assert.equal((await post({ request: { id: "nosuchsignup1", c: ["mage_fire"] } }, player)).out.warning, "That signup is gone.");
+const cur = (await call("GET")).out.signups.find((u) => u.id === mine.id);
+assert.equal((await post({ request: { id: mine.id, c: cur.c } }, player)).out.warning, "That is what the signup already has.");
+// Only your own: the stranger cannot withdraw the player's request; the player can.
+assert.equal((await post({ requests: { [mine.id + ":" + sessP]: null } }, stranger)).out.warning, "Only the admin can answer a change request; you can withdraw your own.");
+await post({ requests: { [mine.id + ":" + sessP]: null } }, player);
+await wait();
+assert.deepEqual((await reqsOf(mine.id)).map((q) => q.s), [sessS], "withdrawn");
 assert.equal((await logPage()).entries[0].a, "request-withdrawn");
+// The admin approves the stranger's request: applies it and closes it in one POST.
+const q = (await reqsOf(mine.id))[0];
+await post({ signups: { [mine.id]: { ...cur, c: q.c } }, requests: { [q.key]: null } }, { ip: "192.0.2.152", admin: KEY });
+await wait();
+const after = (await call("GET")).out;
+assert.deepEqual(after.signups.find((u) => u.id === mine.id).c, ["priest_holy"]);
+assert.equal(after.requests.filter((r) => r.id === mine.id).length, 0);
+assert.ok((await logPage()).entries.some((e) => e.a === "request-approved"));
 
 // Security headers. The CSP allows every outside host the page loads from, and no page can frame this one.
 const vercel = JSON.parse(await readFile(new URL("../vercel.json", import.meta.url), "utf8"));
