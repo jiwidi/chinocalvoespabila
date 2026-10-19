@@ -306,19 +306,19 @@ button{cursor:pointer}
 /* Preferences: icon cards grouped by role, like raid sign-up bots */
 .rtag{margin-left:2px;padding:1px 6px;border-radius:9px;font-size:9.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--rc);background:color-mix(in srgb,var(--rc) 14%,transparent)}
 .rd{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--rc)}
-.pgroup + .pgroup{margin-top:14px}
-.pgroup h4{display:flex;align-items:center;gap:7px;margin:0 0 8px;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--rc)}
+.pgroup + .pgroup{margin-top:20px}
+.pgroup h4{display:flex;align-items:center;gap:7px;margin:0 0 10px;padding-bottom:6px;border-bottom:1px solid color-mix(in srgb,var(--rc) 30%,transparent);font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--rc)}
 .pgroup h4 small{padding:1px 7px;border-radius:10px;background:var(--panel-2);font-size:11px;letter-spacing:0;color:var(--soft)}
-.pcards{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px}
-.pcard{padding:8px 10px 10px;border-radius:6px;background:linear-gradient(160deg,color-mix(in srgb,var(--c) 16%,var(--slot)) 0%,var(--slot) 60%);box-shadow:inset 0 2px 0 var(--c)}
-.pc-name{display:flex;align-items:center;gap:6px;min-width:0;margin-bottom:8px;font-weight:700;font-size:13px;color:var(--cn)}
+.pcards{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+.pcard{display:flex;flex-direction:column;gap:12px;padding:10px 12px 14px;border-radius:6px;background:linear-gradient(160deg,color-mix(in srgb,var(--c) 16%,var(--slot)) 0%,var(--slot) 60%);box-shadow:inset 0 2px 0 var(--c)}
+.pc-name{display:flex;align-items:center;gap:7px;min-width:0;font-weight:700;font-size:13px;color:var(--cn)}
 .pc-name span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pc-name em{margin-left:auto;padding:0 6px;border-radius:8px;background:var(--panel-2);font-style:normal;font-size:9.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
 .fx-mini{width:16px;height:16px;border-radius:50%}
-.pc-icons{display:flex;flex-wrap:wrap;gap:9px}
+.pc-icons{display:flex;flex-wrap:wrap;gap:12px 13px;padding:4px 0 0 4px}
 .pi{position:relative;display:block;border-radius:6px;box-shadow:0 0 0 2px var(--c)}
-.pi .ic{width:32px;height:32px;border-radius:6px}
-.pi .pn{position:absolute;top:-6px;left:-6px;display:grid;place-items:center;width:15px;height:15px;border-radius:50%;background:var(--panel);box-shadow:0 0 0 1px var(--line-2);color:var(--soft);font-style:normal;font-size:9px;font-weight:700}
+.pi .ic{width:30px;height:30px;border-radius:6px}
+.pi .pn{position:absolute;top:-7px;left:-7px;z-index:1;display:grid;place-items:center;width:15px;height:15px;border-radius:50%;background:var(--panel);box-shadow:0 0 0 1px var(--line-2);color:var(--soft);font-style:normal;font-size:9px;font-weight:700}
 .pi.rank1 .pn{background:var(--accent);box-shadow:none;color:var(--accent-ink)}
 .pi .rd{position:absolute;right:-3px;bottom:-3px;width:9px;height:9px;box-shadow:0 0 0 2px var(--slot)}
 .pi.rank2{opacity:.85}.pi.rank3{opacity:.7}.pi.rank4{opacity:.55}
@@ -409,9 +409,10 @@ span.fx-btn:hover{transform:none}
   :root{--crest:clamp(88px,7vw,190px);--gutter:calc(var(--crest) + 36px)}
   .layout{position:relative;z-index:1;max-width:calc(1520px + 2 * var(--gutter));padding-left:var(--gutter);padding-right:var(--gutter)}
   .crest{display:block;width:var(--crest)}
-  .crest-h{left:max(20px,calc((100vw - 1520px) / 2 - var(--crest) - 24px))}
-  .crest-a{right:max(20px,calc((100vw - 1520px) / 2 - var(--crest) - 24px))}
-  .crest-h{width:calc(var(--crest) * .72)}
+  /* each crest sits in the middle of its side band (window edge to content edge) */
+  :root{--band:calc(max(0px, (100vw - 1520px - 2 * var(--gutter)) / 2) + var(--gutter))}
+  .crest-h{width:calc(var(--crest) * .72);left:calc((var(--band) - var(--crest) * .72) / 2)}
+  .crest-a{right:calc((var(--band) - var(--crest)) / 2)}
 }
 
 /* Notice on arrival */
@@ -838,6 +839,8 @@ span.fx-btn:hover{transform:none}
   const canKick = (k) => ["warrior", "rogue", "mage", "shaman", "warlock"].includes(SPEC[k].cls) || k === "priest_shadow";
   // An off-healer: a Druid, Paladin, Priest or Shaman in a dps spec, who can still heal when the healers need help.
   const HEAL_CLASSES = new Set(["druid", "paladin", "priest", "shaman"]);
+  // A dps player whose signup also lists a tank spec: can off-tank if a fight asks for it.
+  const isOffTank = (k, c) => SPEC[k].role !== "tank" && (c || []).some((x) => SPEC[x].role === "tank");
   const isOffHeal = (k) => (SPEC[k].role === "melee" || SPEC[k].role === "range") && HEAL_CLASSES.has(SPEC[k].cls);
   const NEEDS = [ // [tag, points]: raid-wide, so one provider is enough and a second adds nothing
     // Main buffs and debuffs: the raid wants one of each.
@@ -856,20 +859,22 @@ span.fx-btn:hover{transform:none}
   // entries: [{ k: chosen spec, c: that player's signup specs }]
   function compScore(entries, t) {
     const cls = {}, role = { tank: 0, heal: 0, melee: 0, range: 0 }, tags = new Set(), seen = {};
-    let off = 0, dup = 0, kick = 0;
-    entries.forEach(({ k }) => {
+    let off = 0, dup = 0, kick = 0, offTank = 0;
+    entries.forEach(({ k, c }) => {
       const sp = SPEC[k];
       if (HYBRID_DPS.has(k) && seen[k]) dup++;
       seen[k] = true;
       cls[sp.cls] = (cls[sp.cls] || 0) + 1;
       role[sp.role]++;
       if (isOffHeal(k)) off++;
+      if (isOffTank(k, c)) offTank++;
       if (canKick(k)) kick++;
       specTags(sp).forEach((x) => tags.add(x));
     });
     const groups = Math.max(1, Math.ceil(entries.length / 5));
-    // At least t.tank tanks. A third is fine for some fights; more are dps lost.
-    let s = 40 * Math.min(role.tank, t.tank) - 4 * Math.max(0, role.tank - t.tank) - 16 * Math.max(0, role.tank - t.tank - 1);
+    // Exactly t.tank tanks (2): a third tank is a dps lost, so a player who listed tank first plays their dps spec.
+    // One off-tank (a dps who also signed up as tank) is a small plus: how much it matters in Forever is not clear yet.
+    let s = 40 * Math.min(role.tank, t.tank) - 30 * Math.max(0, role.tank - t.tank) + (offTank ? 4 : 0);
     // Healers, then one off-healer: a hybrid in a dps spec, or else one extra healer. An extra healer that the
     // off-healer slot does not need costs a little dps; beyond healers + off-healer it costs more.
     const extraHeal = Math.max(0, role.heal - t.heal);
@@ -990,6 +995,32 @@ span.fx-btn:hover{transform:none}
 
   // Spread players over groups of five: tanks and melee together, casters together, and one healer, shaman, paladin
   // and warlock per group where possible. Shamans lean to casters and healers, who use their water totems most.
+  // How good one group of five is, as party buffs and habits go:
+  // - one shaman per group (Mana Spring and the group totems); a second one in a group only if every group has one;
+  // - one healer per group, healers spread evenly;
+  // - the shadow priest with healers, for the mana;
+  // - one paladin per group (auras) and one warlock per group (Blood Pact), when there are enough to go around;
+  // - tanks together with a paladin (Devotion Aura); melee with melee, casters with casters.
+  function groupScore(g, groups, n) {
+    const ms = g.map((x) => SPEC[x.s]), count = (f) => ms.filter(f).length, G = groups.length;
+    const all = (f) => groups.reduce((s, gr) => s + gr.filter((x) => f(SPEC[x.s])).length, 0);
+    const spread = (f, w) => { // w for having one; minus w for each extra while some group has none
+      const here = count(f), total = all(f);
+      return (here ? w : 0) - (here > 1 && total < G * here ? (here - 1) * w : 0);
+    };
+    let v = 0;
+    v += spread((sp) => sp.cls === "shaman", 20);
+    v += spread((sp) => sp.role === "heal", 14);
+    v += spread((sp) => sp.cls === "paladin", 8);
+    v += spread((sp) => sp.cls === "warlock", 4);
+    const heals = count((sp) => sp.role === "heal"), shadow = count((sp) => sp.key === "priest_shadow");
+    if (shadow && heals) v += 12; // Vampiric Embrace's mana and health go to the group
+    if (count((sp) => sp.role === "tank") && count((sp) => sp.cls === "paladin")) v += 4;
+    const phys = count((sp) => sp.role === "tank" || sp.role === "melee"), casters = count((sp) => sp.role === "range");
+    v += 1.5 * (phys * (phys - 1) / 2 + casters * (casters - 1) / 2) - 1 * phys * casters;
+    v -= 0.01 * Math.abs(g.length - n / G); // even group sizes on ties
+    return v;
+  }
   function arrange(raid, size) {
     const G = Math.min(size / 5, Math.max(1, Math.ceil(raid.length / 5)));
     const groups = Array.from({ length: G }, () => []);
@@ -1013,6 +1044,31 @@ span.fx-btn:hover{transform:none}
       });
       groups[bestG].push(m);
     });
+    // Then swap players between groups (or move one into a free seat) while the whole raid scores better.
+    const total = () => groups.reduce((s, g) => s + groupScore(g, groups, raid.length), 0);
+    let best = total();
+    for (let guard = 0; guard < 60; guard++) {
+      let improved = false;
+      for (let a = 0; a < G; a++) for (let b = a + 1; b < G; b++) {
+        const A = groups[a], B = groups[b];
+        for (let i = 0; i <= A.length; i++) for (let j = 0; j <= B.length; j++) {
+          if (i === A.length && j === B.length) continue;
+          if (i === A.length && A.length >= 5) continue; // B[j] cannot move into a full group
+          if (j === B.length && B.length >= 5) continue;
+          const x = A[i], y = B[j];
+          if (x) A.splice(i, 1); if (y) B.splice(j, 1);
+          if (y) A.splice(i, 0, y); if (x) B.splice(j, 0, x);
+          const v = total();
+          if (v > best + 1e-9) { best = v; improved = true; continue; }
+          if (y) A.splice(i, 1); if (x) B.splice(j, 1); // undo
+          if (x) A.splice(i, 0, x); if (y) B.splice(j, 0, y);
+        }
+      }
+      if (!improved) break;
+    }
+    // Inside a group: tanks first, then melee, ranged, healers.
+    const inGroup = { tank: 0, melee: 1, range: 2, heal: 3 };
+    groups.forEach((g) => g.sort((a, b) => inGroup[SPEC[a.s].role] - inGroup[SPEC[b.s].role]));
     const slots = Array(MAX).fill(null);
     groups.forEach((g, gi) => g.forEach((m, k) => { slots[gi * 5 + k] = m; }));
     return slots;
@@ -1219,7 +1275,9 @@ span.fx-btn:hover{transform:none}
     };
     const tanks = count((sp) => sp.role === "tank"), heals = count((sp) => sp.role === "heal"), pals = count((sp) => sp.cls === "paladin");
     const shams = count((sp) => sp.cls === "shaman");
-    need(tanks >= t.tank, canBring((sp) => sp.role === "tank"), "ability_warrior_defensivestance", "Tanks " + tanks + "/" + t.tank, "At least " + t.tank + " tanks", true);
+    need(tanks === t.tank, canBring((sp) => sp.role === "tank"), "ability_warrior_defensivestance", "Tanks " + tanks + "/" + t.tank, t.tank + " tanks, no more", true);
+    const offTanks = raid.filter((m) => isOffTank(m.s, m.u.c)).length;
+    need(offTanks >= 1, false, "ability_warrior_shieldwall", "Off-tank " + Math.min(offTanks, 1) + "/1", "Optional: a dps who also signed up as tank, in case a fight needs a third", true);
     need(heals >= t.heal && heals <= t.heal + t.off, canBring((sp) => sp.role === "heal"), "spell_holy_flashheal", "Healers " + heals + "/" + t.heal, t.heal + " healers for a raid of " + state.size + ", plus one off-healer", true);
     const offs = Math.min(t.off, raid.filter((m) => isOffHeal(m.s)).length + Math.max(0, heals - t.heal));
     need(offs >= t.off, canBring((sp) => isOffHeal(sp.key)) || canBring((sp) => sp.role === "heal"), "spell_nature_healingtouch", "Off-healer " + offs + "/" + t.off, "A Druid, Paladin, Priest or Shaman in a dps spec who can help heal, or one extra healer", true);
