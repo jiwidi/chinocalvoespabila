@@ -83,7 +83,14 @@ button{cursor:pointer}
 .btn.discord{background:#5865f2;border-color:#5865f2;color:#fff}
 .btn.discord:hover{background:#4752c4;border-color:#4752c4;color:#fff}
 .btn.sm{height:24px;padding:0 9px;font-size:11.5px}
-.ck-note{margin:0 0 10px;font-size:12.5px;color:var(--soft)}
+.claims .phead{margin-bottom:6px}
+.ck-acts{display:flex;gap:6px}
+.ck-row{display:flex;align-items:center;gap:8px;min-height:34px;padding:3px 6px;border-radius:6px}
+.ck-row:hover{background:var(--panel-2)}
+.ck-row .nm{flex:1;min-width:0;font-weight:700;font-size:13px;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ck-row.done .nm{color:var(--soft)}
+.ck-fx{flex:none;width:22px;height:22px;border-radius:50%}
+.ck-sub{margin:10px 6px 4px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
 .seg{display:inline-flex;align-items:center;gap:2px;padding:2px;border:1px solid var(--line-2);border-radius:6px;background:var(--panel-2);height:32px}
 .seg span{padding:0 6px 0 8px;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
 .seg button{height:26px;padding:0 10px;border:0;border-radius:4px;background:none;font-weight:700;font-size:12px;color:var(--muted)}
@@ -536,6 +543,7 @@ span.fx-btn:hover{transform:none}
   <div class="banner" id="banner" hidden></div>
   <div class="side">
     <section class="panel signups" id="signups" aria-label="Signups"></section>
+    <section class="panel claims" id="claims" aria-label="Claim links" hidden></section>
     <section class="panel factions" id="factions" aria-label="Horde vs Alliance"></section>
   </div>
   <div class="plan">
@@ -840,7 +848,7 @@ span.fx-btn:hover{transform:none}
     fetch(API + "?me=1", { headers: visitorHeaders() }).then(readJSON).then((j) => {
       signedUp = !!j.signedUp;
       if (myId !== (j.mine || null) || mySession !== (j.session || "")) { myId = j.mine || null; mySession = j.session || ""; renderSignups(); }
-      if (adminOk !== !!j.admin) { adminOk = !!j.admin; renderSignups(); }
+      if (adminOk !== !!j.admin) { adminOk = !!j.admin; renderSignups(); renderClaims(); loadClaims(true); }
       if (adminKey && !j.admin) toast("Admin key not accepted. Open the page with #admin=<key> again.");
       discordId = j.discord || "";
       meUser = j.user || null;
@@ -917,24 +925,32 @@ span.fx-btn:hover{transform:none}
     sendRequestPost({ claim: token }, "Your signup is now linked to your Discord account.", checkAdmin);
   }
 
-  // Admin: one claim link per signup, to send each player privately; shows who claimed which (Discord username).
-  let claimList = [];
-  function showClaims() {
-    const frame = (body) => '<div class="overlay" data-act="close-dialog"><div class="dialog cl-dialog" role="dialog" aria-modal="true" aria-labelledby="ck-title">' +
-      '<div class="cl-head"><h3 id="ck-title">Claim links</h3><button type="button" class="btn" data-act="close-dialog">Close</button></div>' + body + "</div></div>";
-    dialogRoot.innerHTML = frame('<p class="cl-empty">Loading…</p>');
-    fetch(API + "?claims=1", { headers: visitorHeaders() }).then(readJSON).then((d) => {
-      if (!dialogRoot.querySelector(".cl-dialog")) return;
-      claimList = d.claims || [];
-      const open = claimList.filter((c) => !c.by).length;
-      const rows = claimList.slice().reverse().map((c) => '<tr><td class="cl-name">' + esc(c.n) + (c.p ? ' <span class="cl-tag">waiting</span>' : "") + "</td><td>" +
-        (c.by ? '<span class="cl-tag ok">@' + esc(c.by) + '</span> <button type="button" class="btn sm" data-act="unclaim" data-id="' + esc(c.id) + '" title="Free this signup, so its link works again">Undo</button>'
-          : '<button type="button" class="btn sm" data-act="claim-copy" data-id="' + esc(c.id) + '">Copy link</button>') + "</td></tr>").join("");
-      dialogRoot.innerHTML = frame('<p class="ck-note">Send each player their own link in a private Discord message. Opening it while signed in with Discord makes that signup theirs. ' +
-        "A link works for one Discord account; <b>Undo</b> frees it again." + (discordId ? "" : " <b>Discord sign-in is off</b>, so the links do nothing yet.") + "</p>" +
-        (open ? '<div class="row"><button type="button" class="btn" data-act="claim-copy-all">Copy all ' + open + " unclaimed links</button></div>" : "") +
-        '<div class="cl-wrap"><table class="cl-table"><thead><tr><th>Player</th><th>Claimed by</th></tr></thead><tbody>' + rows + "</tbody></table></div>");
-    }, (err) => { if (dialogRoot.querySelector(".cl-dialog")) dialogRoot.innerHTML = frame('<p class="cl-empty">' + esc(err.status === 403 ? "Only the admin can see claim links." : "Could not load the claim links. Try again.") + "</p>"); });
+  // Admin: a panel with one claim link per signup, to send each player privately, and who claimed which (Discord
+  // username). The links come from the server (they are signed). It reloads when the signups change, every 30 s while
+  // the tab is open, and after an Undo, so new claims show up.
+  let claimList = null, claimsKey = "", claimsAt = 0;
+  function loadClaims(force) {
+    const key = state.signups.map((u) => u.id).join();
+    if (!adminOk || (!force && key === claimsKey && Date.now() - claimsAt < 30000)) return;
+    claimsKey = key; claimsAt = Date.now();
+    fetch(API + "?claims=1", { headers: visitorHeaders() }).then(readJSON).then((d) => { claimList = d.claims || []; renderClaims(); }, () => {});
+  }
+  function renderClaims() {
+    const el = $("#claims");
+    el.hidden = !adminOk;
+    if (!adminOk) return;
+    if (!claimList) { el.innerHTML = '<div class="phead"><h2 class="ttl">Claim links</h2></div><p class="hint">Loading…</p>'; return; }
+    const open = claimList.filter((c) => !c.by), done = claimList.filter((c) => c.by);
+    const crest = (c) => { const u = state.signups.find((x) => x.id === c.id), fx = u && FACTION[u.f]; return fx ? img(fx.icon, "ck-fx") : '<span class="ck-fx"></span>'; };
+    const row = (c) => '<div class="ck-row' + (c.by ? " done" : "") + '">' + crest(c) + '<span class="nm">' + esc(c.n) + "</span>" + (c.p ? '<span class="cl-tag">waiting</span>' : "") +
+      (c.by ? '<span class="cl-tag ok" title="Claimed by this Discord account">@' + esc(c.by) + '</span><button type="button" class="btn sm" data-act="unclaim" data-id="' + esc(c.id) + '" title="Free this signup, so its link works again">Undo</button>'
+        : '<button type="button" class="btn sm" data-act="claim-copy" data-id="' + esc(c.id) + '">Copy link</button>') + "</div>";
+    el.innerHTML = '<div class="phead"><h2 class="ttl">Claim links <span class="count">' + done.length + "/" + claimList.length + ' claimed</span></h2>' +
+      '<span class="ck-acts">' + (open.length ? '<button type="button" class="btn sm" data-act="claim-copy-all">Copy all ' + open.length + "</button>" : "") +
+      '<button type="button" class="btn sm" data-act="claims-refresh" title="Reload who claimed what">Refresh</button></span></div>' +
+      '<p class="hint">Send each player their own link in a private Discord message. Opening it while signed in with Discord makes that signup theirs. ' +
+      "One Discord account per signup; <b>Undo</b> frees it again." + (discordId ? "" : " <b>Discord sign-in is off</b>, so the links do nothing yet.") + "</p>" +
+      open.map(row).join("") + (done.length ? '<h3 class="ck-sub">Claimed</h3>' + done.map(row).join("") : "");
   }
   const claimUrl = (c) => location.origin + "/#claim=" + c.token;
   function copyText(text, done) {
@@ -1271,7 +1287,6 @@ span.fx-btn:hover{transform:none}
       '<button type="button" class="btn" data-act="pets" aria-pressed="' + pets + '">Hunter pets: ' + (pets ? "On" : "Off") + "</button>" +
       '<button type="button" class="btn" data-act="copy">Copy roster</button>' +
       '<button type="button" class="btn" data-act="changelog" title="Who changed what, newest first">Changelog</button>' +
-      (adminOk ? '<button type="button" class="btn" data-act="claims" title="One link per signup, to send each player privately">Claim links</button>' : "") +
       (discordId ? (session ? '<button type="button" class="btn" data-act="sign-out" title="Signed in with Discord. Click to sign out.">' + esc(meUser ? meUser.name : "Signed in") + " · Sign out</button>"
         : '<button type="button" class="btn discord" data-act="sign-in">Sign in with Discord</button>') : "") +
       (adminKey ? '<button type="button" class="btn admin" data-act="admin-off" title="Admin mode: the faction change limit is off on this browser. Click to turn admin mode off.">Admin</button>' : "") +
@@ -1705,7 +1720,7 @@ span.fx-btn:hover{transform:none}
 
   function renderAll() {
     const a = analyze();
-    renderTools(); renderBanner(); renderGrid(a); renderSignups(); renderFactions(); renderSuggest(); renderPrefs(); renderBuffs(a); applyFilter();
+    renderTools(); renderBanner(); renderGrid(a); renderSignups(); renderClaims(); loadClaims(); renderFactions(); renderSuggest(); renderPrefs(); renderBuffs(a); applyFilter();
   }
 
   /* ---------- Sync ---------- */
@@ -2248,10 +2263,10 @@ span.fx-btn:hover{transform:none}
       if (a === "rq-open") { if (!signInFirst("Sign in with Discord to ask for a change.")) showRequestPicker(act.closest(".su").dataset.id); return; }
       if (a === "sign-in") { signIn(); return; }
       if (a === "sign-out") { signOut(); return; }
-      if (a === "claims") { showClaims(); return; }
+      if (a === "claims-refresh") { loadClaims(true); return; }
       if (a === "claim-copy") { const c = claimList.find((x) => x.id === act.dataset.id); if (c) copyText(claimUrl(c), "Claim link for " + c.n + " copied"); return; }
       if (a === "claim-copy-all") { copyText(claimList.filter((c) => !c.by).map((c) => c.n + ": " + claimUrl(c)).join("\n"), "All unclaimed links copied"); return; }
-      if (a === "unclaim") { sendRequestPost({ unclaim: act.dataset.id }, "Claim undone: the link works again", showClaims); return; }
+      if (a === "unclaim") { sendRequestPost({ unclaim: act.dataset.id }, "Claim undone: the link works again", () => loadClaims(true)); return; }
       if (a === "rq-side") { if (specDraft) { specDraft.f = act.dataset.f; renderSpecPicker(); } return; }
       if (a === "rq-send") { sendRequest(); return; }
       if (a === "rq-withdraw") { const q = specDraft && myRequestOf(specDraft.id); closeDialog(); if (q) sendRequestPost({ requests: { [q.key]: null } }, "Request withdrawn"); return; }
