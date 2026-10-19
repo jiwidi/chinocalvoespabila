@@ -109,3 +109,15 @@ These limits slow down one person with a script. They do not stop a flood from m
 - Add one Vercel WAF rate limit rule (Hobby includes one). It stops a flood before the function runs. Use these values: path equals `/api/comp`, method equals `POST`, action Rate Limit, fixed window 60 s, 60 requests, key IP, response 429.
 - Watch the command count in the Upstash console. Polling alone costs about 4 commands a second while at least one tab is open.
 - Under attack, turn on Attack Challenge Mode in the Vercel Firewall.
+
+### Changelog
+
+Every change that the server saves goes into a changelog (`raidcomp:log`, newest first, the last 1000), in the same transaction as the change. Edits that the signup rules block are not logged. Each entry is `{ t, w, a, n, x }`: the time, who made it, the action (`join`, `remove`, `rename`, `approve`, `wait`, `bench`, `unbench`, `lock`, `unlock`, `side`, `specs`, `size`, `slots`), the player it is about, and details (old and new side or specs, for example).
+
+Who, without storing who they are:
+
+- `{ "k": "admin" }` when the request has the admin key;
+- `{ "k": "player", "n": "<name>" }` when the browser's own keys (fingerprint, device id) made a signup: the name of that signup. The network + browser key, which housemates can share, only counts for requests that send neither;
+- `{ "k": "visitor", "tag": "3fa9" }` otherwise: 4 characters cut from the visitor's keyed hash, the same for that browser, not reversible.
+
+`GET /api/comp?log=1&page=N` answers `{ entries, page, pages, total }`, 20 entries a page, page 0 the newest. It counts toward the per-network request limit. The **Changelog** button on the page opens it in a dialog.

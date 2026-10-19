@@ -1,5 +1,6 @@
 // Shared raid comp API.
 // GET  /api/comp           -> current comp { v, size, slots[40], signups[] }
+// GET  /api/comp?log=1&page=N -> changelog, newest first: { entries, page, pages, total }
 // POST /api/comp {slots, size, signups} -> applies changes, returns the new comp
 //
 // Storage: Upstash Redis (Vercel Marketplace). Each slot is its own hash field,
@@ -39,6 +40,8 @@ const READ_MS = 1000; // a GET reuses the comp this instance read less than this
 const REQUESTS_PER_MIN = 120; // POSTs and ?me=1 per network, in each function instance
 const MAX_PENDING = 25; // signups that wait for approval at once
 const NEW_SIGNUPS_PER_DAY = 3; // per network: an IPv4 address or an IPv6 /64
+const LOG_MAX = 1000; // changelog entries kept
+const LOG_PAGE = 20; // changelog entries per page
 const ADMIN_TRIES = 10; // wrong admin keys per network (an IPv4 address or an IPv6 /48) in 15 minutes
 const ADMIN_KEY = process.env.RAIDCOMP_ADMIN_KEY || "";
 // Key for the visitor hashes. It is the admin key unless set, so the stored hashes keep matching. Before you change
@@ -51,6 +54,7 @@ const KEYS = {
   version: `${PREFIX}:v`, slots: `${PREFIX}:slots`, meta: `${PREFIX}:meta`, signups: `${PREFIX}:signups`,
   signers: `${PREFIX}:signers`, // visitor key -> id of the last signup made with it
   limit: `${PREFIX}:limit:`, // + "signup:<network>" or "admin:<network>": counters that expire
+  log: `${PREFIX}:log`, // changelog: JSON entries, newest first, at most LOG_MAX
 };
 
 class BadRequest extends Error {}
@@ -265,9 +269,9 @@ async function refuseNew(store, req, keys, madeOne) {
 // side, the first specs); the rest of the signup keeps its stored values, approval included. Other changes in the
 // request still save, and the reply gets a warning. signers: the visitor keys to record for a new signup.
 // ponytail: read-then-write, so two requests at the same instant can each make a signup; a Lua script would fix that.
-async function guardSignups(store, req, changes) {
+// stored: the signups as they are now, in the order of Object.keys(changes.signups).
+async function guardSignups(store, req, changes, stored) {
   const ids = Object.keys(changes.signups);
-  const stored = await store.signups(ids);
   const keys = visitorKeys(req);
   let warning = null, signers = null;
   for (const [i, id] of ids.entries()) {
@@ -304,10 +308,61 @@ async function guardSignups(store, req, changes) {
   return { warning, signers };
 }
 
+// Changelog. Who made a change, without storing who they are:
+// - the admin, when the request has the admin key;
+// - the player, when this visitor's keys made a signup (the one-signup-per-person record), by that signup's name;
+// - else "visitor" with a 4-character tag cut from the visitor's keyed hash: stable for that browser, not reversible.
+// ponytail: the page always sends its device id and fingerprint, so the shared "net:" key only names requests without
+// them (scripts, curl); a player who cleared storage on a new device shows as a visitor.
+async function actorOf(store, req, admin, changes, signers, before) {
+  if (admin) return { k: "admin" };
+  if (signers) { // signed up in this very request
+    const id = Object.values(signers)[0], u = changes.signups[id];
+    if (u && u.n) return { k: "player", n: u.n };
+  }
+  const keys = visitorKeys(req);
+  // The browser's own keys (fingerprint, device id) decide. The network + browser key, which a housemate can share,
+  // only counts when the request has neither.
+  const own = keys.filter((k) => !k.startsWith("net:")), ids = await store.signers(own.length ? own : keys);
+  const id = ids.find(Boolean);
+  if (id) {
+    const u = id in before ? before[id] : (await store.signups([id]))[0];
+    if (u && u.n) return { k: "player", n: u.n };
+  }
+  const best = keys.find((k) => k.startsWith("fp:")) || keys.find((k) => k.startsWith("dev:")) || keys[0];
+  return { k: "visitor", tag: best.split(":")[1].slice(0, 4) };
+}
+
+// What changed, as changelog entries { t, w: actor, a: action, n: player name, x: details }, oldest first.
+// before: id -> the signup as it was (or null). Runs after guardSignups, so blocked edits log nothing.
+function describe(changes, before, w, sizeBefore) {
+  const t = Date.now(), out = [];
+  const add = (a, n, x) => out.push(x ? { t, w, a, n, x } : { t, w, a, n });
+  for (const [id, u] of Object.entries(changes.signups)) {
+    const old = before[id] || null;
+    if (!old && !u) continue;
+    if (!old) { add("join", u.n, { c: u.c, f: u.f || "", p: u.p ? 1 : 0 }); continue; }
+    if (!u) { add("remove", old.n); continue; }
+    if (u.n !== old.n) add("rename", u.n, { from: old.n });
+    if (!!u.p !== !!old.p) add(u.p ? "wait" : "approve", u.n);
+    if (!!u.b !== !!old.b) add(u.b ? "bench" : "unbench", u.n);
+    if (!!u.r !== !!old.r) add(u.r ? "lock" : "unlock", u.n);
+    if ((u.f || "") !== (old.f || "")) add("side", u.n, { from: old.f || "", to: u.f || "" });
+    if (u.c.join() !== old.c.join()) add("specs", u.n, { from: old.c, to: u.c });
+  }
+  if (changes.size !== undefined && changes.size !== sizeBefore) add("size", "", { from: sizeBefore, to: changes.size });
+  const slots = Object.keys(changes.slots).length;
+  if (slots) add("slots", "", { n: slots });
+  return out;
+}
+
 // HMGET without automatic deserialization gives an array in field order; accept an object too.
 function inOrder(raw, fields) {
   return Array.isArray(raw) ? raw : fields.map((f) => (raw && raw[f] != null ? raw[f] : null));
 }
+const parseEntry = (raw) => {
+  try { return typeof raw === "string" ? JSON.parse(raw) : raw; } catch { return null; }
+};
 const parseSignup = (raw) => {
   try { return cleanSignup(typeof raw === "string" ? JSON.parse(raw) : raw); } catch { return null; }
 };
@@ -351,11 +406,19 @@ function redisStore() {
       const [n] = await redis.multi().incr(KEYS.limit + name).expire(KEYS.limit + name, seconds).exec();
       return Number(n);
     },
-    async write(changes, signers) {
+    // A page of the changelog, newest first.
+    async log(page) {
+      const start = page * LOG_PAGE;
+      const [rows, total] = await redis.pipeline().lrange(KEYS.log, start, start + LOG_PAGE - 1).llen(KEYS.log).exec();
+      return { rows: (rows || []).map(parseEntry).filter(Boolean), total: Number(total) || 0 };
+    },
+    // log: changelog entries for this write, oldest first. They go in with the write, in the same transaction.
+    async write(changes, signers, log = []) {
       const tx = redis.multi();
       stageHash(tx, KEYS.slots, changes.slots);
       stageHash(tx, KEYS.signups, changes.signups);
       if (signers) tx.hset(KEYS.signers, signers);
+      if (log.length) { tx.lpush(KEYS.log, ...log.map((e) => JSON.stringify(e))); tx.ltrim(KEYS.log, 0, LOG_MAX - 1); }
       if (changes.size !== undefined) tx.hset(KEYS.meta, { size: String(changes.size) });
       tx.incr(KEYS.version);
       tx.hgetall(KEYS.slots);
@@ -395,8 +458,13 @@ function memoryStore() {
       mem.limits[name] = { n, until: Date.now() + seconds * 1000 };
       return n;
     },
-    async write(changes, signers) {
+    async log(page) {
+      const all = mem.log || [];
+      return { rows: all.slice(page * LOG_PAGE, (page + 1) * LOG_PAGE).map(parseEntry).filter(Boolean), total: all.length };
+    },
+    async write(changes, signers, log = []) {
       Object.assign(mem.signers, signers);
+      if (log.length) mem.log = log.slice().reverse().map((e) => JSON.stringify(e)).concat(mem.log || []).slice(0, LOG_MAX);
       for (const hash of ["slots", "signups"]) {
         for (const [field, value] of Object.entries(changes[hash])) {
           if (value) mem[hash][field] = JSON.stringify(value);
@@ -424,8 +492,9 @@ export default async function handler(req, res) {
     });
   }
   try {
-    const me = req.method === "GET" && new URL(req.url || "/", "http://local").searchParams.has("me");
-    if (req.method === "GET" && !me) {
+    const query = new URL(req.url || "/", "http://local").searchParams;
+    const me = req.method === "GET" && query.has("me"), log = req.method === "GET" && query.has("log");
+    if (req.method === "GET" && !me && !log) {
       const state = await readState(store);
       // Let Vercel's CDN answer repeat polls for one second, so 20 open tabs cost about one database read per second.
       res.setHeader("Vercel-CDN-Cache-Control", "max-age=1");
@@ -445,14 +514,26 @@ export default async function handler(req, res) {
       const admin = await isAdmin(store, req);
       return res.status(200).json({ admin, signedUp: !admin && (await hasSignup(store, visitorKeys(req))) });
     }
+    // GET ?log=1&page=N: one page of the changelog (page 0 is the newest). Counted by the flood limit above.
+    if (log) {
+      const page = Math.max(0, Math.min(Math.floor(Number(query.get("page")) || 0), Math.ceil(LOG_MAX / LOG_PAGE) - 1));
+      const { rows, total } = await store.log(page);
+      return res.status(200).json({ entries: rows, page, pages: Math.max(1, Math.ceil(total / LOG_PAGE)), total });
+    }
     if (fromOtherSite(req)) return res.status(403).json({ error: "forbidden", message: "Edits must come from the raid planner page." });
     if (Number((req.headers || {})["content-length"]) > MAX_BODY) {
       return res.status(413).json({ error: "too_large", message: "The request is too large." });
     }
     const changes = parseChanges(bodyOf(req));
-    const guarded = Object.keys(changes.signups).length && !(await isAdmin(store, req));
-    const { warning, signers } = guarded ? await guardSignups(store, req, changes) : {};
-    const state = await store.write(changes, signers);
+    const ids = Object.keys(changes.signups);
+    const admin = await isAdmin(store, req); // costs a database command only when the request sends a key
+    const stored = ids.length ? await store.signups(ids) : [];
+    const { warning, signers } = ids.length && !admin ? await guardSignups(store, req, changes, stored) : {};
+    // Changelog: who, and what changed after the signup rules. Nothing that the rules blocked shows up.
+    const before = Object.fromEntries(ids.map((id, i) => [id, stored[i]]));
+    const sizeBefore = changes.size !== undefined ? (await readState(store)).size : undefined;
+    const entries = describe(changes, before, await actorOf(store, req, admin, changes, signers, before), sizeBefore);
+    const state = await store.write(changes, signers, entries);
     lastRead = { at: Date.now(), state: Promise.resolve(state) }; // this instance's next GETs show the write at once
     return res.status(200).json(warning ? { ...state, warning } : state);
   } catch (err) {
