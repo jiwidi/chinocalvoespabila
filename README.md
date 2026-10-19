@@ -48,7 +48,7 @@ Or, without Vercel: `npm run dev` serves the page and the API on http://localhos
 `GET /api/comp` → `{ v, size, slots, signups }`:
 
 - `slots` has 40 entries of `null` or `{ s: "<class>_<spec>", n: "<name>" }`.
-- `signups` is a list of `{ id, n: "<name>", c: ["<class>_<spec>", ...], f }` in signup order. `c` is ordered best first and holds specs from at most 3 classes. `f` is the faction: `"a"` (Alliance), `"h"` (Horde), `"d"` (doesn't mind which side), or missing if the player has not picked yet. `p: 1` means the signup waits for the admin's approval. Until then it counts for nothing: it is not in the signups count, the slot picker, the suggested comp or the Horde vs Alliance score, and its specs cannot be placed.
+- `signups` is a list of `{ id, n: "<name>", c: ["<class>_<spec>", ...], f }` in signup order. `c` is ordered best first and holds specs from at most 3 classes. `f` is the faction: `"a"` (Alliance), `"h"` (Horde), `"d"` (doesn't mind which side), or missing if the player has not picked yet. `p: 1` means the signup waits for the admin's approval. Until then it counts for nothing: it is not in the signups count, the slot picker, the suggested comp or the Horde vs Alliance score, and its specs cannot be placed. `b: 1` means the admin put the player on the bench: the suggested comp leaves them out of every option, and the signup shows a **Bench** badge. Only the admin can set or clear it (the **Bench** button on the signup row); you can still place a benched player in the groups by hand.
 
 `POST /api/comp` with any of:
 

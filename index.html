@@ -196,6 +196,10 @@ button{cursor:pointer}
 .su:hover .mini,.su .mini:focus-visible{opacity:1}
 .su .mini:hover{color:#fff;background:var(--bad)}
 .su .mini.ok{color:var(--ok);opacity:1}
+.su .bench,.su .bench-btn.on{color:var(--warn);background:rgba(242,184,75,.14)}
+.su .bench-btn{border:0;font-family:inherit;cursor:pointer;opacity:0}
+.su:hover .bench-btn,.su .bench-btn.on,.su .bench-btn:focus-visible{opacity:1}
+.su.benched .su-name,.su.benched .su-specs{opacity:.55}
 .su .mini.ok:hover{background:var(--ok);color:var(--accent-ink)}
 .su-wait{margin:0 0 10px;padding:6px 4px 4px;border:1px dashed var(--warn);border-radius:6px}
 .su-wait .ttl{margin:0 0 4px 6px;font-size:12px;color:var(--warn)}
@@ -578,6 +582,7 @@ span.fx-btn:hover{transform:none}
         const o = { id: u.id, n: cleanName(u.n), c: (Array.isArray(u.c) ? u.c : []).filter((k) => SPEC[k]) };
         if (FACTION[u.f]) o.f = u.f;
         if (u.p) o.p = 1; // waiting for the admin's approval
+        if (u.b) o.b = 1; // on the bench: the admin left them out of the suggested comp
         return o;
       });
     return { v: Number(d.v) || 0, size: SIZES.includes(d.size) ? d.size : 20, slots, signups };
@@ -833,6 +838,9 @@ span.fx-btn:hover{transform:none}
     return s;
   }
 
+  // Players the suggested comp can use: approved signups that the admin did not put on the bench.
+  const compPlayers = () => [...signupsByName().values()].filter((u) => !u.b);
+
   // When more players signed up than the raid holds, one comp leaves people out. So the panel offers options:
   // option 1 is the best comp; each next option must take everyone no earlier option had room for, until
   // everyone plays in at least one.
@@ -842,7 +850,7 @@ span.fx-btn:hover{transform:none}
   function suggestOptions() {
     const key = state.size + "|" + pets + "|" + JSON.stringify(state.signups);
     if (suggestMemo.key === key) return suggestMemo.out;
-    const players = [...signupsByName().values()], t = targets(state.size);
+    const players = compPlayers(), t = targets(state.size);
     const options = [solveComp(players, state.size, t, new Set())];
     const covered = new Set(options[0].raid.map((m) => m.i));
     while (covered.size < players.length && options.length < MAX_OPTIONS) {
@@ -1091,10 +1099,14 @@ span.fx-btn:hover{transform:none}
     const approve = !adminOk ? "" : u.p
       ? '<button type="button" class="mini ok" data-act="su-approve" title="Approve: move ' + esc(who) + ' to the signups" aria-label="Approve ' + esc(who) + '">&#10003;</button>'
       : '<button type="button" class="mini" data-act="su-wait" title="Move ' + esc(who) + ' back to waiting for approval" aria-label="Move ' + esc(who) + ' back to waiting for approval">&#8617;</button>';
-    return '<div class="su' + (m ? " placed" : "") + (u.p ? " pending" : "") + '" data-id="' + esc(u.id) + '">' + side +
+    const benchTip = u.b ? who + " is on the bench: left out of the suggested comp." : "Bench " + who + ": leave them out of the suggested comp.";
+    const bench = u.p ? "" : adminOk
+      ? '<button type="button" class="where bench-btn' + (u.b ? " on" : "") + '" data-act="su-bench" aria-pressed="' + !!u.b + '" title="' + esc(benchTip + (u.b ? " Click to take them off the bench." : "")) + '">Bench</button>'
+      : u.b ? '<span class="where bench" title="' + esc(benchTip) + '">Bench</span>' : "";
+    return '<div class="su' + (m ? " placed" : "") + (u.p ? " pending" : "") + (u.b ? " benched" : "") + '" data-id="' + esc(u.id) + '">' + side +
       '<input class="su-name" maxlength="' + NAME_MAX + '" autocomplete="off" spellcheck="false" placeholder="Name" aria-label="Name" value="' + esc(u.n) + '"' + (adminOk ? "" : ' readonly title="Only the admin can change a name."') + ">" +
       '<span class="su-specs">' + chips + (u.c.length ? "" : '<button type="button" class="btn pick-specs" data-act="sp-open">Pick specs</button>') + (opts && u.c.length ? '<select class="su-add" title="Add a spec" aria-label="Add a spec for ' + esc(who) + '"><option value="">+</option>' + opts + "</select>" : "") + "</span>" +
-      (m ? '<span class="where" title="In group ' + g + '">G' + g + "</span>" : "") + approve +
+      (m ? '<span class="where" title="In group ' + g + '">G' + g + "</span>" : "") + bench + approve +
       (adminOk ? '<button type="button" class="mini" data-act="su-del" aria-label="Remove ' + esc(who) + ' from signups">&times;</button>' : "") + "</div>";
   }
   let signupsDirty = false, holdSignups = false;
@@ -1138,7 +1150,7 @@ span.fx-btn:hover{transform:none}
     }
     const specs = raid.map((m) => SPEC[m.s]), tags = new Set(specs.flatMap(specTags));
     const count = (f) => specs.filter(f).length;
-    const canBring = (f) => [...signupsByName().values()].some((u) => u.c.some((k) => f(SPEC[k])));
+    const canBring = (f) => compPlayers().some((u) => u.c.some((k) => f(SPEC[k])));
     // Counts always show with their label; buffs show a label only when missing, an icon when covered.
     let missing = "", covered = "";
     const need = (ok, possible, icon, label, title, always) => {
@@ -1187,15 +1199,17 @@ span.fx-btn:hover{transform:none}
       '<div class="sg-tabs" role="tablist" aria-label="Comp options">' + opts.map((o, i) =>
         '<button type="button" role="tab" class="sg-tab' + (i === suggestIdx ? " on" : "") + '" data-act="sg-opt" data-i="' + i + '" aria-selected="' + (i === suggestIdx) + '">' +
         "<b>Option " + (i + 1) + "</b><small>" + (i ? "+ " + esc(o.adds.map((u) => u.n).join(", ")) : "best fit") + "</small></button>").join("") + "</div>" +
-      '<p class="sg-note">' + plural([...signupsByName().values()].length, "player") + " for " + state.size + " seats. Each option after the first brings in the players the earlier ones left out, so everyone plays in at least one.</p>";
+      '<p class="sg-note">' + plural(compPlayers().length, "player") + " for " + state.size + " seats. Each option after the first brings in the players the earlier ones left out, so everyone plays in at least one.</p>";
     const bench = sg.bench.length ? '<div class="bench"><span>Bench in this option (' + sg.bench.length + "):</span>" +
       sg.bench.map((u) => { const k = u.c[0], c = k ? CLASS[SPEC[k].cls] : null; return '<span class="bench-chip"' + (c ? ' style="--c:' + c.color + ";--cn:" + (c.text || c.color) + '"' : "") + ">" + (k ? img(SPEC[k].icon) : "") + esc(u.n) + "</span>"; }).join("") + "</div>" : "";
+    const benched = [...signupsByName().values()].filter((u) => u.b);
+    const adminBench = benched.length ? '<p class="sg-note">On the bench by the admin, in no option: ' + esc(benched.map((u) => u.n).join(", ")) + ".</p>" : "";
     suggestEl.innerHTML = '<div class="phead"><h2 class="ttl">Suggested comp <small>best fit for the signups, updates as they change</small></h2>' +
       '<button type="button" class="btn ' + (useArmed ? "armed" : "primary") + '" data-act="use-suggest">' + (useArmed ? "Click again to replace the groups" : opts.length > 1 ? "Use option " + (suggestIdx + 1) : "Use this comp") + "</button></div>" +
       tabs +
       '<p class="sg-sum"><b>' + raid.length + "</b> players: " + rankSum + ".</p>" +
       '<ul class="needs">' + needs + "</ul>" +
-      '<div class="grid">' + groupsH + "</div>" + bench;
+      '<div class="grid">' + groupsH + "</div>" + bench + adminBench;
   }
   function renderPrefs() {
     const players = [...signupsByName().values()];
@@ -1259,7 +1273,7 @@ span.fx-btn:hover{transform:none}
     const su = {};
     new Set(before.signups.concat(after.signups).map((u) => u.id)).forEach((id) => {
       const b = before.signups.find((u) => u.id === id), a = after.signups.find((u) => u.id === id);
-      if (JSON.stringify(b) !== JSON.stringify(a)) su[id] = a ? { n: a.n, c: a.c, f: a.f, p: a.p } : null;
+      if (JSON.stringify(b) !== JSON.stringify(a)) su[id] = a ? { n: a.n, c: a.c, f: a.f, p: a.p, b: a.b } : null;
     });
     if (Object.keys(su).length) { ch.signups = su; any = true; }
     return any ? ch : null;
@@ -1418,6 +1432,11 @@ span.fx-btn:hover{transform:none}
     if (act === "su-del") updateSignup(id, null);
     else if (act === "su-approve") { const { p, ...ok } = u; updateSignup(id, ok); toast(u.n + " is in the signups."); }
     else if (act === "su-wait") { updateSignup(id, { ...u, p: 1 }); toast(u.n + " is waiting for approval again."); }
+    else if (act === "su-bench") {
+      const { b, ...rest } = u;
+      updateSignup(id, b ? rest : { ...u, b: 1 });
+      toast(b ? u.n + " is off the bench." : u.n + " is on the bench: left out of the suggested comp.");
+    }
     else if (act === "su-drop") updateSignup(id, u.n || u.c.length > 1 ? { ...u, c: u.c.filter((k) => k !== key) } : null);
     else if (act === "su-place") placePlayer(key, u.n);
   }

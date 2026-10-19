@@ -63,8 +63,9 @@ const classOf = (spec) => spec.split("_")[0];
 
 const FACTIONS = new Set(["a", "h", "d"]); // Alliance, Horde, don't mind (either side)
 
-// A signup: a name, the specs that player can bring (best first), optionally their faction (f), and p: 1 while it
-// waits for the admin's approval. Not linked to the raid groups. Keeps specs from the first MAX_CLASSES classes only.
+// A signup: a name, the specs that player can bring (best first), optionally their faction (f), p: 1 while it
+// waits for the admin's approval, and b: 1 when the admin put the player on the bench (left out of the suggested
+// comp). Not linked to the raid groups. Keeps specs from the first MAX_CLASSES classes only.
 function cleanSignup(v) {
   if (!v || typeof v !== "object") return null;
   const n = cleanName(v.n);
@@ -81,6 +82,7 @@ function cleanSignup(v) {
   const out = { n, c };
   if (f) out.f = f;
   if (v.p) out.p = 1;
+  if (v.b) out.b = 1;
   return out;
 }
 
@@ -276,7 +278,8 @@ async function guardSignups(store, req, changes) {
         warning = refused;
         continue;
       }
-      changes.signups[id] = { ...u, p: 1 };
+      const { b, ...fresh } = u; // only the admin benches
+      changes.signups[id] = { ...fresh, p: 1 };
       signers = Object.fromEntries(keys.map((k) => [k, id]));
       continue;
     }
@@ -292,6 +295,7 @@ async function guardSignups(store, req, changes) {
     const keep = { n: old.n, c };
     if (f) keep.f = f; // a page that leaves f out keeps the side
     if (old.p) keep.p = 1;
+    if (old.b) keep.b = 1;
     changes.signups[id] = keep;
   }
   return { warning, signers };
