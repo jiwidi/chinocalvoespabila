@@ -310,7 +310,9 @@ button{cursor:pointer}
 .pgroup h4{display:flex;align-items:center;gap:7px;margin:0 0 10px;padding-bottom:6px;border-bottom:1px solid color-mix(in srgb,var(--rc) 30%,transparent);font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--rc)}
 .pgroup h4 small{padding:1px 7px;border-radius:10px;background:var(--panel-2);font-size:11px;letter-spacing:0;color:var(--soft)}
 .pcards{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
-.pcard{display:flex;flex-direction:column;gap:12px;padding:10px 12px 14px;border-radius:6px;background:linear-gradient(160deg,color-mix(in srgb,var(--c) 16%,var(--slot)) 0%,var(--slot) 60%);box-shadow:inset 0 2px 0 var(--c)}
+/* Class shown by a solid bar on the left and the name in class color, on a plain card: no color wash. */
+.pcard{display:flex;flex-direction:column;gap:12px;padding:10px 12px 14px 14px;border:1px solid var(--line);border-left:4px solid var(--c);border-radius:6px;background:var(--slot)}
+.pcard:hover{border-color:var(--line-2);border-left-color:var(--c)}
 .pc-name{display:flex;align-items:center;gap:7px;min-width:0;font-weight:700;font-size:13px;color:var(--cn)}
 .pc-name span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pc-name em{margin-left:auto;padding:0 6px;border-radius:8px;background:var(--panel-2);font-style:normal;font-size:9.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
