@@ -163,7 +163,7 @@ button{cursor:pointer}
 .foot{margin:12px 2px 0;font-size:11.5px;color:var(--faint)}
 
 /* Signups */
-.su{display:flex;align-items:center;gap:8px;min-height:40px;padding:4px 6px;border-radius:6px}
+.su{position:relative;display:flex;align-items:center;gap:8px;min-height:40px;padding:4px 6px;border-radius:6px}
 .su + .su{margin-top:2px}
 .su:hover{background:var(--panel-2)}
 .su.placed .su-name,.su.placed .su-specs{opacity:.55}
@@ -196,10 +196,17 @@ button{cursor:pointer}
 .su:hover .mini,.su .mini:focus-visible{opacity:1}
 .su .mini:hover{color:#fff;background:var(--bad)}
 .su .mini.ok{color:var(--ok);opacity:1}
-.su .bench,.su .bench-btn.on{color:var(--warn);background:rgba(242,184,75,.14)}
-.su .locked,.su .lock-btn.on{color:var(--ok);background:rgba(76,196,107,.14)}
-.su .bench-btn,.su .lock-btn{border:0;font-family:inherit;cursor:pointer;opacity:0}
-.su:hover .bench-btn,.su .bench-btn.on,.su .bench-btn:focus-visible,.su:hover .lock-btn,.su .lock-btn.on,.su .lock-btn:focus-visible{opacity:1}
+.su .st-bench{color:var(--warn);background:rgba(242,184,75,.14)}
+.su .st-locked{color:var(--ok);background:rgba(76,196,107,.14)}
+/* Admin actions: a small toolbar over the end of the row, shown on hover; it takes no room in the row. */
+.su-tools{position:absolute;right:4px;top:50%;transform:translateY(-50%);display:flex;align-items:center;gap:2px;padding:2px;border-radius:6px;background:var(--panel);box-shadow:0 0 0 1px var(--line-2),0 4px 12px rgba(0,0,0,.5);opacity:0;pointer-events:none}
+.su:hover .su-tools,.su:focus-within .su-tools{opacity:1;pointer-events:auto}
+.su-tools .tool{height:24px;padding:0 7px;border:0;border-radius:4px;background:none;font-family:inherit;font-size:11px;font-weight:700;color:var(--soft);cursor:pointer}
+.su-tools .tool:hover{background:var(--line-2);color:#fff}
+.su-tools .tool.t-lock.on{color:var(--ok)}
+.su-tools .tool.t-bench.on{color:var(--warn)}
+.su-tools .mini{opacity:1}
+@media (hover:none){.su-tools{position:static;transform:none;opacity:1;pointer-events:auto;box-shadow:none;background:none}}
 .sg-cell .lk{flex:none;padding:1px 6px;border-radius:9px;background:rgba(76,196,107,.14);color:var(--ok);font-size:10px;font-weight:700}
 .su.benched .su-name,.su.benched .su-specs{opacity:.55}
 .su .mini.ok:hover{background:var(--ok);color:var(--accent-ink)}
@@ -1103,22 +1110,22 @@ span.fx-btn:hover{transform:none}
     const side = fx && !adminOk
       ? '<span class="fx-btn f-' + u.f + '" title="' + esc(who + " " + fx.stance + ". Only the admin can change sides.") + '" aria-label="' + esc("Faction: " + fx.name) + '">' + img(fx.icon) + "</span>"
       : '<button type="button" class="fx-btn' + (fx ? " f-" + u.f : "") + '" data-act="fx-open" title="' + esc(fx ? who + " " + fx.stance + ". Click to change." : "¿Horda o Alianza? Pick a side for " + who) + '" aria-label="' + esc(fx ? "Faction: " + fx.name : "Pick Horde or Alliance") + '">' + (fx ? img(fx.icon) : "?") + "</button>";
-    const approve = !adminOk ? "" : u.p
-      ? '<button type="button" class="mini ok" data-act="su-approve" title="Approve: move ' + esc(who) + ' to the signups" aria-label="Approve ' + esc(who) + '">&#10003;</button>'
-      : '<button type="button" class="mini" data-act="su-wait" title="Move ' + esc(who) + ' back to waiting for approval" aria-label="Move ' + esc(who) + ' back to waiting for approval">&#8617;</button>';
+    // Bench or lock-in shows as a small tag. The admin's actions float over the end of the row on hover,
+    // so they take no room from the specs.
     const benchTip = u.b ? who + " is on the bench: left out of the suggested comp." : "Bench " + who + ": leave them out of the suggested comp.";
-    const bench = u.p ? "" : adminOk
-      ? '<button type="button" class="where bench-btn' + (u.b ? " on" : "") + '" data-act="su-bench" aria-pressed="' + !!u.b + '" title="' + esc(benchTip + (u.b ? " Click to take them off the bench." : "")) + '">Bench</button>'
-      : u.b ? '<span class="where bench" title="' + esc(benchTip) + '">Bench</span>' : "";
     const lockTip = u.r ? who + " is locked into the suggested comp: in every option." : "Lock " + who + " into the suggested comp: in every option.";
-    const lock = u.p ? "" : adminOk
-      ? '<button type="button" class="where lock-btn' + (u.r ? " on" : "") + '" data-act="su-lock" aria-pressed="' + !!u.r + '" title="' + esc(lockTip + (u.r ? " Click to unlock." : "")) + '">' + (u.r ? "Locked" : "Lock") + "</button>"
-      : u.r ? '<span class="where locked" title="' + esc(lockTip) + '">Locked</span>' : "";
+    const status = u.r ? '<span class="where st-locked" title="' + esc(lockTip) + '">Locked</span>' : u.b ? '<span class="where st-bench" title="' + esc(benchTip) + '">Bench</span>' : "";
+    const tool = (act, cls, on, label, title) => '<button type="button" class="tool ' + cls + (on ? " on" : "") + '" data-act="' + act + '" aria-pressed="' + on + '" title="' + esc(title) + '">' + label + "</button>";
+    const del = '<button type="button" class="mini" data-act="su-del" title="Remove ' + esc(who) + ' from signups" aria-label="Remove ' + esc(who) + ' from signups">&times;</button>';
+    const approve = adminOk && u.p ? '<button type="button" class="mini ok" data-act="su-approve" title="Approve: move ' + esc(who) + ' to the signups" aria-label="Approve ' + esc(who) + '">&#10003;</button>' : "";
+    const tools = !adminOk ? "" : '<span class="su-tools">' + (u.p ? "" :
+      tool("su-lock", "t-lock", !!u.r, u.r ? "Unlock" : "Lock", lockTip + (u.r ? " Click to unlock." : "")) +
+      tool("su-bench", "t-bench", !!u.b, u.b ? "Unbench" : "Bench", benchTip + (u.b ? " Click to take them off the bench." : "")) +
+      '<button type="button" class="mini" data-act="su-wait" title="Move ' + esc(who) + ' back to waiting for approval" aria-label="Move ' + esc(who) + ' back to waiting for approval">&#8617;</button>') + del + "</span>";
     return '<div class="su' + (m ? " placed" : "") + (u.p ? " pending" : "") + (u.b ? " benched" : "") + '" data-id="' + esc(u.id) + '">' + side +
       '<input class="su-name" maxlength="' + NAME_MAX + '" autocomplete="off" spellcheck="false" placeholder="Name" aria-label="Name" value="' + esc(u.n) + '"' + (adminOk ? "" : ' readonly title="Only the admin can change a name."') + ">" +
       '<span class="su-specs">' + chips + (u.c.length ? "" : '<button type="button" class="btn pick-specs" data-act="sp-open">Pick specs</button>') + (opts && u.c.length ? '<select class="su-add" title="Add a spec" aria-label="Add a spec for ' + esc(who) + '"><option value="">+</option>' + opts + "</select>" : "") + "</span>" +
-      (m ? '<span class="where" title="In group ' + g + '">G' + g + "</span>" : "") + lock + bench + approve +
-      (adminOk ? '<button type="button" class="mini" data-act="su-del" aria-label="Remove ' + esc(who) + ' from signups">&times;</button>' : "") + "</div>";
+      (m ? '<span class="where" title="In group ' + g + '">G' + g + "</span>" : "") + status + approve + tools + "</div>";
   }
   let signupsDirty = false, holdSignups = false;
   function renderSignups() {
