@@ -90,7 +90,8 @@ button{cursor:pointer}
 .ck-row .nm{flex:1;min-width:0;font-weight:700;font-size:13px;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ck-row.done .nm{color:var(--soft)}
 .ck-fx{flex:none;width:22px;height:22px;border-radius:50%}
-.ck-sub{margin:10px 6px 4px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.ck-who{flex:none;max-width:45%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ck-none{font-size:11.5px;font-style:italic;color:var(--faint)}
 .seg{display:inline-flex;align-items:center;gap:2px;padding:2px;border:1px solid var(--line-2);border-radius:6px;background:var(--panel-2);height:32px}
 .seg span{padding:0 6px 0 8px;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
 .seg button{height:26px;padding:0 10px;border:0;border-radius:4px;background:none;font-weight:700;font-size:12px;color:var(--muted)}
@@ -441,30 +442,6 @@ span.fx-btn:hover{transform:none}
   .crest-a{right:calc((var(--band) - var(--crest)) / 2)}
 }
 
-/* Change requests */
-.su .st-req{color:var(--accent);background:rgba(242,184,75,.14)}
-.btn.ask-btn{flex:none;height:26px;padding:0 10px;font-size:11.5px;border-color:var(--accent);color:var(--accent)}
-.btn.ask-btn:hover{background:rgba(242,184,75,.12)}
-.su-req{margin:0 0 12px;padding:10px;border:1px solid rgba(242,184,75,.45);border-radius:8px;background:rgba(242,184,75,.05)}
-.su-req h3{margin:0 0 8px;font-size:13px;color:var(--accent)}
-.rq{display:flex;align-items:center;gap:10px;padding:6px 4px;border-top:1px solid var(--line)}
-.rq > b{flex:0 0 120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#fff}
-.rq > b small{display:block;overflow:hidden;text-overflow:ellipsis;font-size:10.5px;font-weight:600;color:var(--muted)}
-.rq-diff{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
-.rq-line{display:flex;flex-wrap:wrap;align-items:center;gap:4px}
-.rq-line i{margin:0 4px;font-style:normal;font-weight:700;color:var(--faint)}
-.rq-specs{display:inline-flex;flex-wrap:wrap;gap:3px}
-.rq-specs .ic,.rq-fx{width:22px;height:22px;border-radius:4px}
-.rq-fx{border-radius:50%}
-.rq-none{font-size:11px;font-style:italic;color:var(--faint)}
-.rq-acts{display:flex;gap:4px;flex:none}
-.rq-acts .mini{opacity:1}
-.rq-sides{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px}
-.rq-side{display:inline-flex;align-items:center;gap:8px;height:38px;padding:0 14px 0 6px;border:1px solid var(--line-2);border-radius:19px;background:var(--panel-2);font-weight:700;color:var(--soft)}
-.rq-side .ic{width:26px;height:26px;border-radius:50%}
-.rq-side:hover{border-color:var(--muted)}
-.rq-side.on{border-color:var(--fc,var(--accent));box-shadow:0 0 0 1px var(--fc,var(--accent));color:#fff}
-
 /* Changelog dialog */
 .dialog.cl-dialog{width:min(900px,100%)}
 .cl-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
@@ -728,19 +705,8 @@ span.fx-btn:hover{transform:none}
         else if (u.r) o.r = 1; // locked in: the admin put them in every option of the suggested comp
         return o;
       });
-    // Change requests: anyone asks for other specs and/or side on a signup, one per browser session and signup; the
-    // admin applies or drops them.
-    const requests = (Array.isArray(d.requests) ? d.requests : []).filter((q) => q && typeof q.id === "string").map((q) => {
-      const o = { key: String(q.key || q.id), id: q.id, s: String(q.s || ""), t: Number(q.t) || 0 };
-      if (q.by && typeof q.by === "object") o.by = { k: q.by.k, n: cleanName(q.by.n), tag: String(q.by.tag || "").slice(0, 4) };
-      if (Array.isArray(q.c)) o.c = q.c.filter((k) => SPEC[k]);
-      if (FACTION[q.f]) o.f = q.f;
-      return o;
-    });
-    return { v: Number(d.v) || 0, size: SIZES.includes(d.size) ? d.size : 20, slots, signups, requests };
+    return { v: Number(d.v) || 0, size: SIZES.includes(d.size) ? d.size : 20, slots, signups };
   }
-  const requestsOf = (id) => (state.requests || []).filter((q) => q.id === id);
-  const myRequestOf = (id) => requestsOf(id).find((q) => mySession && q.s === mySession);
   const same = (a, b) => (a ? a.s + "|" + a.n : "") === (b ? b.s + "|" + b.n : "");
   // Starts with a timestamp, so sorting by id keeps signup order. The random tail avoids clashes.
   const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
@@ -843,11 +809,11 @@ span.fx-btn:hover{transform:none}
   }
   // Whether the server accepts this browser's admin key (only then the page shows the signup edit controls),
   // and whether this visitor already has a signup (then the page does not let them join again).
-  let adminOk = false, signedUp = false, myId = null, mySession = ""; // mySession: whose change requests are this browser's
+  let adminOk = false, signedUp = false, myId = null; // myId: this visitor's own signup (the only one they may fill in)
   function checkAdmin() {
     fetch(API + "?me=1", { headers: visitorHeaders() }).then(readJSON).then((j) => {
       signedUp = !!j.signedUp;
-      if (myId !== (j.mine || null) || mySession !== (j.session || "")) { myId = j.mine || null; mySession = j.session || ""; renderSignups(); }
+      if (myId !== (j.mine || null)) { myId = j.mine || null; renderSignups(); }
       if (adminOk !== !!j.admin) { adminOk = !!j.admin; renderSignups(); renderClaims(); loadClaims(true); }
       if (adminKey && !j.admin) toast("Admin key not accepted. Open the page with #admin=<key> again.");
       discordId = j.discord || "";
@@ -922,7 +888,7 @@ span.fx-btn:hover{transform:none}
     if (!discordId) { try { sessionStorage.removeItem(CLAIM_STORE); } catch (e) {} toast("Claim links work once Discord sign-in is on. Ask the admin."); return; }
     if (!session) { askSignIn("Sign in with Discord to claim your signup. The link stays ready in this tab."); return; }
     try { sessionStorage.removeItem(CLAIM_STORE); } catch (e) {}
-    sendRequestPost({ claim: token }, "Your signup is now linked to your Discord account.", checkAdmin);
+    postNow({ claim: token }, "Your signup is now linked to your Discord account.", checkAdmin);
   }
 
   // Admin: a panel with one claim link per signup, to send each player privately, and who claimed which (Discord
@@ -940,17 +906,18 @@ span.fx-btn:hover{transform:none}
     el.hidden = !adminOk;
     if (!adminOk) return;
     if (!claimList) { el.innerHTML = '<div class="phead"><h2 class="ttl">Claim links</h2></div><p class="hint">Loading…</p>'; return; }
+    // Every signup, newest first like the signups panel, with who claimed it (Discord username) or its link to send.
     const open = claimList.filter((c) => !c.by), done = claimList.filter((c) => c.by);
     const crest = (c) => { const u = state.signups.find((x) => x.id === c.id), fx = u && FACTION[u.f]; return fx ? img(fx.icon, "ck-fx") : '<span class="ck-fx"></span>'; };
     const row = (c) => '<div class="ck-row' + (c.by ? " done" : "") + '">' + crest(c) + '<span class="nm">' + esc(c.n) + "</span>" + (c.p ? '<span class="cl-tag">waiting</span>' : "") +
-      (c.by ? '<span class="cl-tag ok" title="Claimed by this Discord account">@' + esc(c.by) + '</span><button type="button" class="btn sm" data-act="unclaim" data-id="' + esc(c.id) + '" title="Free this signup, so its link works again">Undo</button>'
-        : '<button type="button" class="btn sm" data-act="claim-copy" data-id="' + esc(c.id) + '">Copy link</button>') + "</div>";
+      (c.by ? '<span class="cl-tag ok ck-who" title="Claimed by this Discord account">@' + esc(c.by) + '</span><button type="button" class="btn sm" data-act="unclaim" data-id="' + esc(c.id) + '" title="Free this signup, so its link works again">Undo</button>'
+        : '<span class="ck-who ck-none">not claimed</span><button type="button" class="btn sm" data-act="claim-copy" data-id="' + esc(c.id) + '">Copy link</button>') + "</div>";
     el.innerHTML = '<div class="phead"><h2 class="ttl">Claim links <span class="count">' + done.length + "/" + claimList.length + ' claimed</span></h2>' +
       '<span class="ck-acts">' + (open.length ? '<button type="button" class="btn sm" data-act="claim-copy-all">Copy all ' + open.length + "</button>" : "") +
       '<button type="button" class="btn sm" data-act="claims-refresh" title="Reload who claimed what">Refresh</button></span></div>' +
       '<p class="hint">Send each player their own link in a private Discord message. Opening it while signed in with Discord makes that signup theirs. ' +
       "One Discord account per signup; <b>Undo</b> frees it again." + (discordId ? "" : " <b>Discord sign-in is off</b>, so the links do nothing yet.") + "</p>" +
-      open.map(row).join("") + (done.length ? '<h3 class="ck-sub">Claimed</h3>' + done.map(row).join("") : "");
+      claimList.slice().reverse().map(row).join("");
   }
   const claimUrl = (c) => location.origin + "/#claim=" + c.token;
   function copyText(text, done) {
@@ -1283,7 +1250,7 @@ span.fx-btn:hover{transform:none}
       : ["ok", "Live"];
     tools.innerHTML =
       '<div class="seg" role="group" aria-label="Raid size"><span>Size</span>' +
-      SIZES.map((s) => '<button type="button" data-size="' + s + '" aria-pressed="' + (state.size === s) + '">' + s + "</button>").join("") + "</div>" +
+      SIZES.map((s) => '<button type="button" data-size="' + s + '" aria-pressed="' + (state.size === s) + '"' + (adminOk ? "" : ' disabled title="Only the admin changes the raid size"') + ">" + s + "</button>").join("") + "</div>" +
       '<button type="button" class="btn" data-act="pets" aria-pressed="' + pets + '">Hunter pets: ' + (pets ? "On" : "Off") + "</button>" +
       '<button type="button" class="btn" data-act="copy">Copy roster</button>' +
       '<button type="button" class="btn" data-act="changelog" title="Who changed what, newest first">Changelog</button>' +
@@ -1397,22 +1364,18 @@ span.fx-btn:hover{transform:none}
       return '<div class="su new" data-id=""><input class="su-name" maxlength="' + NAME_MAX + '" autocomplete="off" spellcheck="false" placeholder="Your name" aria-label="Your name">' +
         '<button type="button" class="btn primary join" data-act="join">Join the raid</button></div>';
     }
-    // Once signed up, only the admin edits the row; others can still pick a first side and their first specs.
+    // Once signed up, only the admin edits the row; the player can still pick a first side and their first specs on
+    // their own signup (nobody else's).
     const opts = adminOk ? specOptions(u.c) : "";
-    const fx = FACTION[u.f];
-    const side = fx && !adminOk
-      ? '<span class="fx-btn f-' + u.f + '" title="' + esc(who + " " + fx.stance + ". Only the admin can change sides.") + '" aria-label="' + esc("Faction: " + fx.name) + '">' + img(fx.icon) + "</span>"
+    const fx = FACTION[u.f], own = adminOk || u.id === myId;
+    const side = (fx && !adminOk) || !own
+      ? '<span class="fx-btn' + (fx ? " f-" + u.f : "") + '" title="' + esc(fx ? who + " " + fx.stance + ". Only the admin can change sides." : who + " has not picked a side yet.") + '" aria-label="' + esc(fx ? "Faction: " + fx.name : "No side yet") + '">' + (fx ? img(fx.icon) : "?") + "</span>"
       : '<button type="button" class="fx-btn' + (fx ? " f-" + u.f : "") + '" data-act="fx-open" title="' + esc(fx ? who + " " + fx.stance + ". Click to change." : "¿Horda o Alianza? Pick a side for " + who) + '" aria-label="' + esc(fx ? "Faction: " + fx.name : "Pick Horde or Alliance") + '">' + (fx ? img(fx.icon) : "?") + "</button>";
     // Bench or lock-in shows as a small tag. The admin's actions float over the end of the row on hover,
     // so they take no room from the specs.
     const benchTip = u.b ? who + " is on the bench: left out of the suggested comp." : "Bench " + who + ": leave them out of the suggested comp.";
     const lockTip = u.r ? who + " is locked into the suggested comp: in every option." : "Lock " + who + " into the suggested comp: in every option.";
-    const rqs = requestsOf(u.id), rq = myRequestOf(u.id);
-    const rqTip = rqs.length ? plural(rqs.length, "change request") + " for " + who + " waiting for the admin" + (rq ? ", one of them yours." : ".") : "";
-    const status = (u.r ? '<span class="where st-locked" title="' + esc(lockTip) + '">Locked</span>' : u.b ? '<span class="where st-bench" title="' + esc(benchTip) + '">Bench</span>' : "") +
-      (rqs.length ? '<span class="where st-req" title="' + esc(rqTip) + '">Change asked' + (rqs.length > 1 ? " ×" + rqs.length : "") + "</span>" : "");
-    // Anyone can ask the admin to change a signup's specs or side (or open the request this browser already made).
-    const ask = !adminOk && !u.p && u.c.length ? '<button type="button" class="btn ask-btn" data-act="rq-open" title="' + esc("Ask the admin to change " + who + "'s specs or side") + '">' + (rq ? "Your request" : "Request change") + "</button>" : "";
+    const status = u.r ? '<span class="where st-locked" title="' + esc(lockTip) + '">Locked</span>' : u.b ? '<span class="where st-bench" title="' + esc(benchTip) + '">Bench</span>' : "";
     const tool = (act, cls, on, label, title) => '<button type="button" class="tool ' + cls + (on ? " on" : "") + '" data-act="' + act + '" aria-pressed="' + on + '" title="' + esc(title) + '">' + label + "</button>";
     const del = '<button type="button" class="mini" data-act="su-del" title="Remove ' + esc(who) + ' from signups" aria-label="Remove ' + esc(who) + ' from signups">&times;</button>';
     const approve = adminOk && u.p ? '<button type="button" class="mini ok" data-act="su-approve" title="Approve: move ' + esc(who) + ' to the signups" aria-label="Approve ' + esc(who) + '">&#10003;</button>' : "";
@@ -1423,46 +1386,18 @@ span.fx-btn:hover{transform:none}
       '<button type="button" class="mini" data-act="su-wait" title="Move ' + esc(who) + ' back to waiting for approval" aria-label="Move ' + esc(who) + ' back to waiting for approval">&#8617;</button>') + del + "</span>";
     return '<div class="su' + (m ? " placed" : "") + (u.p ? " pending" : "") + (u.b ? " benched" : "") + '" data-id="' + esc(u.id) + '">' + side +
       '<input class="su-name" maxlength="' + NAME_MAX + '" autocomplete="off" spellcheck="false" placeholder="Name" aria-label="Name" value="' + esc(u.n) + '"' + (adminOk ? "" : ' readonly title="Only the admin can change a name."') + ">" +
-      '<span class="su-specs">' + chips + (u.c.length ? "" : '<button type="button" class="btn pick-specs" data-act="sp-open">Pick specs</button>') + (opts && u.c.length ? '<select class="su-add" title="Add a spec" aria-label="Add a spec for ' + esc(who) + '"><option value="">+</option>' + opts + "</select>" : "") + "</span>" +
-      (m ? '<span class="where" title="Group ' + g + ' in the suggested comp">G' + g + "</span>" : "") + status + ask + tools + "</div>";
+      '<span class="su-specs">' + chips + (u.c.length || !own ? "" : '<button type="button" class="btn pick-specs" data-act="sp-open">Pick specs</button>') + (opts && u.c.length ? '<select class="su-add" title="Add a spec" aria-label="Add a spec for ' + esc(who) + '"><option value="">+</option>' + opts + "</select>" : "") + "</span>" +
+      (m ? '<span class="where" title="Group ' + g + ' in the suggested comp">G' + g + "</span>" : "") + status + tools + "</div>";
   }
-  // The admin's list of change requests: what the player has now, what they ask for, approve or reject.
-  function requestsHTML() {
-    const open = (state.requests || []).map((q) => ({ q, u: state.signups.find((x) => x.id === q.id) })).filter((x) => x.u);
-    const asker = (by) => !by ? "" : by.k === "admin" ? "Admin" : by.k === "player" ? by.n : "Visitor #" + by.tag;
-    if (!adminOk || !open.length) return "";
-    const specs = (list) => '<span class="rq-specs">' + list.map((k) => img(SPEC[k].icon, "", specName(SPEC[k]))).join("") + "</span>";
-    const side = (f) => (FACTION[f] ? img(FACTION[f].icon, "rq-fx", FACTION[f].name) : '<span class="rq-none">no side</span>');
-    return '<section class="su-req" aria-label="Change requests"><h3 class="ttl">Change requests <span class="count">' + open.length + "</span></h3>" + open.map(({ q, u }) =>
-      '<div class="rq" data-key="' + esc(q.key) + '"><b>' + esc(u.n) + (q.by ? '<small>asked by ' + esc(asker(q.by)) + "</small>" : "") + '</b><div class="rq-diff">' +
-        (q.f ? '<span class="rq-line">' + side(u.f) + "<i>→</i>" + side(q.f) + "</span>" : "") +
-        (q.c ? '<span class="rq-line">' + specs(u.c) + "<i>→</i>" + specs(q.c) + "</span>" : "") + "</div>" +
-        '<span class="rq-acts"><button type="button" class="mini ok" data-act="rq-approve" title="Apply this change" aria-label="Approve the change for ' + esc(u.n) + '">&#10003;</button>' +
-        '<button type="button" class="mini" data-act="rq-reject" title="Reject it" aria-label="Reject the change for ' + esc(u.n) + '">&times;</button></span></div>').join("") + "</section>";
-  }
-  // Change requests go straight to the server (they are not signup edits): send, show the warning or a note, take the reply.
-  // after: called once the server accepted the request (no warning).
-  function sendRequestPost(body, done, after) {
+  // Claims go straight to the server (they are not signup edits): send, show the warning or a note, take the reply.
+  // after: called once the server accepted it (no warning).
+  function postNow(body, done, after) {
     if (signInFirst()) return;
     fetch(API, { method: "POST", headers: visitorHeaders({ "Content-Type": "application/json" }), body: JSON.stringify(body) })
       .then(readJSON).then((s) => {
         if (s.warning) { toast(s.warning); playBlocked(); } else { if (done) toast(done); if (after) after(); }
         accept(s, true);
       }, (err) => err.status === 401 ? askSignIn(err.message) : toast(err.status === 400 ? "The server rejected that: " + err.message : "Could not reach the server. Try again."));
-  }
-  // The admin applies (approve) or drops (reject) a request; approving also writes the signup, in the same POST.
-  function answerRequest(key, approve) {
-    const q = (state.requests || []).find((x) => x.key === key), u = q && state.signups.find((x) => x.id === q.id);
-    if (!q || !u) return;
-    const id = u.id, body = { requests: { [key]: null } };
-    if (approve) {
-      const next = { n: u.n, c: q.c || u.c };
-      if (q.f || u.f) next.f = q.f || u.f;
-      if (u.p) next.p = 1;
-      if (u.b) next.b = 1; else if (u.r) next.r = 1;
-      body.signups = { [id]: next };
-    }
-    sendRequestPost(body, approve ? "Change applied for " + u.n : "Request from " + u.n + " rejected");
   }
   let signupsDirty = false, holdSignups = false;
   function renderSignups() {
@@ -1475,7 +1410,7 @@ span.fx-btn:hover{transform:none}
     const all = newestFirst(), waiting = all.filter((u) => u.p), listed = all.filter((u) => !u.p);
     signups.innerHTML = '<div class="phead"><h2 class="ttl">Signups <span class="count">' + listed.length + "</span></h2></div>" +
       '<p class="hint">Join with your name, pick a side, then your specs (best first, up to ' + MAX_CLASSES + " classes). One signup per person. The admin approves new signups, and after that only the admin can change them. G1–G4 is the player's group in the suggested comp.</p>" +
-      signupRow({ id: "", n: "", c: [] }, placed) + requestsHTML() +
+      signupRow({ id: "", n: "", c: [] }, placed) +
       (waiting.length ? '<section class="su-wait" aria-label="Waiting for approval"><h3 class="ttl">Waiting for approval <span class="count">' + waiting.length + "</span></h3>" + waiting.map((u) => signupRow(u, placed)).join("") + "</section>" : "") +
       listed.map((u) => signupRow(u, placed)).join("");
     applyFilter();
@@ -2090,14 +2025,7 @@ span.fx-btn:hover{transform:none}
   }
 
   // Quick spec picker: click specs in order of preference; the order of clicks is the priority.
-  let specDraft = null; // { id, c } or, to ask the admin for a change, { id, c, f, request: true }
-  function showRequestPicker(id) {
-    const u = state.signups.find((x) => x.id === id);
-    if (!u) return;
-    const q = myRequestOf(id);
-    specDraft = { id, c: (q && q.c ? q.c : u.c).slice(), f: (q && q.f) || u.f || "", request: true };
-    renderSpecPicker();
-  }
+  let specDraft = null; // { id, c }
   function showSpecPicker(id) {
     const u = state.signups.find((x) => x.id === id);
     if (!u) { dialogRoot.innerHTML = ""; return; }
@@ -2121,19 +2049,12 @@ span.fx-btn:hover{transform:none}
       const sp = SPEC[k], c = CLASS[sp.cls];
       return '<span class="sp-pick" style="--c:' + c.color + ";--cn:" + (c.text || c.color) + '"><b>' + (i + 1) + "</b>" + img(sp.icon) + esc(specName(sp)) + "</span>";
     }).join("") : '<span class="sp-empty">Nothing yet. Click your best spec first, then the next ones.</span>';
-    // Asking for a change: also the side, and the button sends a request instead of saving.
-    const rq = d.request, open = rq && myRequestOf(d.id);
-    const changed = rq && (d.c.join() !== u.c.join() || (d.f || "") !== (u.f || ""));
-    const sides = !rq ? "" : '<div class="rq-sides" role="group" aria-label="Side">' + ["h", "a", "d"].filter((f) => FACTION[f]).map((f) =>
-      '<button type="button" class="rq-side f-' + f + (d.f === f ? " on" : "") + '" data-act="rq-side" data-f="' + f + '" aria-pressed="' + (d.f === f) + '">' + img(FACTION[f].icon) + "<span>" + esc(FACTION[f].es || FACTION[f].name) + "</span></button>").join("") + "</div>";
     dialogRoot.innerHTML = '<div class="overlay" data-act="close-dialog"><div class="dialog sp-dialog" role="dialog" aria-modal="true" aria-labelledby="sp-title">' +
-      '<p class="step">' + (rq ? "Change request" : joining === null ? "" : "Step 2 of 2") + '</p><h3 id="sp-title">' + (rq ? "Ask for a change" : "Pick your specs") + "</h3>" +
-      (rq ? '<p class="fx-who">Ask for a change to <b>' + esc(u.n) + "</b>: pick the side and the specs. The admin approves or rejects it." + (open ? " You already asked: sending again replaces your request." : "") + "</p>" + sides : "") +
-      '<p class="fx-who">' + (rq ? "Specs: c" : esc(u.n) + ", c") + "lick what you can play, best first. Up to " + MAX_CLASSES + " classes (" + own.size + "/" + MAX_CLASSES + ").</p>" +
+      '<p class="step">' + (joining === null ? "" : "Step 2 of 2") + '</p><h3 id="sp-title">Pick your specs</h3>' +
+      '<p class="fx-who">' + esc(u.n) + ", click what you can play, best first. Up to " + MAX_CLASSES + " classes (" + own.size + "/" + MAX_CLASSES + ").</p>" +
       '<div class="sp-order">' + order + "</div>" +
       '<div class="sp-grid">' + classes + "</div>" +
-      (rq ? '<div class="row">' + (open ? '<button type="button" class="btn" data-act="rq-withdraw">Withdraw request</button>' : "") + '<button type="button" class="btn" data-act="sp-later">Cancel</button><button type="button" class="btn primary" data-act="rq-send"' + (changed && d.c.length ? "" : " disabled") + ">Send request</button></div></div></div>"
-        : '<div class="row"><button type="button" class="btn" data-act="sp-later">Later</button><button type="button" class="btn primary" data-act="sp-save"' + (d.c.length ? "" : " disabled") + ">Save " + (d.c.length ? plural(d.c.length, "spec") : "") + "</button></div></div></div>");
+      '<div class="row"><button type="button" class="btn" data-act="sp-later">Later</button><button type="button" class="btn primary" data-act="sp-save"' + (d.c.length ? "" : " disabled") + ">Save " + (d.c.length ? plural(d.c.length, "spec") : "") + "</button></div></div></div>";
   }
   function toggleSpec(k) {
     const d = specDraft;
@@ -2146,16 +2067,6 @@ span.fx-btn:hover{transform:none}
       d.c.push(k);
     }
     renderSpecPicker();
-  }
-  function sendRequest() {
-    const d = specDraft, u = d && state.signups.find((x) => x.id === d.id);
-    closeDialog();
-    if (!u) return;
-    const body = { request: { id: u.id } };
-    if (d.c.join() !== u.c.join()) body.request.c = d.c;
-    if (d.f && d.f !== (u.f || "")) body.request.f = d.f;
-    if (!body.request.c && !body.request.f) return;
-    sendRequestPost(body, "Request sent. The admin will approve or reject it.");
   }
   function saveSpecs() {
     const d = specDraft, u = d && state.signups.find((x) => x.id === d.id);
@@ -2206,7 +2117,7 @@ span.fx-btn:hover{transform:none}
       const nid = newId(), n = joining.n;
       // The admin's own signups skip the approval; everyone else waits for it, with one signup per person.
       updateSignup(nid, adminOk ? { id: nid, n, c: [], f } : { id: nid, n, c: [], f, p: 1 });
-      if (!adminOk) signedUp = true;
+      if (!adminOk) { signedUp = true; myId = nid; }
       const input = signups.querySelector(".su.new .su-name");
       if (input) input.value = "";
       if (fx.photo) showFactionCheer(f, n, nid);
@@ -2250,7 +2161,7 @@ span.fx-btn:hover{transform:none}
     const ov = t.closest && t.closest(".overlay");
     if (ov && (t.classList.contains("overlay") || t.dataset.act === "close-dialog")) { if (!ov.classList.contains("locked")) closeDialog(); return; }
     const sizeBtn = t.closest("[data-size]");
-    if (sizeBtn) { const z = +sizeBtn.dataset.size; if (z !== state.size) { sel = null; change((s) => { s.size = z; }); } return; }
+    if (sizeBtn) { const z = +sizeBtn.dataset.size; if (z !== state.size && adminOk) { sel = null; change((s) => { s.size = z; }); } return; }
     const act = t.closest("[data-act]");
     if (act) {
       const a = act.dataset.act;
@@ -2260,17 +2171,12 @@ span.fx-btn:hover{transform:none}
       if (a === "sp-open") { showSpecPicker(act.dataset.id || act.closest(".su").dataset.id); return; }
       if (a === "sp-toggle") { toggleSpec(act.dataset.spec); return; }
       if (a === "sp-save") { saveSpecs(); return; }
-      if (a === "rq-open") { if (!signInFirst("Sign in with Discord to ask for a change.")) showRequestPicker(act.closest(".su").dataset.id); return; }
       if (a === "sign-in") { signIn(); return; }
       if (a === "sign-out") { signOut(); return; }
       if (a === "claims-refresh") { loadClaims(true); return; }
       if (a === "claim-copy") { const c = claimList.find((x) => x.id === act.dataset.id); if (c) copyText(claimUrl(c), "Claim link for " + c.n + " copied"); return; }
       if (a === "claim-copy-all") { copyText(claimList.filter((c) => !c.by).map((c) => c.n + ": " + claimUrl(c)).join("\n"), "All unclaimed links copied"); return; }
-      if (a === "unclaim") { sendRequestPost({ unclaim: act.dataset.id }, "Claim undone: the link works again", () => loadClaims(true)); return; }
-      if (a === "rq-side") { if (specDraft) { specDraft.f = act.dataset.f; renderSpecPicker(); } return; }
-      if (a === "rq-send") { sendRequest(); return; }
-      if (a === "rq-withdraw") { const q = specDraft && myRequestOf(specDraft.id); closeDialog(); if (q) sendRequestPost({ requests: { [q.key]: null } }, "Request withdrawn"); return; }
-      if (a === "rq-approve" || a === "rq-reject") { answerRequest(act.closest(".rq").dataset.key, a === "rq-approve"); return; }
+      if (a === "unclaim") { postNow({ unclaim: act.dataset.id }, "Claim undone: the link works again", () => loadClaims(true)); return; }
       if (a === "sp-later") { closeDialog(); return; }
       if (a === "fx-open") { showFactionPicker(act.closest(".su").dataset.id); return; }
       if (a === "fx-pick") { pickFaction(act.dataset.id, act.dataset.f); return; }

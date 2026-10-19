@@ -78,7 +78,7 @@ A new signup gets `p: 1` and shows under **Waiting for approval**, for everyone.
 
 After someone signs up, only the admin can change or remove that signup: the name, the specs (add, remove, reorder), the side, and the approval. A player can still fill in what is missing: a first side, and the first specs if they skipped them when they joined.
 
-Without the admin key, the server keeps the stored signup, still saves the other changes in the request (for example raid slots), and the reply has a `warning`. The page shows it and plays `sounds/blocked.m4a`. For visitors who are not admin, the page shows the signups read-only; the spec icons still place players in the raid.
+Without the admin key, the server keeps the stored signup, still saves the other changes in the request, and the reply has a `warning`. The page shows it and plays `sounds/blocked.m4a`. For visitors who are not admin, the page shows the signups read-only; the spec icons still place players in the raid.
 
 To fix data, use the admin key from the `RAIDCOMP_ADMIN_KEY` environment variable in Vercel:
 
@@ -122,11 +122,11 @@ Who, without storing who they are:
 
 `GET /api/comp?log=1&page=N` answers `{ entries, page, pages, total }`, 20 entries a page, page 0 the newest. It counts toward the per-network request limit. The **Changelog** button on the page opens it in a dialog.
 
-### Change requests
+### Who can change what
 
-After signing up, only the admin can change a signup. Anyone can **ask** for a change to any approved signup, per browser session: the **Request change** button on each row opens the spec picker with a side choice and sends `POST /api/comp {"request": {"id": "<signup id>", "c": [...], "f": "a" | "h" | "d"}}`. The server stores it in `raidcomp:requests` under `<signup id>:<session>` → `{ c, f, t, by }`. The session is 12 characters of the visitor's keyed hash (fingerprint or device id first), so each browser has at most one open request per signup and a new one replaces it; `by` is who asked, as in the changelog. It refuses a request for a signup that is gone, or for what the signup already has, and keeps at most 60 requests open. `GET /api/comp` lists open requests in `requests` (`key`, `id`, `s`, `c`, `f`, `t`, `by`), and rows with any show **Change asked** (×n when several).
+Only the admin changes things after signup, directly: signups (name, specs, side, approval, bench, lock, remove) and the raid itself (slots and size). A player can only sign up, claim their own signup with a claim link, and fill in what is still missing on **their own** signup (a first side, the first specs). There are no change requests: a player who wants a change asks the admin, for example on Discord. `GET /api/comp?me=1` answers `mine`, the visitor's own signup id.
 
-The admin sees **Change requests** above the signups, each with who asked: approve applies the change to the signup and closes that request in one POST (`signups` + `requests: {<key>: null}`); reject only closes it. A session can withdraw its own request (`requests: {<signup id>:<its session>: null}`); nobody else can. Removing a signup drops its requests. The changelog logs `request`, `request-approved`, `request-rejected` and `request-withdrawn`. `GET /api/comp?me=1` also answers `session` (this browser's session key) and `mine` (the visitor's own signup id).
+A visitor's edit to the raid gets the warning "Only the admin can change the raid." Older entries in the changelog can still show `request`, `request-approved`, `request-rejected` and `request-withdrawn` from when requests existed; the unused `raidcomp:requests` hash can be deleted.
 
 ### Discord sign-in and claim links
 
@@ -135,12 +135,12 @@ When the Discord app is set up, every change (signing up, asking for a change, a
 How it works:
 
 - **Sign in with Discord** sends the player to Discord's authorize page (scope `identify` only: Discord id and name, no email). Discord sends them back to `/api/discord`, which trades the code for their identity and sends the page a session token in the URL fragment. The page accepts it only when the `state` matches the one it made. The token is signed with `RAIDCOMP_SESSION_SECRET` and lasts 30 days. The server stores no token.
-- The page sends the token as `X-Raidcomp-Session`. The Discord account is the strongest visitor key, so one signup per person becomes one signup per Discord account, and change requests and the changelog follow the account across browsers. The changelog never shows Discord names.
+- The page sends the token as `X-Raidcomp-Session`. The Discord account is the strongest visitor key, so one signup per person becomes one signup per Discord account, and ownership and the changelog follow the account across browsers. The changelog never shows Discord names.
 - A POST without a session (and without the admin key) gets `401 { error: "sign_in" }`. `GET /api/comp?me=1` adds `discord` (the client id, or "") and `user` (`{ name }` or null).
 
 Claim links, for signups made before Discord sign-in:
 
-- In admin mode, **Claim links** lists one link per signup (`/#claim=<signup id>.<HMAC>`), with **Copy link**, **Copy all unclaimed links** and who claimed each one (Discord username, only the admin sees it). Send each player their own link in a private message.
+- In admin mode, the **Claim links** panel under the signups lists every signup, in signup order, with its link (`/#claim=<signup id>.<HMAC>`), with **Copy link**, **Copy all unclaimed links** and who claimed each one (Discord username, only the admin sees it). Send each player their own link in a private message.
 - The player opens the link. If they are not signed in, the page keeps the link in that tab, they sign in with Discord, and the claim goes through when they come back. Their Discord account then owns that signup.
 - One owner per signup and one signup per account. **Undo** frees a signup so its link works again. API: `GET ?claims=1` (admin), `POST {claim: token}`, `POST {unclaim: id}` (admin). Storage: `raidcomp:owners` (signup id → `{ k, u }`).
 
