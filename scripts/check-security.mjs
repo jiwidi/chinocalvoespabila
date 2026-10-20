@@ -149,6 +149,11 @@ assert.notEqual((await logPage()).entries[0].a, "rename", "a blocked edit logs n
 await post({ signups: { [mine.id]: { n: "Logger", c: ["mage_frost"], f: "h", p: 1 } } }, { ip: "192.0.2.152", admin: KEY });
 const adminRows = (await logPage()).entries.slice(0, 2).map((e) => [e.a, e.w.k]);
 assert.deepEqual(adminRows.sort(), [["side", "admin"], ["specs", "admin"]]);
+// The changelog is about players only: the admin's raid size and slot changes are not logged.
+const t1 = (await logPage()).total, adminIp = { ip: "192.0.2.152", admin: KEY };
+const sizeNow0 = (await call("GET")).out.size;
+await post({ size: sizeNow0 === 10 ? 20 : 10, slots: { 3: { s: "mage_fire", n: "Logger" } } }, adminIp);
+assert.equal((await logPage()).total, t1, "raid size and slots are not logged");
 const p0 = await logPage(0), p1 = await logPage(1);
 assert.equal(p0.entries.length, 20);
 assert.ok(p0.pages >= 2 && p0.total > 20);
