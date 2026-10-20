@@ -32,6 +32,7 @@ const { default: discord } = await import("../api/discord.js"); // Discord sign-
 
 const PORT = Number(process.env.PORT) || 3000;
 const INDEX = fileURLToPath(new URL("../index.html", import.meta.url));
+const SOLVER = fileURLToPath(new URL("../raidcomp.js", import.meta.url)); // the page imports it
 // The response headers from vercel.json (the CSP and others), so a page change that breaks them shows up here too.
 const VERCEL = JSON.parse(await readFile(fileURLToPath(new URL("../vercel.json", import.meta.url)), "utf8"));
 const HEADERS = VERCEL.headers.flatMap((rule) => rule.headers);
@@ -69,6 +70,11 @@ http.createServer(async (req, res) => {
       res.setHeader("Content-Type", "text/html; charset=utf-8");
       res.setHeader("Cache-Control", "no-store");
       return res.end(await readFile(INDEX));
+    }
+    if (pathname === "/raidcomp.js") {
+      res.setHeader("Content-Type", "text/javascript; charset=utf-8");
+      res.setHeader("Cache-Control", "no-store");
+      return res.end(await readFile(SOLVER));
     }
     const dir = Object.keys(STATIC).find((p) => pathname.startsWith(p));
     const name = dir && pathname.slice(dir.length);
