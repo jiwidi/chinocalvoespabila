@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "node scripts/dev.mjs",
     "dev:prod": "node scripts/dev.mjs --seed",
-    "test": "node scripts/check-security.mjs && node scripts/check-auth.mjs"
+    "test": "node scripts/check-security.mjs && node scripts/check-auth.mjs && node scripts/check-comp.mjs"
   },
   "engines": {
     "node": ">=20"
