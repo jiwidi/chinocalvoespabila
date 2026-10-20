@@ -187,8 +187,19 @@ assert.deepEqual((await call("GET", { url: "/api/comp?claims=1", who: fresh(admi
   Date.now = realNow;
 }
 
+// The state marks signups that a Discord account owns (d: 1). Only the admin verifies one without Discord (v: 1).
+const old4 = await join(fresh(admin), "Old4");
+const rowOf = async (id) => (await call("GET", { who: fresh() })).out.signups.find((u) => u.id === id);
+assert.deepEqual([(await rowOf(old1.id)).d, (await rowOf(old4.id)).d], [1, undefined]);
+await call("POST", { body: { signups: { [old4.id]: { n: "Old4", c: [], v: 1 } } }, who: fresh({ session: bo }) });
+assert.equal((await rowOf(old4.id)).v, undefined, "a player cannot verify a signup");
+await call("POST", { body: { signups: { [old4.id]: { n: "Old4", c: [], v: 1 } } }, who: fresh(admin) });
+assert.equal((await rowOf(old4.id)).v, 1);
+await call("POST", { body: { unclaim: old1.id }, who: fresh(admin) });
+assert.equal((await rowOf(old1.id)).d, undefined, "an undone claim drops d");
+
 // The changelog shows the claims.
 const log = (await call("GET", { url: "/api/comp?log=1", who: fresh() })).out.entries.map((e) => e.a);
-assert.ok(log.includes("claim") && log.includes("unclaim"), log.join());
+assert.ok(log.includes("claim") && log.includes("unclaim") && log.includes("verify"), log.join());
 assert.ok(!sent.some((u) => !u.startsWith("https://discord.com/")), "only Discord was called");
 console.log("auth checks passed: Discord sign-in, 401 without it, one signup per account, claim links, unclaim, claim requests, poll");
