@@ -57,7 +57,18 @@ button{cursor:pointer}
 
 /* Top bar */
 .top{position:sticky;top:0;z-index:20;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 18px;padding:10px max(16px,env(safe-area-inset-right)) 10px max(16px,env(safe-area-inset-left));background:rgba(14,14,16,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
-.brand{display:flex;align-items:center;gap:10px}
+/* The brand links home. When the calendar and the buttons fit beside it on one line (fitTop), the bar becomes three
+   columns and the title sits in the middle of the page (the right padding offsets the mark so the title itself is centred). */
+.top.centred{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);grid-template-areas:"launch brand tools"}
+.top.centred .brand{grid-area:brand;padding-right:40px}
+.top.centred .launch{grid-area:launch;margin:0;flex-wrap:nowrap}
+.top.centred .tools{grid-area:tools;flex-wrap:nowrap}
+.top.centred .tools > :first-child{margin-left:auto} /* right-aligned, but overflow still spills right where fitTop can measure it */
+.brand{display:flex;align-items:center;gap:10px;color:inherit;text-decoration:none}
+.brand .mark,.brand h1,.brand h1 span,.brand p{transition:color .15s,text-shadow .15s,box-shadow .15s,transform .15s}
+.brand:hover .mark{transform:scale(1.08);box-shadow:0 0 16px rgba(242,184,75,.6)}
+.brand:hover h1,.brand:hover h1 span{color:#ffe2a6;text-shadow:0 0 14px rgba(242,184,75,.75)}
+.brand:hover p{color:#ffe2a6}
 .brand .mark{width:30px;height:30px;border-radius:6px;background:linear-gradient(135deg,#f2b84b,#b8741f);display:grid;place-items:center;color:var(--accent-ink);font-family:var(--display);font-weight:700;font-size:17px}
 .brand h1 span{color:var(--accent)}
 .brand h1{margin:0;font-family:var(--display);font-size:22px;line-height:1;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#fff}
@@ -319,7 +330,7 @@ button{cursor:pointer}
 .sg-cell.benched .ic{filter:grayscale(.5)}
 .sg-cell .bt{flex:none;padding:1px 7px;border-radius:10px;background:var(--panel-2);font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
 .bench-body{display:flex;flex-wrap:wrap;align-items:center;gap:16px 24px}
-.bench-art{flex:0 0 auto;width:min(300px,100%);height:auto}
+.bench-art{flex:0 0 auto;width:min(380px,100%);height:auto}
 .bench-names{flex:1 1 260px;min-width:0}
 .bench-names h4{margin:0 0 8px;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
 .bench-names h4 small{margin-left:4px;padding:1px 7px;border-radius:10px;background:var(--panel-2);font-size:11px;letter-spacing:0;color:var(--soft)}
@@ -452,6 +463,29 @@ span.fx-btn:hover{transform:none}
   .crest-a{right:calc((var(--band) - var(--crest)) / 2)}
 }
 
+/* Poll under Horde vs Alliance */
+.pv-y{--pc:#f2b84b}
+.pv-n{--pc:#62b3ff}
+.poll-q{margin:0 0 10px;font-size:14px;font-weight:700;color:#fff}
+.poll-btns{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.poll-btn{display:flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:6px 10px;border:1px solid var(--line-2);border-radius:8px;background:var(--panel-2);font-weight:700;font-size:12.5px;color:var(--soft);text-align:center;transition:border-color .12s,background .12s}
+.poll-btn:hover:not(:disabled){border-color:var(--pc);color:#fff}
+.poll-btn.on{border-color:var(--pc);background:color-mix(in srgb,var(--pc) 16%,var(--panel-2));color:#fff;box-shadow:0 0 0 1px var(--pc)}
+.poll-btn:disabled{opacity:.5;cursor:not-allowed}
+.pv-ic{font-size:18px;line-height:1}
+.poll-score{display:flex;justify-content:space-between;margin:12px 2px 4px;font-size:12px;color:var(--muted)}
+.poll-score b{font-family:var(--display);font-size:22px;color:var(--pc)}
+.poll-bar{display:flex;gap:3px;height:10px;border-radius:5px;overflow:hidden;background:var(--slot)}
+.poll-bar i{display:block;height:100%;background:var(--pc);transition:width .4s}
+.poll-bar.empty i{opacity:.25}
+.poll-lists{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.poll-lists h4{margin:0 0 6px;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--pc)}
+.poll-lists h4 small{margin-left:4px;padding:0 6px;border-radius:8px;background:var(--panel-2);color:var(--soft)}
+.poll-who{display:flex;flex-wrap:wrap;gap:4px;margin:0;padding:0;list-style:none}
+.poll-who li{max-width:100%;padding:2px 8px;border-radius:10px;background:var(--panel-2);font-size:11.5px;font-weight:600;color:var(--soft);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.poll-none{margin:0;font-size:11.5px;font-style:italic;color:var(--faint)}
+.poll-note{margin:12px 0 0}
+
 /* Changelog dialog */
 .dialog.cl-dialog{width:min(900px,100%)}
 .cl-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
@@ -519,7 +553,7 @@ span.fx-btn:hover{transform:none}
 </head>
 <body>
 <header class="top">
-  <div class="brand"><span class="mark" aria-hidden="true">S</span><div><h1>Supreme <span>Forever</span></h1><p>Raid planner · World of Warcraft: Forever</p></div></div>
+  <a class="brand" href="/" data-act="view" data-v="roster" aria-label="Supreme Forever: home"><span class="mark" aria-hidden="true">S</span><div><h1>Supreme <span>Forever</span></h1><p>Raid planner · World of Warcraft: Forever</p></div></a>
   <ol class="launch" id="launch" aria-label="WoW Forever launch calendar"></ol>
   <div class="tools" id="tools"></div>
 </header>
@@ -531,6 +565,7 @@ span.fx-btn:hover{transform:none}
   <div class="side">
     <section class="panel signups" id="signups" aria-label="Signups"></section>
     <section class="panel factions" id="factions" aria-label="Horde vs Alliance"></section>
+    <section class="panel poll" id="poll" aria-label="Poll: pick the faction by coin flip?"></section>
   </div>
   <div class="plan">
     <section class="panel suggest" id="suggest" aria-label="Suggested comp"></section>
@@ -542,12 +577,14 @@ span.fx-btn:hover{transform:none}
 <main class="audit" id="audit" aria-label="Audit" hidden></main>
 <div id="dialog-root"></div>
 <div class="toast" id="toast" role="status" hidden></div>
-<script>
+<script type="module">
+// The spec data and the comp solver live in raidcomp.js, so scripts/check-comp.mjs can test them.
+import { MAX, SPEC_ROWS, SPEC, specTags as tagsOf, BLESSINGS, TOTEMS, canKick, isOffTank, isOffHeal, NEEDS, targets, solveComp } from "./raidcomp.js";
+
 (() => {
   "use strict";
   const API = "/api/comp";
   const ICON = (name) => "https://wow.zamimg.com/images/wow/icons/medium/" + name + ".jpg";
-  const MAX = 40;
   const SIZES = [10, 20]; // the API still accepts 40; the page does not offer it for now
   const NAME_MAX = 20;
   const FULL = "The raid is full. Remove someone or switch to a bigger size.";
@@ -567,50 +604,6 @@ span.fx-btn:hover{transform:none}
     warlock: { name: "Warlock", color: "#8788EE" },
     warrior: { name: "Warrior", color: "#C69B6D" }
   };
-  const DRUID = ["motw", "innervate", "armor2", "brez", "dcurse", "dpoison"];
-  const HUNTER = ["hit", "natureres", "frenzy"], PET = ["ap", "tongues", "mortal"];
-  const MAGE = ["int", "amp", "dcurse"];
-  const PALADIN = ["kings", "wisdom", "aura", "might", "salv", "jol", "jow", "resaura", "dmagic", "ddisease", "dpoison"];
-  const PRIEST = ["stam", "shadowres", "spirit", "purge", "dmagic", "ddisease"];
-  const ROGUE = ["armor1", "mortal", "tongues"];
-  const SHAMAN = ["wf", "goa", "ft", "soe", "mst", "hst", "ground", "tremor", "restotem", "purge", "ddisease", "dpoison"];
-  const WARLOCK = ["bp", "coe", "armor2", "tongues", "brez", "purge", "dmagic"];
-  const WARRIOR = ["ap", "armor1", "demo", "clap"];
-  // key, class, spec, role, armor, tier token, icon, tags, hunter-pet tags
-  const SPEC_ROWS = [
-    ["druid_balance", "druid", "Balance", "range", "leather_int", "vanquisher", "spell_nature_starfall", DRUID.concat("scrit", "hit")],
-    ["druid_feral", "druid", "Feral", "melee", "leather_agi", "vanquisher", "ability_druid_catform", DRUID.concat("crit", "demo")],
-    ["druid_guardian", "druid", "Guardian", "tank", "leather_agi", "vanquisher", "ability_racial_bearform", DRUID.concat("crit", "demo")],
-    ["druid_restoration", "druid", "Restoration", "heal", "leather_int", "vanquisher", "spell_nature_healingtouch", DRUID],
-    ["hunter_beast_mastery", "hunter", "Beast Mastery", "range", "mail_agi", "protector", "ability_hunter_beasttaming", HUNTER, PET],
-    ["hunter_marksmanship", "hunter", "Marksmanship", "range", "mail_agi", "protector", "ability_marksmanship", HUNTER.concat("rap"), PET],
-    ["hunter_survival", "hunter", "Survival", "melee", "mail_agi", "protector", "ability_hunter_swiftstrike", HUNTER, PET],
-    ["mage_arcane", "mage", "Arcane", "range", "cloth", "vanquisher", "spell_holy_magicalsentry", MAGE],
-    ["mage_fire", "mage", "Fire", "range", "cloth", "vanquisher", "spell_fire_firebolt02", MAGE],
-    ["mage_frost", "mage", "Frost", "range", "cloth", "vanquisher", "spell_frost_frostbolt02", MAGE],
-    ["paladin_holy", "paladin", "Holy", "heal", "plate_int", "conqueror", "spell_holy_holybolt", PALADIN],
-    ["paladin_protection", "paladin", "Protection", "tank", "plate_str", "conqueror", "spell_holy_devotionaura", PALADIN],
-    ["paladin_retribution", "paladin", "Retribution", "melee", "plate_str", "conqueror", "spell_holy_auraoflight", PALADIN.concat("demo")],
-    ["priest_discipline", "priest", "Discipline", "heal", "cloth", "conqueror", "spell_holy_wordfortitude", PRIEST.concat("pi")],
-    ["priest_holy", "priest", "Holy", "heal", "cloth", "conqueror", "spell_holy_guardianspirit", PRIEST],
-    ["priest_shadow", "priest", "Shadow", "range", "cloth", "conqueror", "spell_shadow_shadowwordpain", PRIEST.concat("di", "ve")],
-    ["rogue_assassination", "rogue", "Assassination", "melee", "leather_agi", "vanquisher", "ability_rogue_eviscerate", ROGUE],
-    ["rogue_combat", "rogue", "Combat", "melee", "leather_agi", "vanquisher", "ability_backstab", ROGUE],
-    ["rogue_subtlety", "rogue", "Subtlety", "melee", "leather_agi", "vanquisher", "ability_stealth", ROGUE],
-    ["shaman_elemental", "shaman", "Elemental", "range", "mail_int", "protector", "spell_nature_lightning", SHAMAN],
-    ["shaman_enhancement", "shaman", "Enhancement", "melee", "mail_agi", "protector", "spell_nature_lightningshield", SHAMAN],
-    ["shaman_restoration", "shaman", "Restoration", "heal", "mail_int", "protector", "spell_nature_magicimmunity", SHAMAN.concat("tide")],
-    ["warlock_affliction", "warlock", "Affliction", "range", "cloth", "conqueror", "spell_shadow_deathcoil", WARLOCK],
-    ["warlock_demonology", "warlock", "Demonology", "range", "cloth", "conqueror", "spell_shadow_metamorphosis", WARLOCK],
-    ["warlock_destruction", "warlock", "Destruction", "range", "cloth", "conqueror", "spell_shadow_rainoffire", WARLOCK],
-    ["warrior_arms", "warrior", "Arms", "melee", "plate_str", "protector", "ability_warrior_savageblow", WARRIOR.concat("mortal")],
-    ["warrior_fury", "warrior", "Fury", "melee", "plate_str", "protector", "ability_warrior_innerrage", WARRIOR],
-    ["warrior_protection", "warrior", "Protection", "tank", "plate_str", "protector", "ability_warrior_defensivestance", WARRIOR]
-  ];
-  const SPEC = {};
-  SPEC_ROWS.forEach((r) => {
-    SPEC[r[0]] = { key: r[0], cls: r[1], label: r[2], role: r[3], armor: r[4], token: r[5], icon: r[6], tags: r[7], pet: r[8] || [] };
-  });
   // [section, party-only?, [[tag, label, icon, sources]]]
   const BUFFS = [
     ["Raid buffs", false, [
@@ -715,7 +708,10 @@ span.fx-btn:hover{transform:none}
         else if (u.r) o.r = 1; // locked in: the admin put them in every option of the suggested comp
         return o;
       });
-    return { v: Number(d.v) || 0, size: SIZES.includes(d.size) ? d.size : 20, slots, signups };
+    // Poll: the names that voted yes (coin flip) and no, in the order they voted.
+    const names = (list) => (Array.isArray(list) ? list : []).map((s) => String(s || "").slice(0, 32)).filter(Boolean);
+    const poll = { y: names(d.poll && d.poll.y), n: names(d.poll && d.poll.n) };
+    return { v: Number(d.v) || 0, size: SIZES.includes(d.size) ? d.size : 20, slots, signups, poll };
   }
   const same = (a, b) => (a ? a.s + "|" + a.n : "") === (b ? b.s + "|" + b.n : "");
   // Starts with a timestamp, so sorting by id keeps signup order. The random tail avoids clashes.
@@ -839,6 +835,7 @@ span.fx-btn:hover{transform:none}
       meUser = j.user || null;
       if (session && !meUser) { session = ""; try { localStorage.removeItem(SESSION_STORE); } catch (e) {} } // expired or bad
       myAsk = j.ask || null; taken = j.taken || []; adminAsks = j.asks || 0;
+      myVote = j.vote || null; renderPoll();
       renderTools(); renderSignups();
       if (!sendClaim()) { promptSignIn(); promptClaim(); }
     }, () => { /* keep the last answer; the server checks every edit anyway */ });
@@ -1026,7 +1023,7 @@ span.fx-btn:hover{transform:none}
     try { navigator.clipboard.writeText(text).then(() => toast(done), () => showCopyDialog(text)); } catch (err) { showCopyDialog(text); }
   }
 
-  function specTags(sp) { return pets ? sp.tags.concat(sp.pet) : sp.tags; }
+  const specTags = (sp) => tagsOf(sp, pets);
   function firstEmpty() {
     for (let i = 0; i < state.size; i++) if (!state.slots[i]) return i;
     return null;
@@ -1080,90 +1077,6 @@ span.fx-btn:hover{transform:none}
     return byNameMemo.map;
   }
 
-  // What a raid wants, as points. The solver trades these against how far down each player's list it has to go.
-  // The guild's targets: at least 2 tanks, 3 healers plus 1 off-healer, 2-3 shamans, and one of each main buff
-  // (for 10: 2 healers plus 1 off-healer, 1-2 shamans). Ranged (healers count as ranged) should match or outnumber melee.
-  // WoW Forever beta notes (Oct 16, 2026): Battle Shout, Trueshot Aura, Moonkin Aura (spell crit), Leader of the Pack
-  // (melee and ranged crit), and the Windfury, Grace of Air, Strength of Earth and Flametongue totems are raid wide, so
-  // one provider covers everyone and a second adds nothing. Windfury and Flametongue exclude each other. Windfury and
-  // Grace of Air are both air totems, so having both takes 2 shamans. Salvation is no longer a blessing: any paladin
-  // gives it on top of one blessing. Still per group: paladin auras and the water totems (Mana Spring, Mana Tide).
-  // Earlier notes: Curse of the Elements covers all magic; Expose Armor replaces Sunder stacking; Druids and Hunters
-  // have no interrupt.
-  // Kept modest so a player moves to a lower choice when the raid clearly gains (a missing healer, a missing buff).
-  const PREF_COST = (r) => 6.5 * r - 0.5 * r * r; // 1st 0, 2nd 6, 3rd 11, 4th 15, 5th 18
-  // Hybrid dps specs are brought for their one-of-a-kind buff; a second copy adds little over a pure dps class.
-  const HYBRID_DPS = new Set(["druid_balance", "druid_feral", "paladin_retribution", "priest_shadow", "shaman_elemental", "shaman_enhancement"]);
-  const HYBRID_DUP_COST = 10; // per extra copy of the same hybrid spec
-  const FIRST_WARLOCK = 20;
-  const BLESSINGS = [["kings", 25], ["wisdom", 15], ["might", 12]]; // each paladin covers one blessing (Greater Blessing of Light is not in this version)
-  // Raid totems by how many shamans they take: one drops Windfury and Strength of Earth; Grace of Air is a second air totem.
-  const TOTEMS = [["wf", 1], ["soe", 1], ["goa", 2]];
-  // Interrupts: Pummel/Shield Bash, Kick, Counterspell, Earth Shock, Spell Lock (felhunter), Silence (Shadow).
-  const canKick = (k) => ["warrior", "rogue", "mage", "shaman", "warlock"].includes(SPEC[k].cls) || k === "priest_shadow";
-  // An off-healer: a Druid, Paladin, Priest or Shaman in a dps spec, who can still heal when the healers need help.
-  const HEAL_CLASSES = new Set(["druid", "paladin", "priest", "shaman"]);
-  // A dps player whose signup also lists a tank spec: can off-tank if a fight asks for it.
-  const isOffTank = (k, c) => SPEC[k].role !== "tank" && (c || []).some((x) => SPEC[x].role === "tank");
-  const isOffHeal = (k) => (SPEC[k].role === "melee" || SPEC[k].role === "range") && HEAL_CLASSES.has(SPEC[k].cls);
-  const NEEDS = [ // [tag, points]: raid-wide, so one provider is enough and a second adds nothing
-    // Main buffs and debuffs: the raid wants one of each.
-    ["stam", 22], ["motw", 22], ["int", 20], ["ap", 18], ["crit", 18], ["armor1", 18], ["coe", 16], ["scrit", 14], ["rap", 12],
-    ["armor2", 12], ["salv", 10],
-    // Dispels, tools and smaller buffs.
-    ["dmagic", 14], ["dcurse", 12], ["brez", 10], ["ddisease", 6], ["dpoison", 6], ["frenzy", 6], ["demo", 6], ["purge", 5],
-    ["hit", 3], ["spirit", 3], ["shadowres", 3], ["tongues", 3], ["natureres", 2], ["mortal", 2]
-  ];
-  // heal: healers wanted; off: one more who can heal (an off-healer, or one extra healer); shaman to shamanMax shamans.
-  function targets(size) {
-    return size <= 10
-      ? { tank: 2, heal: 2, off: 1, shaman: 1, shamanMax: 2, paladin: 1, kick: 2 }
-      : { tank: 2, heal: 3, off: 1, shaman: 2, shamanMax: 3, paladin: 2, kick: 3 };
-  }
-  // entries: [{ k: chosen spec, c: that player's signup specs }]
-  function compScore(entries, t) {
-    const cls = {}, role = { tank: 0, heal: 0, melee: 0, range: 0 }, tags = new Set(), seen = {};
-    let off = 0, dup = 0, kick = 0, offTank = 0;
-    entries.forEach(({ k, c }) => {
-      const sp = SPEC[k];
-      if (HYBRID_DPS.has(k) && seen[k]) dup++;
-      seen[k] = true;
-      cls[sp.cls] = (cls[sp.cls] || 0) + 1;
-      role[sp.role]++;
-      if (isOffHeal(k)) off++;
-      if (isOffTank(k, c)) offTank++;
-      if (canKick(k)) kick++;
-      specTags(sp).forEach((x) => tags.add(x));
-    });
-    const groups = Math.max(1, Math.ceil(entries.length / 5));
-    // Exactly t.tank tanks (2): a third tank is a dps lost, so a player who listed tank first plays their dps spec.
-    // One off-tank (a dps who also signed up as tank) is a small plus: how much it matters in Forever is not clear yet.
-    let s = 40 * Math.min(role.tank, t.tank) - 30 * Math.max(0, role.tank - t.tank) + (offTank ? 4 : 0);
-    // Healers, then one off-healer: a hybrid in a dps spec, or else one extra healer. An extra healer that the
-    // off-healer slot does not need costs a little dps; beyond healers + off-healer it costs more.
-    const extraHeal = Math.max(0, role.heal - t.heal);
-    s += 30 * Math.min(role.heal, t.heal) + 12 * Math.min(t.off, off + extraHeal);
-    s -= 6 * Math.max(0, extraHeal - Math.max(0, t.off - off)) + 9 * Math.max(0, extraHeal - t.off);
-    s -= HYBRID_DUP_COST * dup;
-    // Melee against ranged, healers counted as ranged: lose points for every melee too many, gain a little for extra ranged.
-    const ranged = role.range + role.heal;
-    s -= 10 * Math.max(0, role.melee - ranged);
-    s += 3 * Math.min(2, Math.max(0, ranged - role.melee));
-    // Shamans: the first ones bring the raid totems (see TOTEMS); one more adds water totems for a group; more, no gain.
-    const sham = cls.shaman || 0;
-    s += 26 * Math.min(sham, t.shaman) + 8 * Math.max(0, Math.min(sham, t.shamanMax) - t.shaman) - 12 * Math.max(0, sham - t.shamanMax);
-    const pal = cls.paladin || 0;
-    BLESSINGS.slice(0, pal).forEach(([, w]) => { s += w; });
-    s += 10 * Math.min(pal, t.paladin);
-    if (pal) s += 4 + 3 * (Math.min(pal, groups) - 1); // a paladin aura reaches one group
-    s += 8 * Math.min(kick, t.kick);
-    // The first warlock brings utility no tag covers (Healthstones, summoning, Soulstone on top of a curse): worth a lot.
-    // More warlocks add only a second curse.
-    if (cls.warlock) s += FIRST_WARLOCK + (cls.warlock >= 2 ? 5 : 0);
-    NEEDS.forEach(([tag, w]) => { if (tags.has(tag)) s += w; });
-    return s;
-  }
-
   // Players the suggested comp can use: approved signups that the admin did not put on the bench.
   const compPlayers = () => [...signupsByName().values()].filter((u) => !u.b);
 
@@ -1179,11 +1092,11 @@ span.fx-btn:hover{transform:none}
     const players = compPlayers(), t = targets(state.size);
     // Players the admin locked in are in every option (earlier signups first if they are more than the seats).
     const locked = players.map((u, i) => i).filter((i) => players[i].r).slice(0, state.size);
-    const options = [solveComp(players, state.size, t, new Set(locked))];
+    const options = [solveComp(players, state.size, t, new Set(locked), pets)];
     const covered = new Set(options[0].raid.map((m) => m.i));
     while (covered.size < players.length && options.length < MAX_OPTIONS) {
       const forced = new Set(locked.concat(players.map((u, i) => i).filter((i) => !covered.has(i))).slice(0, state.size));
-      const opt = solveComp(players, state.size, t, forced);
+      const opt = solveComp(players, state.size, t, forced, pets);
       opt.adds = players.filter((u, i) => forced.has(i) && !u.r);
       if (!opt.adds.length) break; // the locked players fill every seat
       opt.raid.forEach((m) => covered.add(m.i));
@@ -1200,149 +1113,11 @@ span.fx-btn:hover{transform:none}
     return { ...options[suggestIdx], t, options };
   }
 
-  // Best comp for these players. forced: indexes of players who must be in the raid.
-  function solveComp(players, size, t, forced) {
-    const n = players.length, cap = Math.min(n, size);
-    // pick[i] is an index into players[i].c, or -1 when benched. Forced players first, then earlier signups.
-    const order = players.map((u, i) => i).sort((a, b) => (forced.has(b) - forced.has(a)) || a - b);
-    const pick = players.map(() => -1);
-    order.slice(0, cap).forEach((i) => { pick[i] = 0; });
-    const value = (p) => {
-      let s = 0;
-      const entries = [];
-      p.forEach((r, i) => {
-        if (r < 0) { s -= 0.1 * (n - i); return; }
-        entries.push({ k: players[i].c[r], c: players[i].c });
-        s -= PREF_COST(r);
-      });
-      return s + compScore(entries, t);
-    };
-    // Hill climbing: take the best single change (or swap with the bench) until nothing improves,
-    // then try changing two players at once to get past spots where one change alone does not pay off.
-    let best = value(pick);
-    const tryMove = (p) => { const v = value(p); if (v > best + 1e-9) { best = v; return true; } return false; };
-    const options = players.reduce((s, u) => s + u.c.length, 0);
-    for (let guard = 0; guard < 200; guard++) {
-      let improved = null;
-      for (let i = 0; i < n; i++) {
-        for (let r = 0; r < players[i].c.length; r++) {
-          if (r === pick[i]) continue;
-          if (pick[i] >= 0) {
-            const p = pick.slice(); p[i] = r;
-            if (tryMove(p)) improved = p;
-          } else {
-            for (let j = 0; j < n; j++) {
-              if (pick[j] < 0 || forced.has(j)) continue;
-              const p = pick.slice(); p[i] = r; p[j] = -1;
-              if (tryMove(p)) improved = p;
-            }
-          }
-        }
-      }
-      if (!improved && options <= 80) {
-        for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
-          if (pick[i] < 0 || pick[j] < 0) continue;
-          for (let a = 0; a < players[i].c.length; a++) for (let b = 0; b < players[j].c.length; b++) {
-            if (a === pick[i] && b === pick[j]) continue;
-            const p = pick.slice(); p[i] = a; p[j] = b;
-            if (tryMove(p)) improved = p;
-          }
-        }
-      }
-      if (!improved) break;
-      improved.forEach((r, i) => { pick[i] = r; });
-    }
-    const raid = [], bench = [];
-    players.forEach((u, i) => { if (pick[i] < 0) bench.push(u); else raid.push({ u, i, n: u.n, s: u.c[pick[i]], rank: pick[i] }); });
-    return { raid, bench, slots: arrange(raid, size), adds: [] };
-  }
-
-  // Spread players over groups of five: tanks and melee together, casters together, and one healer, shaman, paladin
-  // and warlock per group where possible. Shamans lean to casters and healers, who use their water totems most.
-  // How good one group of five is, as party buffs and habits go:
-  // - one shaman per group (Mana Spring and the group totems); a second one in a group only if every group has one;
-  // - one healer per group, healers spread evenly;
-  // - the shadow priest with healers, for the mana;
-  // - one paladin per group (auras) and one warlock per group (Blood Pact), when there are enough to go around;
-  // - tanks together with a paladin (Devotion Aura); melee with melee, casters with casters.
-  function groupScore(g, groups, n) {
-    const ms = g.map((x) => SPEC[x.s]), count = (f) => ms.filter(f).length, G = groups.length;
-    const all = (f) => groups.reduce((s, gr) => s + gr.filter((x) => f(SPEC[x.s])).length, 0);
-    const spread = (f, w) => { // w for having one; minus w for each extra while some group has none
-      const here = count(f), total = all(f);
-      return (here ? w : 0) - (here > 1 && total < G * here ? (here - 1) * w : 0);
-    };
-    let v = 0;
-    v += spread((sp) => sp.cls === "shaman", 20);
-    v += spread((sp) => sp.role === "heal", 14);
-    v += spread((sp) => sp.cls === "paladin", 8);
-    v += spread((sp) => sp.cls === "warlock", 4);
-    const heals = count((sp) => sp.role === "heal"), shadow = count((sp) => sp.key === "priest_shadow");
-    if (shadow && heals) v += 12; // Vampiric Embrace's mana and health go to the group
-    if (count((sp) => sp.role === "tank") && count((sp) => sp.cls === "paladin")) v += 4;
-    const phys = count((sp) => sp.role === "tank" || sp.role === "melee"), casters = count((sp) => sp.role === "range");
-    v += 1.5 * (phys * (phys - 1) / 2 + casters * (casters - 1) / 2) - 1 * phys * casters;
-    v -= 0.01 * Math.abs(g.length - n / G); // even group sizes on ties
-    return v;
-  }
-  function arrange(raid, size) {
-    const G = Math.min(size / 5, Math.max(1, Math.ceil(raid.length / 5)));
-    const groups = Array.from({ length: G }, () => []);
-    const phys = (sp) => sp.role === "tank" || sp.role === "melee" || sp.cls === "hunter";
-    const caster = (sp) => sp.role === "range" && sp.cls !== "hunter";
-    const order = (m) => { const sp = SPEC[m.s]; return sp.role === "tank" ? 0 : sp.cls === "shaman" || sp.cls === "paladin" ? 1 : sp.role === "heal" ? 4 : phys(sp) ? 2 : 3; };
-    raid.slice().sort((a, b) => order(a) - order(b)).forEach((m) => {
-      const sp = SPEC[m.s];
-      let bestG = 0, bestV = -Infinity;
-      groups.forEach((g, gi) => {
-        if (g.length >= 5) return;
-        const ms = g.map((x) => SPEC[x.s]), count = (f) => ms.filter(f).length;
-        let v = -0.5 * g.length;
-        if (phys(sp)) v += 4 * count(phys) - 3 * count(caster);
-        if (caster(sp)) v += 4 * count(caster) - 3 * count(phys);
-        if (sp.role === "heal") v -= 10 * count((x) => x.role === "heal");
-        if (sp.cls === "shaman") v += 2 * count((x) => caster(x) || x.role === "heal") - 15 * count((x) => x.cls === "shaman");
-        if (sp.cls === "paladin") v -= 12 * count((x) => x.cls === "paladin");
-        if (sp.cls === "warlock") v -= 4 * count((x) => x.cls === "warlock");
-        if (v > bestV) { bestV = v; bestG = gi; }
-      });
-      groups[bestG].push(m);
-    });
-    // Then swap players between groups (or move one into a free seat) while the whole raid scores better.
-    const total = () => groups.reduce((s, g) => s + groupScore(g, groups, raid.length), 0);
-    let best = total();
-    for (let guard = 0; guard < 60; guard++) {
-      let improved = false;
-      for (let a = 0; a < G; a++) for (let b = a + 1; b < G; b++) {
-        const A = groups[a], B = groups[b];
-        for (let i = 0; i <= A.length; i++) for (let j = 0; j <= B.length; j++) {
-          if (i === A.length && j === B.length) continue;
-          if (i === A.length && A.length >= 5) continue; // B[j] cannot move into a full group
-          if (j === B.length && B.length >= 5) continue;
-          const x = A[i], y = B[j];
-          if (x) A.splice(i, 1); if (y) B.splice(j, 1);
-          if (y) A.splice(i, 0, y); if (x) B.splice(j, 0, x);
-          const v = total();
-          if (v > best + 1e-9) { best = v; improved = true; continue; }
-          if (y) A.splice(i, 1); if (x) B.splice(j, 1); // undo
-          if (x) A.splice(i, 0, x); if (y) B.splice(j, 0, y);
-        }
-      }
-      if (!improved) break;
-    }
-    // Inside a group: tanks first, then melee, ranged, healers.
-    const inGroup = { tank: 0, melee: 1, range: 2, heal: 3 };
-    groups.forEach((g) => g.sort((a, b) => inGroup[SPEC[a.s].role] - inGroup[SPEC[b.s].role]));
-    const slots = Array(MAX).fill(null);
-    groups.forEach((g, gi) => g.forEach((m, k) => { slots[gi * 5 + k] = m; }));
-    return slots;
-  }
-
   /* ---------- Rendering ---------- */
   // The hand-edited raid groups card is gone; its code still draws into a detached element, which nobody sees.
   const tools = $("#tools"), grid = $("#grid") || document.createElement("div"), signups = $("#signups"), buffs = $("#buffs"), banner = $("#banner"), dialogRoot = $("#dialog-root");
   const benchEl = $("#bench");
-  const suggestEl = $("#suggest"), prefsEl = $("#prefs"), factionsEl = $("#factions");
+  const suggestEl = $("#suggest"), prefsEl = $("#prefs"), factionsEl = $("#factions"), pollEl = $("#poll");
 
   function renderTools() {
     const status = !loaded && net === "connecting" ? ["", "Connecting…"]
@@ -1363,7 +1138,16 @@ span.fx-btn:hover{transform:none}
         : '<button type="button" class="btn discord" data-act="sign-in">Sign in with Discord</button>') : "") +
       (adminKey ? '<button type="button" class="btn admin" data-act="admin-off" title="Admin mode: the faction change limit is off on this browser. Click to turn admin mode off.">Admin</button>' : "") +
       '<span class="live ' + status[0] + '" role="status"><i></i>' + status[1] + "</span>";
+    fitTop();
   }
+  // Centre the title (three-column bar) only while the calendar and the buttons fit beside it without wrapping.
+  function fitTop() {
+    const top = tools.parentNode;
+    top.classList.add("centred");
+    top.classList.toggle("centred", ![$("#launch"), tools].some((el) => el.scrollWidth > el.clientWidth + 1));
+  }
+  window.addEventListener("resize", fitTop);
+  if (document.fonts) document.fonts.ready.then(fitTop);
 
   const ROLE_UI = [["tank", "Tanks", "ability_warrior_defensivestance"], ["heal", "Healers", "spell_holy_flashheal"], ["melee", "Melee", "ability_dualwield"], ["range", "Ranged", "ability_marksmanship"]];
   const STAT_UI = { int: "Int", agi: "Agi", str: "Str" };
@@ -1568,9 +1352,10 @@ span.fx-btn:hover{transform:none}
     const offTanks = raid.filter((m) => isOffTank(m.s, m.u.c)).length;
     need(offTanks >= 1, false, "ability_warrior_shieldwall", "Off-tank " + Math.min(offTanks, 1) + "/1", "Optional: a dps who also signed up as tank, in case a fight needs a third", true);
     need(heals >= t.heal && heals <= t.heal + t.off, canBring((sp) => sp.role === "heal"), "spell_holy_flashheal", "Healers " + heals + "/" + t.heal, t.heal + " healers for a raid of " + state.size + ", plus one off-healer", true);
-    const offs = Math.min(t.off, raid.filter((m) => isOffHeal(m.s)).length + Math.max(0, heals - t.heal));
-    need(offs >= t.off, canBring((sp) => isOffHeal(sp.key)) || canBring((sp) => sp.role === "heal"), "spell_nature_healingtouch", "Off-healer " + offs + "/" + t.off, "A Druid, Paladin, Priest or Shaman in a dps spec who can help heal, or one extra healer", true);
-    need(shams >= t.shaman && shams <= t.shamanMax, canBring((sp) => sp.cls === "shaman"), "spell_nature_windfury", "Shamans " + shams + "/" + t.shaman + "–" + t.shamanMax, "One shaman drops Windfury and Strength of Earth for the whole raid. Grace of Air is also an air totem, so it takes a second shaman. One more adds water totems for a group", true);
+    const offs = Math.min(t.off, raid.filter((m) => isOffHeal(m.s, m.u.c)).length + Math.max(0, heals - t.heal));
+    const anyOff = compPlayers().some((u) => u.c.some((k) => isOffHeal(k, u.c)));
+    need(offs >= t.off, anyOff || canBring((sp) => sp.role === "heal"), "spell_nature_healingtouch", "Off-healer " + offs + "/" + t.off, "A dps who also signed up with a healing spec of the same class, so they can switch and heal (or one extra healer)", true);
+    need(shams >= t.shaman && shams <= t.shamanMax, canBring((sp) => sp.cls === "shaman"), "spell_nature_windfury", "Shamans " + shams + "/" + t.shaman + "–" + t.shamanMax, "Totems reach the shaman's group, so the comp wants one shaman per group of 5", true);
     const melee = count((sp) => sp.role === "melee"), ranged = count((sp) => sp.role === "range" || sp.role === "heal");
     need(ranged >= melee, true, "ability_marksmanship", "Melee " + melee + " · Ranged " + ranged, "Healers count as ranged. Ranged should match or outnumber melee", true);
     const locks = count((sp) => sp.cls === "warlock");
@@ -1656,52 +1441,78 @@ span.fx-btn:hover{transform:none}
       '<ul class="needs">' + needs + "</ul>" +
       '<div class="grid">' + groupsH + "</div>" + bench;
   }
-  // The bench, drawn inline: a sad orc and a sad gnome holding a PICK ME! sign under a crooked BENCH board,
-  // and a pigeon who has given up and fallen asleep. No image file needed.
-  const BENCH_ART = '<svg class="bench-art" viewBox="0 0 300 190" role="img" aria-label="A sad orc and a sad gnome on a bench, holding a PICK ME sign under a crooked BENCH board, with a sleeping pigeon">' +
-    // posts and the crooked board
-    '<rect x="62" y="34" width="7" height="104" rx="2" fill="#5b3a1c"/><rect x="231" y="34" width="7" height="104" rx="2" fill="#5b3a1c"/>' +
-    '<g transform="rotate(-6 150 30)"><rect x="52" y="6" width="196" height="44" rx="7" fill="#f2b84b" stroke="#8a5a1c" stroke-width="3"/>' +
-    '<circle cx="64" cy="18" r="2.5" fill="#8a5a1c"/><circle cx="236" cy="18" r="2.5" fill="#8a5a1c"/>' +
-    '<text x="150" y="40" text-anchor="middle" font-family="Barlow Condensed, Arial Narrow, Arial, sans-serif" font-weight="700" font-size="32" letter-spacing="7" fill="#1a1206">BENCH</text></g>' +
-    // backrest
-    '<rect x="30" y="92" width="240" height="9" rx="3" fill="#a86f38"/><rect x="30" y="105" width="240" height="9" rx="3" fill="#94602f"/>' +
-    // orc: green, tusks, frown, a tear
-    '<rect x="88" y="140" width="9" height="26" rx="3" fill="#3f6b28"/><rect x="104" y="140" width="9" height="26" rx="3" fill="#3f6b28"/>' +
-    '<ellipse cx="91" cy="168" rx="8" ry="4" fill="#2a2a2e"/><ellipse cx="110" cy="168" rx="8" ry="4" fill="#2a2a2e"/>' +
-    '<ellipse cx="100" cy="122" rx="22" ry="22" fill="#8a3b2a"/><path d="M80 116 Q100 128 120 116" stroke="#5e2416" stroke-width="3" fill="none"/>' +
-    '<circle cx="100" cy="86" r="19" fill="#6cb048"/><path d="M84 80 L94 84 M116 80 L106 84" stroke="#2a3a1a" stroke-width="2.5" stroke-linecap="round"/>' +
-    '<circle cx="93" cy="88" r="2.6" fill="#1a1a1a"/><circle cx="107" cy="88" r="2.6" fill="#1a1a1a"/>' +
-    '<path d="M92 100 Q100 94 108 100" stroke="#2a3a1a" stroke-width="2.5" fill="none" stroke-linecap="round"/>' +
-    '<path d="M92 99 L94 92 L96 99 Z M104 99 L106 92 L108 99 Z" fill="#f4f0e2"/>' +
-    '<path d="M88 92 Q85 99 88 102 Q91 99 88 92 Z" fill="#62b4ff"/>' +
-    '<path d="M83 74 L74 66 L86 70 Z M117 74 L126 66 L114 70 Z" fill="#6cb048"/>' +
-    // gnome: pointy hat, white beard, a tear
-    '<rect x="190" y="142" width="7" height="18" rx="3" fill="#2f4f8f"/><rect x="202" y="142" width="7" height="18" rx="3" fill="#2f4f8f"/>' +
-    '<ellipse cx="193" cy="162" rx="6" ry="3.5" fill="#2a2a2e"/><ellipse cx="206" cy="162" rx="6" ry="3.5" fill="#2a2a2e"/>' +
-    '<ellipse cx="200" cy="128" rx="15" ry="16" fill="#3a6fd8"/>' +
-    '<circle cx="200" cy="104" r="13" fill="#f1c7a0"/>' +
-    '<path d="M186 100 L200 64 L214 100 Z" fill="#d6455a"/><circle cx="200" cy="64" r="3.5" fill="#ffd166"/><rect x="185" y="97" width="30" height="5" rx="2.5" fill="#b8384b"/>' +
-    '<path d="M189 108 Q200 132 211 108 Q200 114 189 108 Z" fill="#f4f0e2"/>' +
-    '<circle cx="195" cy="104" r="2" fill="#1a1a1a"/><circle cx="205" cy="104" r="2" fill="#1a1a1a"/>' +
-    '<path d="M196 113 Q200 110 204 113" stroke="#7a4b3a" stroke-width="2" fill="none" stroke-linecap="round"/>' +
-    '<path d="M209 106 Q212 112 209 114 Q206 112 209 106 Z" fill="#62b4ff"/>' +
-    // the PICK ME! sign they hold together
-    '<path d="M118 118 L134 122 M182 120 L168 122" stroke="#5b3a1c" stroke-width="3" stroke-linecap="round"/>' +
-    '<g transform="rotate(4 151 124)"><rect x="128" y="111" width="46" height="24" rx="3" fill="#e9dcc0" stroke="#a89878" stroke-width="1.5"/>' +
-    '<text x="151" y="128" text-anchor="middle" font-family="Barlow Condensed, Arial Narrow, Arial, sans-serif" font-weight="700" font-size="12" fill="#3a2a1a">PICK ME!</text></g>' +
-    // seat and legs, in front of the sitters
-    '<rect x="24" y="138" width="252" height="10" rx="3" fill="#b77b40"/><rect x="24" y="150" width="252" height="7" rx="3" fill="#94602f"/>' +
-    '<path d="M40 114 L40 138 M260 114 L260 138" stroke="#3a3a40" stroke-width="6" stroke-linecap="round"/>' +
-    '<path d="M38 157 L32 182 M262 157 L268 182 M70 157 L74 182 M230 157 L226 182" stroke="#3a3a40" stroke-width="6" stroke-linecap="round"/>' +
-    // a pigeon, asleep at the end of the bench
-    '<ellipse cx="252" cy="128" rx="13" ry="9" fill="#8d93a3"/><circle cx="262" cy="120" r="6" fill="#9aa0b0"/>' +
-    '<path d="M267 120 L273 122 L267 123 Z" fill="#e0913a"/><path d="M259 119 Q262 121 265 119" stroke="#2a2a2e" stroke-width="1.5" fill="none"/>' +
-    '<path d="M238 128 L230 124 L238 132 Z" fill="#6d7383"/><path d="M250 137 L250 139 M256 137 L256 139" stroke="#e0913a" stroke-width="2"/>' +
-    '<text x="270" y="108" font-family="Arial, sans-serif" font-weight="700" font-size="9" fill="#8d8d95">z</text>' +
-    '<text x="277" y="99" font-family="Arial, sans-serif" font-weight="700" font-size="11" fill="#8d8d95">z</text>' +
-    '<text x="285" y="88" font-family="Arial, sans-serif" font-weight="700" font-size="13" fill="#8d8d95">Z</text>' +
-    '<rect x="12" y="183" width="276" height="3" rx="1.5" fill="#2a2a2e"/></svg>';
+  // The bench, drawn inline (no image file): a wooden park bench on cast-iron frames with a brass BENCH plaque, and three
+  // ragged outcast gnomes on it, feeling poorly. One of them says so.
+  const BENCH_ART = (() => {
+    const wood = (x, y, w, hh, id) => '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + hh + '" rx="2.5" fill="url(#' + id + ')" stroke="#3d2412" stroke-width="1"/>' +
+      '<path d="M' + (x + 8) + " " + (y + hh * 0.35) + " Q" + (x + w * 0.3) + " " + (y + hh * 0.2) + " " + (x + w * 0.55) + " " + (y + hh * 0.4) + " T" + (x + w - 10) + " " + (y + hh * 0.3) +
+      " M" + (x + 20) + " " + (y + hh * 0.7) + " Q" + (x + w * 0.45) + " " + (y + hh * 0.85) + " " + (x + w * 0.8) + " " + (y + hh * 0.65) + '" stroke="#4a2c14" stroke-opacity=".45" stroke-width="1" fill="none"/>';
+    // x: center; o: { hat, tunic, patch, pants, skin, nose, beard, extra }
+    const gnome = (x, o) =>
+      // legs hanging over the seat, worn boots
+      '<rect x="' + (x - 9) + '" y="150" width="7" height="24" rx="3" fill="' + o.pants + '"/><rect x="' + (x + 2) + '" y="150" width="7" height="24" rx="3" fill="' + o.pants + '"/>' +
+      '<ellipse cx="' + (x - 6) + '" cy="176" rx="7.5" ry="4" fill="#2b1d12"/><ellipse cx="' + (x + 6) + '" cy="176" rx="7.5" ry="4" fill="#2b1d12"/>' +
+      '<path d="M' + (x + 9) + " 178 l3 -2" + '" stroke="#d9c7a3" stroke-width="1.2"/>' + // a hole in the boot
+      // ragged tunic with a patch and a rope belt
+      '<path d="M' + (x - 17) + " 153 Q" + (x - 20) + " 125 " + (x - 10) + " 118 L" + (x + 10) + " 118 Q" + (x + 20) + " 125 " + (x + 17) + " 153 L" + (x + 12) + " 150 L" + (x + 7) + " 154 L" + (x + 1) + " 150 L" + (x - 5) + " 154 L" + (x - 11) + " 150 Z" + '" fill="' + o.tunic + '"/>' +
+      '<rect x="' + (x + 3) + '" y="128" width="9" height="8" fill="' + o.patch + '" transform="rotate(12 ' + (x + 7) + ' 132)"/>' +
+      '<path d="M' + (x + 4) + " 129 l7 6 M" + (x + 4) + ' 133 l3 2" stroke="#2b1d12" stroke-width=".8" opacity=".6"/>' +
+      '<path d="M' + (x - 16) + " 141 Q" + x + " 145 " + (x + 16) + ' 141" stroke="#8a6b3e" stroke-width="2.4" fill="none"/>' +
+      // drooping arms and hands in the lap
+      '<path d="M' + (x - 14) + " 124 Q" + (x - 22) + " 138 " + (x - 9) + ' 146" stroke="' + o.tunic + '" stroke-width="7" stroke-linecap="round" fill="none"/>' +
+      '<path d="M' + (x + 14) + " 124 Q" + (x + 22) + " 138 " + (x + 9) + ' 146" stroke="' + o.tunic + '" stroke-width="7" stroke-linecap="round" fill="none"/>' +
+      '<circle cx="' + (x - 7) + '" cy="147" r="3.6" fill="' + o.skin + '"/><circle cx="' + (x + 7) + '" cy="147" r="3.6" fill="' + o.skin + '"/>' +
+      // head: big ears, droopy eyes with bags, sad brows, a big nose, a scraggly beard
+      '<ellipse cx="' + (x - 13) + '" cy="105" rx="3.5" ry="5" fill="' + o.skin + '"/><ellipse cx="' + (x + 13) + '" cy="105" rx="3.5" ry="5" fill="' + o.skin + '"/>' +
+      '<circle cx="' + x + '" cy="104" r="13" fill="' + o.skin + '"/>' +
+      '<path d="M' + (x - 8) + " 103 q3 2.5 6 0 M" + (x + 2) + " 103 q3 2.5 6 0" + '" stroke="#2b1d12" stroke-width="1.6" fill="none" stroke-linecap="round"/>' +
+      '<path d="M' + (x - 8) + " 106 q3 1.5 6 0 M" + (x + 2) + " 106 q3 1.5 6 0" + '" stroke="#000" stroke-opacity=".25" stroke-width="1.2" fill="none"/>' +
+      '<path d="M' + (x - 9) + " 99 L" + (x - 3) + " 96.5 M" + (x + 3) + " 96.5 L" + (x + 9) + ' 99" stroke="#5a4632" stroke-width="1.8" stroke-linecap="round"/>' +
+      '<path d="M' + (x - 11) + " 110 Q" + (x - 9) + " 124 " + (x - 4) + " 121 Q" + x + " 128 " + (x + 4) + " 121 Q" + (x + 9) + " 124 " + (x + 11) + " 110 Q" + x + " 114 " + (x - 11) + ' 110 Z" fill="' + o.beard + '"/>' +
+      '<ellipse cx="' + x + '" cy="108.5" rx="4.4" ry="3.8" fill="' + o.nose + '"/>' +
+      // a torn, drooping hat with a faded pompom
+      '<path d="M' + (x - 15) + " 99 Q" + (x - 4) + " 66 " + (x + 21) + " 74 Q" + (x + 12) + " 80 " + (x + 15) + " 99 Q" + x + ' 94 ' + (x - 15) + ' 99 Z" fill="' + o.hat + '"/>' +
+      '<path d="M' + (x + 4) + " 80 l3 4 l-4 2" + '" stroke="#000" stroke-opacity=".35" stroke-width="1" fill="none"/>' +
+      '<circle cx="' + (x + 22) + '" cy="74" r="3.2" fill="#cfc6b0"/>' +
+      (o.extra || "");
+    const sick = gnome(118, { hat: "#6b5b4b", tunic: "#5e6650", patch: "#8a7a52", pants: "#4a3e33", skin: "#cbd7a4", nose: "#a9b97e", beard: "#bdb7a6",
+      // a crumpled tissue at the nose and a drop of sweat
+      extra: '<path d="M112 110 q6 -6 10 -1 q2 6 -5 7 q-6 0 -5 -6 Z" fill="#f2efe6" stroke="#cfc9ba" stroke-width=".8"/><path d="M104 95 q-2 4 0 6 q2 -2 0 -6 Z" fill="#7cc4ff"/>' });
+    const hurt = gnome(190, { hat: "#7a3b3b", tunic: "#6b5848", patch: "#4f6b7a", pants: "#3f3a35", skin: "#efc9a6", nose: "#d99a83", beard: "#e8e2d4",
+      // a bandage round the head, with a red spot
+      extra: '<path d="M179 97 L201 109 L198 113 L177 101 Z" fill="#f4f1ea" stroke="#cfc9ba" stroke-width=".8"/><path d="M186 101 l2 4 M184 103 l5 -1" stroke="#c94a3a" stroke-width="1.3"/>' });
+    const cold = gnome(262, { hat: "#45566b", tunic: "#5a4f45", patch: "#7a5a3a", pants: "#3b342e", skin: "#efd0b4", nose: "#e2898a", beard: "#9c8f7c",
+      // a tatty blanket over the shoulders and a thermometer in the beard
+      extra: '<path d="M244 118 Q262 108 280 118 L283 150 Q262 156 241 150 Z" fill="#8c4b4b" opacity=".92"/><path d="M247 126 h30 M245 136 h34 M244 146 h36" stroke="#c9a96b" stroke-width="2" opacity=".7"/>' +
+        '<path d="M258 116 L270 110" stroke="#e6edf2" stroke-width="2.4" stroke-linecap="round"/><circle cx="270" cy="110" r="1.6" fill="#d33"/>' });
+    return '<svg class="bench-art" viewBox="0 0 380 230" role="img" aria-label="A wooden park bench with a brass BENCH plaque. Three ragged gnomes sit on it, sick, hurt and cold. One says: Me encuentro maaaal">' +
+      '<defs><linearGradient id="bw1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b47a42"/><stop offset="1" stop-color="#7a4a24"/></linearGradient>' +
+      '<linearGradient id="bw2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9c6534"/><stop offset="1" stop-color="#5f381a"/></linearGradient>' +
+      '<linearGradient id="bir" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#1c1c20"/><stop offset=".5" stop-color="#3b3b42"/><stop offset="1" stop-color="#18181b"/></linearGradient>' +
+      '<linearGradient id="bbr" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e9c46a"/><stop offset="1" stop-color="#a77b2c"/></linearGradient></defs>' +
+      // ground and shadow
+      '<ellipse cx="190" cy="212" rx="172" ry="11" fill="#000" opacity=".4"/>' +
+      '<path d="M60 214 q4 -6 9 -1 M300 212 q5 -5 9 0 M150 216 q3 -4 7 -1" stroke="#6a5a3a" stroke-width="2" fill="none" opacity=".6"/>' +
+      // back legs
+      '<path d="M54 120 L50 206 M326 120 L330 206" stroke="url(#bir)" stroke-width="7" stroke-linecap="round"/>' +
+      // backrest: top rail with the plaque, then three slats
+      wood(44, 56, 292, 12, "bw1") + wood(44, 74, 292, 14, "bw2") + wood(44, 94, 292, 14, "bw1") + wood(44, 114, 292, 12, "bw2") +
+      '<rect x="160" y="57" width="60" height="16" rx="2" fill="url(#bbr)" stroke="#6e5220" stroke-width="1"/>' +
+      '<circle cx="164" cy="65" r="1.4" fill="#6e5220"/><circle cx="216" cy="65" r="1.4" fill="#6e5220"/>' +
+      '<text x="190" y="69.5" text-anchor="middle" font-family="Georgia, serif" font-weight="700" font-size="11" letter-spacing="2.5" fill="#3e2b0c">BENCH</text>' +
+      // seat: two slats and the front edge
+      wood(34, 136, 312, 8, "bw1") + wood(34, 145, 312, 9, "bw2") + '<rect x="34" y="153" width="312" height="5" rx="2" fill="#3d2412"/>' +
+      // the gnomes, then the speech bubble
+      sick + hurt + cold +
+      '<path d="M226 6 h132 a10 10 0 0 1 10 10 v24 a10 10 0 0 1 -10 10 h-104 l-26 30 l8 -30 h-10 a10 10 0 0 1 -10 -10 v-24 a10 10 0 0 1 10 -10 Z" fill="#f7f3ea" stroke="#2b1d12" stroke-width="1.5"/>' +
+      '<text x="296" y="33" text-anchor="middle" font-family="Barlow Condensed, Arial Narrow, Arial, sans-serif" font-weight="700" font-size="17" fill="#2b1d12">Me encuentro maaaal</text>' +
+      // cast-iron side frames in front: scrolled armrests and front legs
+      '<path d="M40 206 L44 158 Q36 136 46 122 Q60 112 76 120 Q66 122 62 132" stroke="url(#bir)" stroke-width="7" fill="none" stroke-linecap="round" stroke-linejoin="round"/>' +
+      '<path d="M340 206 L336 158 Q344 136 334 122 Q320 112 304 120 Q314 122 318 132" stroke="url(#bir)" stroke-width="7" fill="none" stroke-linecap="round" stroke-linejoin="round"/>' +
+      '<circle cx="62" cy="132" r="3.5" fill="#2a2a2f"/><circle cx="318" cy="132" r="3.5" fill="#2a2a2f"/>' +
+      '<path d="M36 206 h12 M332 206 h12" stroke="#18181b" stroke-width="5" stroke-linecap="round"/>' +
+      "</svg>";
+  })();
   // The Bench panel: who sits out in the option on screen, and who the admin benched.
   function renderBench(optBench, adminBench) {
     const extra = adminBench.filter((u) => !optBench.includes(u));
@@ -1767,7 +1578,7 @@ span.fx-btn:hover{transform:none}
 
   function renderAll() {
     const a = analyze();
-    renderTools(); renderBanner(); renderGrid(a); renderSignups(); renderView(); renderFactions(); renderSuggest(); renderPrefs(); renderBuffs(a); applyFilter();
+    renderTools(); renderBanner(); renderGrid(a); renderSignups(); renderView(); renderFactions(); renderPoll(); renderSuggest(); renderPrefs(); renderBuffs(a); applyFilter();
   }
 
   /* ---------- Sync ---------- */
@@ -1841,7 +1652,7 @@ span.fx-btn:hover{transform:none}
     deferred = null;
     serverV = s.v;
     const next = normalize(s);
-    const changed = !loaded || next.size !== state.size || next.slots.some((m, i) => !same(m, state.slots[i])) || JSON.stringify(next.signups) !== JSON.stringify(state.signups) || JSON.stringify(next.requests) !== JSON.stringify(state.requests);
+    const changed = !loaded || next.size !== state.size || next.slots.some((m, i) => !same(m, state.slots[i])) || JSON.stringify(next.signups) !== JSON.stringify(state.signups) || JSON.stringify(next.requests) !== JSON.stringify(state.requests) || JSON.stringify(next.poll) !== JSON.stringify(state.poll);
     state = next;
     loaded = true;
     if (myAsk && !fromWrite) checkAdmin(); // the admin may have answered the claim request: no reload needed
@@ -1991,6 +1802,7 @@ span.fx-btn:hover{transform:none}
       const note = i !== next ? "" : running ? "open now" : launchLeft(s.at - now);
       return '<li class="' + cls + '" title="' + esc(s.tip) + '"><b>' + esc(s.label) + "</b><span>" + esc(s.text) + "</span>" + (note ? "<small>" + esc(note) + "</small>" : "") + "</li>";
     }).join("");
+    fitTop();
   }
 
   /* ---------- Changelog ---------- */
@@ -2031,6 +1843,7 @@ span.fx-btn:hover{transform:none}
       case "specs": return "Specs " + clSpecs(x.from) + '<span class="cl-arrow">→</span>' + clSpecs(x.to);
       case "size": return "Raid size " + esc(x.from) + '<span class="cl-arrow">→</span>' + esc(x.to);
       case "slots": return "Changed " + plural(Number(x.n) || 0, "raid slot");
+      case "vote": return (x.change ? "Changed their poll vote to " : "Voted in the poll: ") + "<b>" + (x.v === "y" ? "coin flip" : "no coin flip") + "</b>";
       case "request": return '<span class="cl-tag">Asked for a change</span> ' + (x.f ? clSide(x.fromF) + '<span class="cl-arrow">→</span>' + clSide(x.f) + " " : "") + (x.c ? clSpecs(x.from) + '<span class="cl-arrow">→</span>' + clSpecs(x.c) : "");
       case "request-approved": return '<span class="cl-tag ok">Change approved</span> ' + (x.f ? clSide(x.f) : "") + (x.c ? clSpecs(x.c) : "");
       case "request-rejected": return '<span class="cl-tag">Change rejected</span>';
@@ -2267,6 +2080,49 @@ span.fx-btn:hover{transform:none}
       (none ? '<p class="hint fx-none">' + plural(none, "player has", "players have") + " not picked a side. Click the ? next to your name.</p>" : "");
   }
 
+  /* ---------- Poll: pick the faction by coin flip? ---------- */
+  // Only a signed-in Discord account votes, under its Discord name; the lists are public. The server lets a vote change
+  // at most 3 times, 10 minutes apart, so the page shows what is left (myVote from ?me=1: { v, left, next }).
+  const POLL = { q: "¿Elegimos facción a cara o cruz?", y: "Sí, a cara o cruz", n: "No, que decida la mayoría" };
+  let myVote = null, voting = false;
+  function renderPoll() {
+    if (!pollEl) return;
+    const p = state.poll || { y: [], n: [] }, y = p.y.length, n = p.n.length, total = y + n;
+    const py = total ? Math.round((100 * y) / total) : 50, pn = total ? 100 - py : 50;
+    const wait = myVote && myVote.left > 0 ? Math.max(0, myVote.next - Date.now()) : 0;
+    const locked = !!myVote && (myVote.left <= 0 || wait > 0);
+    const btn = (v) => '<button type="button" class="poll-btn pv-' + v + (myVote && myVote.v === v ? " on" : "") + '" data-act="poll-vote" data-v="' + v + '"' +
+      (voting || (locked && !(myVote && myVote.v === v)) ? " disabled" : "") + ' aria-pressed="' + !!(myVote && myVote.v === v) + '">' +
+      '<span class="pv-ic">' + (v === "y" ? "🪙" : "🗳️") + "</span>" + esc(POLL[v]) + "</button>";
+    const who = (list) => list.length ? '<ul class="poll-who">' + list.map((s) => "<li>" + esc(s) + "</li>").join("") + "</ul>" : '<p class="poll-none">Nobody yet</p>';
+    const note = !discordId ? "Voting opens when Discord sign-in is on."
+      : !session ? "Sign in with Discord to vote. Each person votes once."
+      : !myVote ? "One vote per Discord account. You can change it up to 3 times, 10 minutes apart."
+      : myVote.left <= 0 ? "Your vote is final: you changed it 3 times."
+      : wait > 0 ? "You can change your vote in " + Math.ceil(wait / 60000) + " min (" + plural(myVote.left, "change") + " left)."
+      : "You can change your vote " + plural(myVote.left, "more time") + ".";
+    pollEl.innerHTML = '<div class="phead"><h2 class="ttl">Poll <small>' + plural(total, "vote") + "</small></h2></div>" +
+      '<p class="poll-q">' + esc(POLL.q) + "</p>" +
+      '<div class="poll-btns">' + btn("y") + btn("n") + "</div>" +
+      '<div class="poll-score"><span class="pv-y"><b>' + (total ? py + "%" : "–") + "</b> sí · " + y + '</span><span class="pv-n">' + n + " · no <b>" + (total ? pn + "%" : "–") + "</b></span></div>" +
+      '<div class="poll-bar' + (total ? "" : " empty") + '"><i class="pv-y" style="width:' + py + '%"></i><i class="pv-n" style="width:' + pn + '%"></i></div>' +
+      '<div class="poll-lists"><div><h4 class="pv-y">Sí <small>' + y + "</small></h4>" + who(p.y) + '</div><div><h4 class="pv-n">No <small>' + n + "</small></h4>" + who(p.n) + "</div></div>" +
+      '<p class="hint poll-note">' + esc(note) + "</p>";
+  }
+  function sendVote(v) {
+    if (!discordId) { toast("Voting opens when Discord sign-in is on."); return; }
+    if (!session) { askSignIn("Sign in with your Discord account to vote. Your Discord name shows next to your vote."); return; }
+    if (myVote && myVote.v === v) return;
+    voting = true; renderPoll();
+    fetch(API, { method: "POST", headers: visitorHeaders({ "Content-Type": "application/json" }), body: JSON.stringify({ vote: v }) })
+      .then(readJSON).then((s) => {
+        voting = false;
+        if (s.warning) { toast(s.warning); playBlocked(); } else toast("Vote saved.");
+        accept(s, true); checkAdmin(); renderPoll();
+      }, (err) => { voting = false; renderPoll(); toast(err.status === 401 ? "Sign in with Discord to vote." : "Could not save your vote. Try again."); });
+  }
+  setInterval(() => { if (myVote && myVote.left > 0 && myVote.next > Date.now() - 60000) renderPoll(); }, 30 * 1000); // the cooldown note
+
   let toastTimer = null;
   function toast(msg) {
     const t = $("#toast"); t.textContent = msg; t.hidden = false;
@@ -2290,8 +2146,10 @@ span.fx-btn:hover{transform:none}
       if (a === "sp-toggle") { toggleSpec(act.dataset.spec); return; }
       if (a === "sp-save") { saveSpecs(); return; }
       if (a === "sign-in") { signIn(); return; }
+      if (a === "poll-vote") { sendVote(act.dataset.v); return; }
       if (a === "sign-out") { signOut(); return; }
       if (a === "view") {
+        if (act.tagName === "A") { if (e.ctrlKey || e.metaKey || e.shiftKey) return; e.preventDefault(); } // the brand link: plain clicks stay in the page
         if (act.dataset.v === "audit") location.hash = "audit";
         else { history.pushState(null, "", location.pathname + location.search); readView(); }
         window.scrollTo(0, 0); return;
